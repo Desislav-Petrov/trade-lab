@@ -8,6 +8,7 @@ without real money. AI agents assist with both code generation and the trading e
 - `domain/models` — The domain models for the platfrom
 - `domain/flows` — The domain business flows in the platform
 - `domain/usecases` - The usecases that an actor needs to fulfil through the platform
+- `standards/*` - Architecture, backend and frontend standards
 
 ## Domain
 All domain knowledge lives in `domain/`. Before implementing anything,
@@ -15,11 +16,8 @@ read the relevant entity and flow docs. Never invent behaviour that isn't
 described there.
 
 ## Agents
-- **clarifier** — turns rough ideas into structured use case docs
-- **domain-mapper** — maps a use case to entities and flows
-- **task-decomposer** — breaks a use case into per-layer tasks
-- **implementer** — executes a single task against standards and domain
-- **reviewer** — validates output against architecture and original spec
+- **design-agent** — Refines and gets requirements and iterates on the domain/flow/usercase taking into account if it's a new functionliaty or an extension
+- **decomposer-agent** - Breaks down a usecase into tasks across the different layers so that an implementer agent can execute them
 
 ## Decision log
 All non-obvious decisions are logged in `decisions/`. Read it before making
