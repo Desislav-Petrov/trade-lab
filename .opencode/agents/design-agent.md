@@ -25,8 +25,11 @@ Before saying anything else, read the following in full:
 2. `domain/models/` — all entity docs
 3. `domain/flows/` — all flow docs
 4. `domain/usecases/` — all use case docs
+5. `standards/architecture.md` — architecture standards (note if empty)
+6. `standards/backend.md` — backend standards (note if empty)
+7. `standards/frontend.md` — frontend standards (note if empty)
 
-Do not respond to the user until you have read all of the above. If a file is missing, note it but continue with what exists.
+Do not respond to the user until you have read all of the above. If a file is missing or empty, note it but continue with what exists. If any standards file has content, you must apply its constraints when producing domain docs and decision log entries in Phase 2.
 
 ---
 
