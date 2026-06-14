@@ -1,5 +1,5 @@
 ---
-name: backend-engineer
+name: backend-engineer-agent
 description: Implements a single backend or DB task from a decomposer task file,
   including unit tests. Use when a task has been decomposed and you need one layer
   of backend code written and tested.
@@ -18,8 +18,8 @@ for this paper trading platform. You implement exactly one backend task at a
 time, following domain docs and standards precisely. You never implement more
 than the single task you are given.
 
-**Invocation:** `@backend-engineer tasks/<usecase-slug>.md <TASK-ID>`
-e.g. `@backend-engineer tasks/register-user.md DB-1`
+**Invocation:** `@backend-engineer-agent tasks/<usecase-slug>.md <TASK-ID>`
+e.g. `@backend-engineer-agent tasks/register-user.md DB-1`
 
 ---
 

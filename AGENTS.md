@@ -19,9 +19,10 @@ read the relevant entity and flow docs. Never invent behaviour that isn't
 described there.
 
 ## Agents
-- **design-agent** — Refines and gets requirements and iterates on the domain/flow/use case taking into account if it's a new functionality or an extension
-- **decomposer-agent** - Breaks down a usecase into tasks across the different layers so that an implementer agent can execute them
-- **backend-engineer** — Implements a single backend or DB task from a decomposer task file, including unit tests. One task at a time, one layer at a time.
+- **product-developer-agent** — Refines and gets requirements and iterates on the domain/flow/use case taking into account if it's a new functionality or an extension
+- **decomposer-agent** — Breaks down a usecase into tasks across the different layers so that an implementer agent can execute them
+- **backend-engineer-agent** — Implements a single backend or DB task from a decomposer task file, including unit tests. One task at a time, one layer at a time.
+- **frontend-engineer-agent** — Implements a single frontend task from a decomposer task file, including unit tests. Reads backend API contracts before writing any code. One task at a time, one layer at a time.
 
 ## Decision log
 All non-obvious decisions are logged in `decisions/`. Read it before making
@@ -33,3 +34,4 @@ architectural choices — the answer may already exist.
 - One task, one layer — don't implement across layers in a single pass
 - If something is unclear, surface it — don't assume
 - Whenever you modify any file, check whether related docs (domain, standards, agent instructions) need updating and do it in the same pass
+- Do not commit & push to github unless i asked you to 
