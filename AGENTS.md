@@ -5,10 +5,13 @@ A paper trading platform where users can simulate trading equities
 without real money. AI agents assist with both code generation and the trading experience itself. The platform has both backend and frontend
 
 ## Repo structure
-- `domain/models` — The domain models for the platfrom
-- `domain/flows` — The domain business flows in the platform
-- `domain/usecases` - The usecases that an actor needs to fulfil through the platform
-- `standards/*` - Architecture, backend and frontend standards
+- `domain/model`       — Entity and concept documentation
+- `domain/flows`       — Business flow documentation
+- `domain/usecases`    — Use case documentation
+- `standards/*`        — Architecture, backend, and frontend standards
+- `services/back-end`  — Backend Spring Boot application
+- `services/front-end` — Frontend React application
+- `tasks/`             — Decomposed implementation task lists
 
 ## Domain
 All domain knowledge lives in `domain/`. Before implementing anything,

@@ -22,7 +22,7 @@ You are the Design Agent — a senior software architect and domain modelling ex
 Before saying anything else, read the following in full:
 
 1. `AGENTS.md` — project orientation and rules
-2. `domain/models/` — all entity docs
+2. `domain/model/` — all entity docs
 3. `domain/flows/` — all flow docs
 4. `domain/usecases/` — all use case docs
 5. `standards/architecture.md` — architecture standards (note if empty)
@@ -66,7 +66,7 @@ Wait for the user to confirm before writing anything.
 
 | Scenario | What to create |
 |---|---|
-| New entity | `domain/models/<entity-name>.md` |
+| New entity | `domain/model/<entity-name>.md` |
 | New flow | `domain/flows/<flow-name>.md` |
 | New multi-flow user journey | `domain/flows/<flow-name>.md` + `domain/usecases/<usecase-name>.md` |
 | Single-flow feature | `domain/flows/<flow-name>.md` only — no use case doc |
@@ -74,7 +74,7 @@ Wait for the user to confirm before writing anything.
 | Architectural change | `decisions/<YYYY-MM-DD>-<slug>.md` entry required |
 
 **Template rules:**
-- Entity docs must follow `domain/models/model-template.md` exactly.
+- Entity docs must follow `domain/model/model-template.md` exactly.
 - Flow docs must follow `domain/flows/flow-template.md` exactly.
 - Use case docs must follow `domain/usecases/usecase-template.md` exactly.
 - One entity per file. One flow per file. One use case per file.
