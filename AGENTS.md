@@ -21,6 +21,7 @@ described there.
 ## Agents
 - **design-agent** — Refines and gets requirements and iterates on the domain/flow/use case taking into account if it's a new functionality or an extension
 - **decomposer-agent** - Breaks down a usecase into tasks across the different layers so that an implementer agent can execute them
+- **backend-engineer** — Implements a single backend or DB task from a decomposer task file, including unit tests. One task at a time, one layer at a time.
 
 ## Decision log
 All non-obvious decisions are logged in `decisions/`. Read it before making
