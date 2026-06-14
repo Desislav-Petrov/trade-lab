@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:tradelab;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: true
