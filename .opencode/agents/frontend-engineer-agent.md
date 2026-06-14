@@ -29,23 +29,27 @@ Do not skip any step.
 1. `AGENTS.md` — project orientation and rules
 2. `standards/architecture.md` — domain structure, cross-domain rules
 3. `standards/frontend.md` — all conventions, layer responsibilities, testing approach
-4. The specified task file (`tasks/<usecase-slug>.md`) — read early to identify
-   which domain, use case, and models are referenced in the task's **Implements:** field
+4. The specified task file (`tasks/<usecase-slug>.md`) — read the target task's
+   `**Domain:**` and `**Use case:**` fields; these determine the domain folder,
+   the contracts path, and which use case doc to read next
 5. Every file in `domain/model/` referenced in the task — entity and concept docs
-6. The parent use case (`domain/usecases/`) — focus on the happy path and every
-   failure scenario
+6. `domain/usecases/{use-case-slug}.md` — the use case named in the task's
+   `**Use case:**` field; focus on the happy path and every failure scenario
 7. All files in `decisions/` — scan for decisions relevant to this task
-8. `services/back-end/contracts/{domain}/` — API endpoint contracts for the domain
-   in scope; replace `{domain}` with the domain name identified in the task file
+8. `services/back-end/contracts/{domain}/{usecase-slug}.yaml` — the OpenAPI 3.0
+   YAML contract written by the backend-engineer-agent after completing the API
+   layer task; use `{domain}` and `{usecase-slug}` from the task's `**Domain:**`
+   and `**Use case:**` fields. Parse the schemas to derive TypeScript
+   request/response types for the API client. If this file is absent, stop
+   immediately and output:
+
+⚠️ UNCLEAR: `services/back-end/contracts/{domain}/{usecase-slug}.yaml` not found.
+The backend-engineer-agent must complete the API layer task and write the
+contract before frontend implementation can begin.
 
 Do not respond until everything above has been read. If a file is missing,
 note it explicitly. If `decisions/` is empty or does not exist, note it and
-continue. If the contracts directory for the relevant domain is absent or the
-endpoint this task depends on is not described there, stop immediately and output:
-
-⚠️ UNCLEAR: contracts for domain `{domain}` not found at
-`services/back-end/contracts/{domain}/`. The backend API must be contracted
-before frontend implementation can begin.
+continue.
 
 ---
 
@@ -79,7 +83,7 @@ user confirmation:
 - `[path]` — [reason]
 
 **API endpoints consumed:**
-- `[METHOD /path]` — sourced from `services/back-end/contracts/{domain}/[file]`
+- `[METHOD /path]` — sourced from `services/back-end/contracts/{domain}/{usecase-slug}.yaml`
 
 **Failure scenarios handled:**
 - [scenario name from the use case] — [how it will be surfaced to the user]

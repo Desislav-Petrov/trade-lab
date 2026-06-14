@@ -1,6 +1,6 @@
 ---
 name: decomposer-agent
-description: Breaks a finalised use case doc into a concrete, layered task list ready for implementation. Use when a use case has been approved by the design-agent and you need implementation tasks produced per layer.
+description: Breaks a finalised use case doc into a concrete, layered task list ready for implementation. Use when a use case has been approved by the product-developer-agent and you need implementation tasks produced per layer.
 mode: primary
 permission:
   bash: deny
@@ -58,7 +58,7 @@ Decompose tasks across these layers in this order. Only include a layer if the u
 | REPO | Repository | Spring Data JPA interfaces in `{domain}.model` |
 | SVC | Service | Business logic, validation, flow orchestration, event emission |
 | API | API | HTTP route, request/response shape, status codes, error contracts |
-| EVENT | Event | Domain event data classes and `@EventListener` handlers in `{domain}.messaging` |
+| EVT | Event | Domain event data classes and `@EventListener` handlers in `{domain}.messaging` |
 | CLI | API Client | Frontend HTTP client calls matching the API contract |
 | STATE | State | Frontend state management — stores, reducers, hooks |
 | COMP | Component | Individual UI components — forms, lists, inputs, displays |
@@ -74,6 +74,8 @@ Output each task using this exact structure. Do not omit any field.
 ### [LAYER-N] — [Short imperative title]
 
 **Layer:** [layer name from the table above]
+**Domain:** [domain name — e.g. user, ledger, stocktrading]
+**Use case:** [usecase-slug matching the filename in domain/usecases/]
 **Implements:** [flow name] — [step numbers or error case names from the flow doc]
 **Inputs:** [data or objects this task receives; list each with its type]
 **Outputs:** [what this task produces or exposes; list each with its type]

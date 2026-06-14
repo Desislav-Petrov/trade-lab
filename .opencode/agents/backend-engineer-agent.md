@@ -31,11 +31,13 @@ Do not skip any step.
 1. `AGENTS.md` — project orientation and rules
 2. `standards/architecture.md` — package structure, cross-domain rules
 3. `standards/backend.md` — all conventions, annotations, testing approach
-4. The specified task file (`tasks/<usecase-slug>.md`) — read early to identify
-   which flows and use case are referenced in the task's **Implements:** field
+4. The specified task file (`tasks/<usecase-slug>.md`) — read the target task's
+   `**Domain:**` and `**Use case:**` fields to identify the domain package and
+   which use case and flow docs to read next
 5. Every file in `domain/model/` — all entity docs
-6. The flows referenced in the task's **Implements:** field (`domain/flows/`)
-7. The parent use case (`domain/usecases/`)
+6. The flows named in the task's **Implements:** field (`domain/flows/`)
+7. `domain/usecases/{use-case-slug}.md` — the use case named in the task's
+   `**Use case:**` field
 8. All files in `decisions/` — scan for decisions relevant to this task
 
 Do not respond until everything above has been read. If a file is missing,
@@ -111,6 +113,14 @@ Do not proceed until the ambiguity is resolved by the user.
 - Never import from another domain's `model` or `service` packages.
 - If an implementation decision is not covered by the standards, log it in
   `decisions/YYYY-MM-DD-<slug>.md` before writing the code.
+- **API layer tasks only:** after all code and tests for the task are written,
+  write `services/back-end/contracts/{domain}/{usecase-slug}.yaml` — a minimal
+  valid OpenAPI 3.0 YAML documenting the endpoint. It must include: the path,
+  HTTP method, typed request body schema (if applicable), typed response schema
+  for the success case, and typed error response schemas with HTTP status codes
+  for every failure scenario defined in the use case. If the file already exists
+  (a prior API task for the same use case wrote it), append the new path rather
+  than overwriting.
 
 ---
 
