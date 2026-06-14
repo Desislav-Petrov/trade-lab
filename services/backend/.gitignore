@@ -1,2 +1,5 @@
 .gradle/
 build/
+
+# Allow Gradle wrapper JAR despite root *.jar exclusion
+!gradle/wrapper/gradle-wrapper.jar
