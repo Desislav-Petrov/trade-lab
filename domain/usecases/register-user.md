@@ -50,3 +50,4 @@ Guest clicks the Submit button on the registration form at `/register`.
 - Email verification.
 - Automatic login after registration.
 - Creating a trading account as part of registration.
+- Opening an account

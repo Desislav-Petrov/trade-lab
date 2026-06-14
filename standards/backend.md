@@ -5,6 +5,7 @@
 | Concern | Choice |
 |---|---|
 | Language | Kotlin |
+| JDK | 21 |
 | Framework | Spring Boot `4.1.0` |
 | ORM | Hibernate (via Spring Data JPA) |
 | Database | H2 (relational, in-memory) |
