@@ -65,7 +65,7 @@ org/dpp/tradelab/
 |-------------|------------------------------------------------------------------|
 | `model`     | JPA entities, enums, value objects, repository interfaces        |
 | `service`   | Business logic, validation, flow orchestration, event emission   |
-| `api`       | REST controllers, request/response DTOs, domain exceptions       |
+| `api`       | REST controllers, request/response DTOs, domain exceptions, Kotlin interfaces exposed to other domains |
 | `messaging` | Domain event data classes, publishers, `@EventListener` handlers |
 | `util`      | Utility classes scoped to this domain only                       |
 
@@ -76,22 +76,41 @@ in `standards/backend.md`.
 
 ## Cross-Domain Communication
 
-All communication between domains happens exclusively via Spring Application
-Events. No domain may directly import or call a class from another domain.
+Two patterns are permitted. Everything else is forbidden.
 
-**Rules:**
-- A domain publishes events from its `messaging` package using
+### Sync — Kotlin interfaces in `api/`
+
+When a domain needs a synchronous response from another domain (e.g. a balance
+check before placing an order), it depends on a Kotlin interface defined in the
+source domain's `api/` package.
+
+- The source domain defines the interface in `{domain}.api` — this is its
+  published contract.
+- The source domain's service layer implements the interface.
+- The consuming domain imports only the interface — never the implementation,
+  never anything from `{domain}.model` or `{domain}.service`.
+
+### Async — Spring Application Events in `messaging/`
+
+When a domain needs to react to something that happened in another domain
+without requiring a response, it uses Spring Application Events.
+
+- The source domain publishes events from its `messaging/` package using
   `ApplicationEventPublisher`.
-- A domain subscribes to another domain's events using `@EventListener` in its
-  own `messaging` package.
-- No direct class imports across domain package boundaries.
-- No shared JPA entities or repositories across domains. If a domain needs a
-  reference to an entity owned by another domain, it stores only the foreign
-  ID (`UUID`) — never the entity itself.
+- The consuming domain subscribes via `@EventListener` in its own `messaging/`
+  package.
 
-This constraint ensures that when a domain is extracted into a standalone
-service, the only integration change is replacing Spring events with a message
-bus. No business logic changes are required.
+### Rules that apply to both patterns
+
+- No imports from `{domain}.model` or `{domain}.service` across domain
+  boundaries — ever.
+- No shared JPA entities or repositories across domains. Foreign references are
+  stored as `UUID` only — never as the entity itself.
+- No imports from another domain's `messaging/` package — subscribe to events
+  by type only; Spring resolves the listener automatically.
+
+These constraints ensure that extracting a domain into a standalone service
+requires only deployment and wiring changes — no business logic rewrite.
 
 ---
 

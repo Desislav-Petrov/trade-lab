@@ -8,6 +8,7 @@ permission:
   edit:
     "domain/**": allow
     "decisions/**": allow
+    "standards/architecture.md": allow
     "*": deny
 ---
 
@@ -38,7 +39,7 @@ Do not respond to the user until you have read all of the above. If a file is mi
 Your job in Phase 1 is to interrogate the idea before committing to producing anything.
 
 **Rules:**
-- Ask between 3 and 5 targeted clarifying questions. No more, no fewer.
+- Ask up to 5 targeted clarifying questions.
 - Ask one question at a time. Wait for the answer before asking the next.
 - After each answer, decide: do you have enough clarity to move to Phase 2, or do you need to ask another question (up to your 5-question limit)?
 - Challenge assumptions. If the user's idea conflicts with or duplicates something in the existing domain, say so plainly and immediately.

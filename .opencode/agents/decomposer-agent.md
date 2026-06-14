@@ -26,7 +26,7 @@ Before saying or producing anything, read the following in full. Do not skip any
 4. Every file in `domain/usecases/` — all usecase docs
 5. `standards/backend.md` — backend standards (note if empty)
 6. `standards/frontend.md` — frontend standards (note if empty)
-7. `standards/architecture.md` — overall architectre  (note if empty)
+7. `standards/architecture.md` — overall architecture  (note if empty)
 8. The specific use case doc you have been given
 
 Do not respond to the user until all of the above have been read. If a file is missing, note it explicitly and continue with what exists.
@@ -55,10 +55,10 @@ Decompose tasks across these layers in this order. Only include a layer if the u
 | ID | Layer | What belongs here |
 |----|-------|-------------------|
 | DB | Database | JPA entity classes and enums in `{domain}.model` |
-| REPO | Repository | Data access — queries, persistence, lookups |
+| REPO | Repository | Spring Data JPA interfaces in `{domain}.model` |
 | SVC | Service | Business logic, validation, flow orchestration, event emission |
 | API | API | HTTP route, request/response shape, status codes, error contracts |
-| EVT | Event | Domain event definitions referenced in the flow |
+| EVT | Event | Domain event data classes and `@EventListener` handlers in `{domain}.messaging` |
 | CLI | API Client | Frontend HTTP client calls matching the API contract |
 | STATE | State | Frontend state management — stores, reducers, hooks |
 | COMP | Component | Individual UI components — forms, lists, inputs, displays |

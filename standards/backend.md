@@ -60,14 +60,15 @@ These IDs match those used by the decomposer agent.
 | DB | Database | JPA entity classes and enums in `{domain}.model` |
 | REPO | Repository | Spring Data JPA interfaces in `{domain}.model` |
 | SVC | Service | Business logic, validation, event emission in `{domain}.service` |
-| API | API | Controllers, DTOs, domain exceptions in `{domain}.api` |
+| API | API | Controllers, DTOs, domain exceptions, and Kotlin interfaces exposed to other domains — in `{domain}.api` |
 | EVT | Event | Domain event classes and listeners in `{domain}.messaging` |
 
 **Rules:**
 - No business logic in controllers or repositories.
 - No persistence calls in service classes — delegate entirely to repositories.
 - `@Transactional` belongs on service methods only.
-- REST controller never calls a repository directly 
+- REST controller never calls a repository directly.
+- Other domains may only import from `{domain}.api` — never from `{domain}.model` or `{domain}.service`.
 
 ---
 
@@ -160,6 +161,37 @@ spring:
 - One `GlobalExceptionHandler` (`@ControllerAdvice`) lives at the root package (`org.dpp.tradelab`) and handles exceptions from all domains consistently.
 - Typed domain exception classes live in `{domain}.api` (e.g. `UserNotFoundException`, `DuplicateEmailException`).
 - JPA/Hibernate exceptions must never propagate to the controller — catch and rethrow as domain exceptions in the service layer.
+
+---
+
+## Domain Events
+
+Event classes are plain Kotlin `data class` types in `{domain}.messaging`.
+
+**Naming:** `{Entity}{Action}Event` — e.g. `UserRegisteredEvent`, `AccountToppedUpEvent`.
+Event names must match those defined in the flow docs exactly.
+
+**Payload:** carry only what subscribers need. For cross-domain events, prefer
+IDs over full entity objects — never include a JPA entity in an event payload.
+
+**Publishing** — inject `ApplicationEventPublisher` into the service class:
+
+```kotlin
+eventPublisher.publishEvent(UserRegisteredEvent(userId = user.id, email = user.email, timestamp = Instant.now()))
+```
+
+**Subscribing** — `@EventListener` method in the receiving domain's `messaging` package:
+
+```kotlin
+@EventListener
+fun on(event: UserRegisteredEvent) { ... }
+```
+
+Use `@TransactionalEventListener(phase = AFTER_COMMIT)` when the listener must
+only run after the publishing transaction has committed successfully.
+
+Events are synchronous by default. Introducing async (`@Async`) requires a
+decision log entry.
 
 ---
 
