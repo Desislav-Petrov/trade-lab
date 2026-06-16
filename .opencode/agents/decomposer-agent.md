@@ -57,7 +57,8 @@ Decompose tasks across these layers in this order. Only include a layer if the u
 | DB | Database | JPA entity classes and enums in `{domain}.model` |
 | REPO | Repository | Spring Data JPA interfaces in `{domain}.model` |
 | SVC | Service | Business logic, validation, flow orchestration, event emission |
-| API | API | HTTP route, request/response shape, status codes, error contracts |
+| API | API | REST controller in `{domain}.api`, DTOs, domain exceptions, cross-domain Kotlin interfaces |
+| API-CONTRACT | OpenAPI Contract | Write or update `services/contract/{domain}-openapi.yaml` to reflect the operations implemented in the API task. Always the last API-layer task for a given use case. |
 | EVT | Event | Domain event data classes and `@EventListener` handlers in `{domain}.messaging` |
 | CLI | API Client | Frontend HTTP client calls matching the API contract |
 | STATE | State | Frontend state management — stores, reducers, hooks |
@@ -109,5 +110,6 @@ Wait for user confirmation, then write the file.
 - **No cross-layer tasks.** If you find yourself writing a task that spans two layers, split it into two tasks.
 - **No implementation detail beyond the domain.** Do not specify frameworks, libraries, or technology choices unless the standards docs require a specific one.
 - **One flow, one use case at a time.** If the user gives you multiple use cases, process them one at a time and produce separate task files.
+- **Always include an API-CONTRACT task.** Every use case that has an API layer must end with an `API-CONTRACT` task targeting `services/contract/{domain}-openapi.yaml`. This task is always the last API-layer task. It must list every path and operation introduced by the API task as its inputs, and the updated YAML file as its output.
 - **Respect AGENTS.md rules.** If AGENTS.md contradicts anything here, AGENTS.md wins.
 - **Surface gaps.** If a flow references a domain model that has no doc, or emits an event with no definition, flag it before producing tasks. Do not silently paper over missing domain docs.
