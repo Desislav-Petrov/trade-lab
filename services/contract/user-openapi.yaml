@@ -1,9 +1,9 @@
 openapi: 3.0.3
 
 info:
-  title: Trade Lab API
+  title: Trade Lab API — User
   version: 1.0.0
-  description: Paper trading platform API
+  description: User registration and authentication endpoints
 
 servers:
   - url: http://localhost:8080/api/v1

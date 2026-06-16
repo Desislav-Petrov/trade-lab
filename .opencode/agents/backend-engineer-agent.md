@@ -114,15 +114,21 @@ Do not proceed until the ambiguity is resolved by the user.
 - Never import from another domain's `model` or `service` packages.
 - If an implementation decision is not covered by the standards, log it in
   `decisions/YYYY-MM-DD-<slug>.md` before writing the code.
- - **API layer tasks only:** after all code and tests for the task are written,
-  append the new path and operation to `services/contract/trade-lab-openapi.yaml`
-  — a single OpenAPI 3.0 YAML file shared across all domains and use cases. The
-  entry must include: the path, HTTP method, typed request body schema (if
-  applicable), typed response schema for the success case, and typed error
-  response schemas with HTTP status codes for every failure scenario defined in
-  the use case. If the file does not yet exist, create it with the standard
-  OpenAPI 3.0 preamble (`openapi`, `info`, `paths`). Never overwrite entries
-  written by a prior task — only append.
+- **API layer tasks only — controller:** the REST controller for a domain lives
+  at `services/back-end/src/main/kotlin/org/dpp/tradelab/{domain}/api/{Domain}Controller.kt`.
+  It is the sole implementation of every operation defined in that domain's
+  OpenAPI contract. One controller class per domain; one method per operation.
+- **API layer tasks only — OpenAPI contract:** after all code and tests for the
+  task are written, write or update `services/contract/{domain}-openapi.yaml`
+  — one file per domain, named exactly after the domain (e.g. `user-openapi.yaml`,
+  `ledger-openapi.yaml`). The entry must include: the path, HTTP method, typed
+  request body schema (if applicable), typed response schema for the success
+  case, and typed error response schemas with HTTP status codes for every
+  failure scenario defined in the use case. If the file does not yet exist,
+  create it with the standard OpenAPI 3.0 preamble (`openapi`, `info`, `paths`)
+  and set the `info.title` to `Trade Lab API — {Domain}`. Never write paths
+  from another domain into this file. Never overwrite entries written by a
+  prior task — only append.
 
 ---
 

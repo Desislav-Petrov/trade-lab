@@ -145,6 +145,22 @@ spring:
 }
 ```
 
+### OpenAPI contract
+
+Each domain owns exactly one OpenAPI 3.0.3 contract file at:
+
+```
+services/contract/{domain}-openapi.yaml
+```
+
+Examples: `services/contract/user-openapi.yaml`, `services/contract/ledger-openapi.yaml`.
+
+- The file is created and maintained by the backend engineer as part of the API layer task for each use case.
+- The `info.title` must be `Trade Lab API — {Domain}` (e.g. `Trade Lab API — User`).
+- A domain's YAML contains only paths belonging to that domain — never cross-domain paths.
+- The REST controller at `{domain}/api/{Domain}Controller.kt` is the sole implementation of every operation declared in that domain's YAML. One controller class per domain; one method per operation.
+- When adding a new use case to an existing domain, append the new paths and schemas to the existing YAML — never overwrite or recreate the file from scratch.
+
 ---
 
 ## Validation
