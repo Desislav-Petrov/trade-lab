@@ -34,4 +34,4 @@ architectural choices — the answer may already exist.
 - One task, one layer — don't implement across layers in a single pass
 - If something is unclear, surface it — don't assume
 - Whenever you modify any file, check whether related docs (domain, standards, agent instructions) need updating and do it in the same pass
-- Do not commit & push to github unless i asked you to 
+- Do not commit & push to github unless i asked you to. Always create a branch, never commit to main and then raise a PR. 
