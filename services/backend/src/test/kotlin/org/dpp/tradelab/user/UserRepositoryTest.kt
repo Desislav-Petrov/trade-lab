@@ -1,7 +1,7 @@
 package org.dpp.tradelab.user
 
 import org.dpp.tradelab.user.model.User
-import org.dpp.tradelab.user.model.UserRepository
+import org.dpp.tradelab.user.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -18,7 +18,6 @@ class UserRepositoryTest @Autowired constructor(private val userRepository: User
         userRepository.save(
             User(firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane-repo@example.com")
         )
-
         assertTrue(userRepository.existsByEmail("jane-repo@example.com"))
     }
 

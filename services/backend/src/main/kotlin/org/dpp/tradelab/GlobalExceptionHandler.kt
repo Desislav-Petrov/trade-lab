@@ -1,6 +1,6 @@
 package org.dpp.tradelab
 
-import org.dpp.tradelab.user.api.DuplicateEmailException
+import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException

@@ -1,3 +1,3 @@
-package org.dpp.tradelab.user.api
+package org.dpp.tradelab.user.exception
 
 class DuplicateEmailException(message: String) : RuntimeException(message)

@@ -1,5 +1,6 @@
-package org.dpp.tradelab.user.model
+package org.dpp.tradelab.user.repository
 
+import org.dpp.tradelab.user.model.User
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 

@@ -1,9 +1,12 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
 plugins {
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.spring") version "2.2.0"
     kotlin("plugin.jpa") version "2.2.0"
     id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.openapi.generator") version "7.13.0"
 }
 
 group = "org.dpp.tradelab"
@@ -26,12 +29,49 @@ repositories {
     mavenCentral()
 }
 
+// ── OpenAPI generation ───────────────────────────────────────────────────────
+// One task per domain. Add a new task block for each new domain YAML.
+
+val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/user")
+    apiPackage.set("org.dpp.tradelab.user.generated.api")
+    modelPackage.set("org.dpp.tradelab.user.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
+// Wire generated sources into the compile classpath
+// Exclude the org.openapitools scaffolding that the generator always emits
+sourceSets {
+    main {
+        kotlin {
+            srcDir("${layout.buildDirectory.get()}/generated/user/src/main/kotlin")
+            exclude("org/openapitools/**")
+        }
+    }
+}
+
+tasks.named("compileKotlin") {
+    dependsOn(generateUserApi)
+}
+
+// ── Dependencies ─────────────────────────────────────────────────────────────
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.28")
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -1,9 +1,9 @@
 package org.dpp.tradelab.user.service
 
-import org.dpp.tradelab.user.api.DuplicateEmailException
+import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.User
-import org.dpp.tradelab.user.model.UserRepository
+import org.dpp.tradelab.user.repository.UserRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional

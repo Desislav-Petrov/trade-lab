@@ -3,7 +3,7 @@ package org.dpp.tradelab.user
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
-import org.dpp.tradelab.user.api.DuplicateEmailException
+import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.service.UserService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
@@ -20,7 +20,7 @@ import java.util.UUID
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class UserControllerTest(
+class UserApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
     @MockitoBean val userService: UserService
 ) : FunSpec() {

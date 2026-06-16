@@ -2,7 +2,7 @@ package org.dpp.tradelab
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
-import org.dpp.tradelab.user.api.DuplicateEmailException
+import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc

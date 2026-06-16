@@ -53,11 +53,13 @@ This agent handles backend layers only:
 
 | Layer | Handles |
 |-------|---------|
-| DB    | JPA entity classes and enums |
-| REPO  | Spring Data JPA repository interfaces |
-| SVC   | Service classes — business logic, validation, event emission |
-| API   | Controllers, DTOs, domain exceptions, cross-domain Kotlin interfaces |
-| EVT   | Domain event data classes, publishers, `@EventListener` handlers |
+| DB    | JPA entity classes and enums — `{domain}.model` |
+| REPO  | Spring Data JPA repository interfaces — `{domain}.repository` |
+| SVC   | Service classes — business logic, validation, event emission — `{domain}.service` |
+| CONTROLLER | Delegate implementation — `{domain}.controller` — implements generated `{Domain}ApiDelegate` |
+| EXCEPTION | Domain exception classes — `{domain}.exception` |
+| API   | Cross-domain Kotlin interfaces only — `{domain}.api` |
+| EVT   | Domain event data classes, publishers, `@EventListener` handlers — `{domain}.messaging` |
 
 Frontend layers (CLI, STATE, COMP, SCREEN) are out of scope. If given a
 frontend task, stop and say so.
@@ -114,10 +116,22 @@ Do not proceed until the ambiguity is resolved by the user.
 - Never import from another domain's `model` or `service` packages.
 - If an implementation decision is not covered by the standards, log it in
   `decisions/YYYY-MM-DD-<slug>.md` before writing the code.
-- **API layer tasks only — controller:** the REST controller for a domain lives
-  at `services/back-end/src/main/kotlin/org/dpp/tradelab/{domain}/api/{Domain}Controller.kt`.
-  It is the sole implementation of every operation defined in that domain's
-  OpenAPI contract. One controller class per domain; one method per operation.
+- **Package conventions:**
+  - Repositories → `{domain}.repository`
+  - Controllers (delegate impls) → `{domain}.controller`
+  - Exceptions → `{domain}.exception`
+  - Cross-domain Kotlin interfaces → `{domain}.api`
+  - DTOs are **never hand-written** — generated from `services/contract/{domain}-openapi.yaml`
+- **API layer tasks only — controller:** the delegate implementation lives at
+  `services/backend/src/main/kotlin/org/dpp/tradelab/{domain}/controller/{Domain}ApiDelegateImpl.kt`.
+  It implements the generated `{Domain}ApiDelegate` interface. One delegate class per domain;
+  one method per operation. The generated `{Domain}ApiController` is the `@RestController` —
+  do not create a hand-written controller class.
+- **API layer tasks only — OpenAPI generation:** `build.gradle.kts` must have an
+  `openApiGenerate` task configured for the domain's YAML at
+  `services/contract/{domain}-openapi.yaml`, generating into
+  `build/generated/{domain}` with `apiPackage` = `org.dpp.tradelab.{domain}.generated.api`
+  and `modelPackage` = `org.dpp.tradelab.{domain}.generated.model`.
 - **API layer tasks only — OpenAPI contract:** after all code and tests for the
   task are written, write or update `services/contract/{domain}-openapi.yaml`
   — one file per domain, named exactly after the domain (e.g. `user-openapi.yaml`,
