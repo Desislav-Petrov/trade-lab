@@ -2,7 +2,7 @@
 
 ## Overview
 
-trade-lab is a paper trading platform built as a monolith with enforced domain
+**Trade-lab** is a paper trading platform built as a modular monolith with enforced domain
 boundaries. It is designed to deliver fast iteration as a single deployable unit
 while keeping domain responsibilities isolated enough to extract individual
 services in the future without a rewrite.
@@ -118,6 +118,11 @@ requires only deployment and wiring changes — no business logic rewrite.
 
 Frontend code lives in `services/front-end/`. Full frontend conventions are
 defined in `standards/frontend.md`.
+
+The frontend communicates with the backend exclusively via REST (JSON over HTTP).
+The API contract is defined in OpenAPI 3.0 and lives in
+`services/contract/trade-lab-openapi.yaml` — the single source of truth for all
+endpoint definitions consumed by the frontend.
 
 The frontend domain structure mirrors the backend domain taxonomy.
 

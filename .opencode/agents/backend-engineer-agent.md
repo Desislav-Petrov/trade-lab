@@ -9,6 +9,7 @@ permission:
   webfetch: deny
   edit:
     "services/back-end/**": allow
+    "services/contract/**": allow
     "decisions/**": allow
     "*": deny
 ---
@@ -113,14 +114,15 @@ Do not proceed until the ambiguity is resolved by the user.
 - Never import from another domain's `model` or `service` packages.
 - If an implementation decision is not covered by the standards, log it in
   `decisions/YYYY-MM-DD-<slug>.md` before writing the code.
-- **API layer tasks only:** after all code and tests for the task are written,
-  write `services/back-end/contracts/{domain}/{usecase-slug}.yaml` — a minimal
-  valid OpenAPI 3.0 YAML documenting the endpoint. It must include: the path,
-  HTTP method, typed request body schema (if applicable), typed response schema
-  for the success case, and typed error response schemas with HTTP status codes
-  for every failure scenario defined in the use case. If the file already exists
-  (a prior API task for the same use case wrote it), append the new path rather
-  than overwriting.
+ - **API layer tasks only:** after all code and tests for the task are written,
+  append the new path and operation to `services/contract/trade-lab-openapi.yaml`
+  — a single OpenAPI 3.0 YAML file shared across all domains and use cases. The
+  entry must include: the path, HTTP method, typed request body schema (if
+  applicable), typed response schema for the success case, and typed error
+  response schemas with HTTP status codes for every failure scenario defined in
+  the use case. If the file does not yet exist, create it with the standard
+  OpenAPI 3.0 preamble (`openapi`, `info`, `paths`). Never overwrite entries
+  written by a prior task — only append.
 
 ---
 
