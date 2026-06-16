@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
+import { RegistrationPage } from '../domains/user/pages/RegistrationPage'
 
-// Routes are added here as use cases are implemented.
-// e.g. { path: '/register', element: <RegistrationPage /> }
-export const router = createBrowserRouter([])
+export const router = createBrowserRouter([
+  { path: '/register', element: <RegistrationPage /> },
+])
