@@ -1,0 +1,215 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API
+  version: 1.0.0
+  description: Paper trading platform API
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Users
+    description: User registration and authentication
+
+paths:
+
+  /users:
+    post:
+      tags:
+        - Users
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterUserResponse'
+        '400':
+          description: Validation failure — missing required field or invalid email format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                error: Validation failed
+                details:
+                  - "email: must be a valid email address"
+        '409':
+          description: An account with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: Email already registered
+                details:
+                  - "An account with this email already exists."
+
+  /users/emails:
+    get:
+      tags:
+        - Users
+      summary: Retrieve all active user emails
+      description: >
+        Returns the email addresses of all users with `active` status.
+        Used to populate the email picker on the login screen.
+        Returns an empty list if no active users exist.
+      operationId: getActiveUserEmails
+      responses:
+        '200':
+          description: List of active user emails (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEmailsResponse'
+
+  /users/login:
+    post:
+      tags:
+        - Users
+      summary: Login by selecting an email
+      description: >
+        Resolves the supplied email to an active user record and establishes a session.
+        No password or credential check is performed in this iteration.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful — returns the resolved user context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '403':
+          description: Account is suspended or closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 403
+                error: Account unavailable
+                details:
+                  - "This account is suspended or closed and cannot be used to log in."
+        '404':
+          description: No user found for the supplied email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: User not found
+                details:
+                  - "No account exists for the provided email address."
+
+components:
+  schemas:
+
+    RegisterUserRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - address
+        - email
+      properties:
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        address:
+          type: string
+          example: 123 Main St, Springfield
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+
+    RegisterUserResponse:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    UserEmailsResponse:
+      type: object
+      required:
+        - emails
+      properties:
+        emails:
+          type: array
+          items:
+            type: string
+            format: email
+          example:
+            - jane.doe@example.com
+            - john.smith@example.com
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+
+    LoginResponse:
+      type: object
+      required:
+        - userId
+        - email
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "email: must be a valid email address"
