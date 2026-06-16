@@ -15,6 +15,15 @@
 
 ---
 
+## Backend Communication
+
+- The frontend communicates with the backend exclusively via REST (JSON over HTTP).
+- The API contract is defined in OpenAPI 3.0 and lives in `services/contract/trade-lab-openapi.yaml`. This is the single source of truth for all endpoint URLs, HTTP methods, request/response shapes, and error contracts.
+- The CLI layer (`{domain}/api/`) must be derived from this contract — no endpoint URLs, HTTP methods, or payload shapes are to be invented.
+- The shared Axios instance in `shared/api/` is the only HTTP client. Domain `api/` modules import from it; no new Axios instances are created per domain.
+
+---
+
 ## Project Structure
 
 Frontend code lives in `services/front-end/`. The domain structure mirrors the
