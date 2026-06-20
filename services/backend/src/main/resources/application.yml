@@ -9,3 +9,32 @@ spring:
   h2:
     console:
       enabled: true
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - mappings
+          - env
+          - beans
+          - loggers
+          - threaddump
+          - conditions
+  endpoint:
+    health:
+      show-details: always
+    env:
+      show-values: never   # never expose secret property values
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: trade-lab
+    description: Paper trading platform
