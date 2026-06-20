@@ -1,7 +1,10 @@
 package org.dpp.tradelab.user.service
 
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.UserNotFoundException
+import org.dpp.tradelab.user.exception.UserNotActiveException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
+import org.dpp.tradelab.user.messaging.UserLoggedInEvent
 import org.dpp.tradelab.user.model.User
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
@@ -48,4 +51,26 @@ class UserService(
         userRepository.findAll()
             .filter { it.status == UserStatus.ACTIVE }
             .map { it.email }
+
+    @Transactional(readOnly = true)
+    fun getUserById(userId: UUID): User =
+        userRepository.findById(userId)
+            .orElseThrow { UserNotFoundException(userId) }
+
+    @Transactional(readOnly = true)
+    fun loginUser(email: String): User {
+        val user = userRepository.findByEmail(email)
+            ?: throw UserNotFoundException(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+        if (user.status != UserStatus.ACTIVE) {
+            throw UserNotActiveException(email)
+        }
+        eventPublisher.publishEvent(
+            UserLoggedInEvent(
+                userId = user.id!!,
+                email = user.email,
+                timestamp = Instant.now()
+            )
+        )
+        return user
+    }
 }

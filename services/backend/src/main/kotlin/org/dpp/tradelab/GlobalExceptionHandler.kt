@@ -1,6 +1,8 @@
 package org.dpp.tradelab
 
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.UserNotFoundException
+import org.dpp.tradelab.user.exception.UserNotActiveException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -19,8 +21,17 @@ class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DuplicateEmailException::class)
-    fun handleDuplicateEmail(ex: DuplicateEmailException): ResponseEntity<ErrorResponse> {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
+    fun handleDuplicateEmail(ex: DuplicateEmailException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
             .body(ErrorResponse(409, "Email already registered", listOf(ex.message ?: "An account with this email already exists.")))
-    }
+
+    @ExceptionHandler(UserNotFoundException::class)
+    fun handleUserNotFound(ex: UserNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "User not found", listOf(ex.message ?: "User not found.")))
+
+    @ExceptionHandler(UserNotActiveException::class)
+    fun handleUserNotActive(ex: UserNotActiveException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Account unavailable", listOf(ex.message ?: "This account is suspended or closed and cannot be used to log in.")))
 }
