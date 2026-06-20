@@ -12,6 +12,10 @@ spring:
   boot:
     admin:
       context-path: /admin   # Spring Boot Admin UI served at /admin
+      client:
+        url: http://localhost:8080/admin      # Admin server registration endpoint
+        instance:
+          service-url: http://localhost:8080  # Base URL the Admin server uses to scrape actuator data
 
 management:
   endpoints:
