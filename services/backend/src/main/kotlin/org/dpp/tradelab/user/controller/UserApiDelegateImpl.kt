@@ -10,6 +10,8 @@ import org.dpp.tradelab.user.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Controller
@@ -33,10 +35,10 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
 
     override fun getUserById(userId: UUID): ResponseEntity<UserResponse> {
         val user = userService.getUserById(userId)
-        val status = when (user.status.name.lowercase()) {
-            "active" -> UserResponse.Status.active
-            "suspended" -> UserResponse.Status.suspended
-            else -> UserResponse.Status.closed
+        val status = when (user.status) {
+            org.dpp.tradelab.user.model.UserStatus.ACTIVE -> UserResponse.Status.ACTIVE
+            org.dpp.tradelab.user.model.UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED
+            org.dpp.tradelab.user.model.UserStatus.CLOSED -> UserResponse.Status.CLOSED
         }
         return ResponseEntity.ok(
             UserResponse(
@@ -46,7 +48,7 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
                 address = user.address,
                 email = user.email,
                 status = status,
-                createdAt = user.createdAt!!
+                createdAt = OffsetDateTime.ofInstant(user.createdAt!!, ZoneOffset.UTC)
             )
         )
     }
