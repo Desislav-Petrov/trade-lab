@@ -61,34 +61,94 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      {serverConflict && <p role="alert">{serverConflict}</p>}
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      {serverConflict && (
+        <p
+          role="alert"
+          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
+        >
+          {serverConflict}
+        </p>
+      )}
 
-      <div>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" name="firstName" value={fields.firstName} onChange={handleChange} />
-        {fieldErrors.firstName && <span role="alert">{fieldErrors.firstName}</span>}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="firstName" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+          First name
+        </label>
+        <input
+          id="firstName"
+          name="firstName"
+          value={fields.firstName}
+          onChange={handleChange}
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+        />
+        {fieldErrors.firstName && (
+          <span role="alert" className="text-xs text-[var(--color-danger)]">
+            {fieldErrors.firstName}
+          </span>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" name="lastName" value={fields.lastName} onChange={handleChange} />
-        {fieldErrors.lastName && <span role="alert">{fieldErrors.lastName}</span>}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="lastName" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+          Last name
+        </label>
+        <input
+          id="lastName"
+          name="lastName"
+          value={fields.lastName}
+          onChange={handleChange}
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+        />
+        {fieldErrors.lastName && (
+          <span role="alert" className="text-xs text-[var(--color-danger)]">
+            {fieldErrors.lastName}
+          </span>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="address">Address</label>
-        <input id="address" name="address" value={fields.address} onChange={handleChange} />
-        {fieldErrors.address && <span role="alert">{fieldErrors.address}</span>}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="address" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+          Address
+        </label>
+        <input
+          id="address"
+          name="address"
+          value={fields.address}
+          onChange={handleChange}
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+        />
+        {fieldErrors.address && (
+          <span role="alert" className="text-xs text-[var(--color-danger)]">
+            {fieldErrors.address}
+          </span>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" value={fields.email} onChange={handleChange} />
-        {fieldErrors.email && <span role="alert">{fieldErrors.email}</span>}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="email" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          value={fields.email}
+          onChange={handleChange}
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+        />
+        {fieldErrors.email && (
+          <span role="alert" className="text-xs text-[var(--color-danger)]">
+            {fieldErrors.email}
+          </span>
+        )}
       </div>
 
-      <button type="submit" disabled={isPending}>
+      <button
+        type="submit"
+        disabled={isPending}
+        className="mt-2 w-full rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+      >
         {isPending ? 'Submitting…' : 'Submit'}
       </button>
     </form>
