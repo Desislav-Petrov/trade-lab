@@ -7,9 +7,9 @@ import org.dpp.tradelab.user.generated.model.UserEmailsResponse
 import org.dpp.tradelab.user.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Controller
 
-@Service
+@Controller
 class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelegate {
 
     override fun registerUser(registerUserRequest: RegisterUserRequest): ResponseEntity<RegisterUserResponse> {
