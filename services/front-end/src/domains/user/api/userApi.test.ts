@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axiosInstance from '../../../shared/api/axiosInstance'
-import { getActiveUserEmails, loginUser } from './userApi'
+import { getActiveUserEmails, loginUser, fetchUserById } from './userApi'
 
 vi.mock('../../../shared/api/axiosInstance', () => ({
   default: { post: vi.fn(), get: vi.fn() },
@@ -65,6 +65,40 @@ describe('loginUser', () => {
 
     await expect(loginUser({ email: 'closed@example.com' })).rejects.toMatchObject({
       response: { status: 403 },
+    })
+  })
+})
+
+describe('fetchUserById', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('fetchUserById - success - returns UserProfile', async () => {
+    const profile = {
+      userId: 'u1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      address: '123 Main St',
+      email: 'jane@example.com',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00Z',
+    }
+    mockGet.mockResolvedValueOnce({ data: profile })
+
+    const result = await fetchUserById('u1')
+
+    expect(result).toEqual(profile)
+    expect(mockGet).toHaveBeenCalledWith('/v1/users/u1')
+  })
+
+  it('fetchUserById - 404 - throws AxiosError', async () => {
+    const error = Object.assign(new Error('Not Found'), {
+      isAxiosError: true,
+      response: { status: 404 },
+    })
+    mockGet.mockRejectedValueOnce(error)
+
+    await expect(fetchUserById('unknown')).rejects.toMatchObject({
+      response: { status: 404 },
     })
   })
 })
