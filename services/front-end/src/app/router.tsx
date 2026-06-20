@@ -1,6 +1,10 @@
 import { createBrowserRouter } from 'react-router-dom'
+import { RootLayout } from './layouts/RootLayout'
 import { RegistrationPage } from '../domains/user/pages/RegistrationPage'
 
 export const router = createBrowserRouter([
-  { path: '/register', element: <RegistrationPage /> },
+  {
+    element: <RootLayout />,
+    children: [{ path: '/register', element: <RegistrationPage /> }],
+  },
 ])
