@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { UseRegisterUserOptions } from '../hooks/useRegisterUser'
 import { useRegisterUser } from '../hooks/useRegisterUser'
 import type { AxiosError } from 'axios'
 

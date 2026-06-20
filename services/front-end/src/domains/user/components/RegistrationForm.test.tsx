@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
+import type { UseMutationResult } from '@tanstack/react-query'
+import type { RegisterUserRequest, RegisterUserResponse } from '../types/user'
 import { RegistrationForm } from './RegistrationForm'
 
 vi.mock('../hooks/useRegisterUser', () => ({
@@ -11,6 +13,11 @@ vi.mock('../hooks/useRegisterUser', () => ({
 
 import { useRegisterUser } from '../hooks/useRegisterUser'
 const mockUseRegisterUser = vi.mocked(useRegisterUser)
+
+type MockHookResult = Pick<
+  UseMutationResult<RegisterUserResponse, Error, RegisterUserRequest>,
+  'mutate' | 'isPending' | 'isSuccess' | 'isError' | 'error'
+>
 
 function renderForm(onSuccess?: () => void) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
@@ -21,7 +28,7 @@ function renderForm(onSuccess?: () => void) {
   )
 }
 
-function setupDefaultMock(overrides: Partial<ReturnType<typeof useRegisterUser>> = {}) {
+function setupDefaultMock(overrides: Partial<MockHookResult> = {}) {
   mockUseRegisterUser.mockReturnValue({
     mutate: vi.fn(),
     isPending: false,
@@ -29,7 +36,7 @@ function setupDefaultMock(overrides: Partial<ReturnType<typeof useRegisterUser>>
     isError: false,
     error: null,
     ...overrides,
-  } as any)
+  } as ReturnType<typeof useRegisterUser>)
 }
 
 describe('RegistrationForm', () => {
@@ -91,7 +98,7 @@ describe('RegistrationForm', () => {
       isAxiosError: true,
       response: { status: 409 },
     })
-    setupDefaultMock({ isError: true, error: conflictError as any })
+    setupDefaultMock({ isError: true, error: conflictError })
     renderForm()
 
     expect(screen.getByText(/an account with this email already exists/i)).toBeInTheDocument()
