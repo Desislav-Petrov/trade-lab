@@ -2,6 +2,7 @@ package org.dpp.tradelab.user
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.user.exception.DuplicateEmailException
@@ -76,5 +77,25 @@ class UserServiceTest : FunSpec({
         captor.firstValue.userId shouldBe validId
         captor.firstValue.email shouldBe "jane@example.com"
         captor.firstValue.timestamp shouldNotBe null
+    }
+
+    test("getActiveUserEmails_activeUsersExist_returnsEmailList") {
+        val activeUsers = listOf(
+            User(id = UUID.randomUUID(), firstName = "Alice", lastName = "A", address = "1 St", email = "alice@example.com", status = UserStatus.ACTIVE),
+            User(id = UUID.randomUUID(), firstName = "Bob", lastName = "B", address = "2 St", email = "bob@example.com", status = UserStatus.ACTIVE)
+        )
+        whenever(userRepository.findAllByStatus(UserStatus.ACTIVE)).thenReturn(activeUsers)
+
+        val result = userService.getActiveUserEmails()
+
+        result shouldContainExactlyInAnyOrder listOf("alice@example.com", "bob@example.com")
+    }
+
+    test("getActiveUserEmails_noActiveUsers_returnsEmptyList") {
+        whenever(userRepository.findAllByStatus(UserStatus.ACTIVE)).thenReturn(emptyList())
+
+        val result = userService.getActiveUserEmails()
+
+        result shouldBe emptyList()
     }
 })

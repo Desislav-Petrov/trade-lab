@@ -3,6 +3,7 @@ package org.dpp.tradelab.user.controller
 import org.dpp.tradelab.user.generated.api.UsersApiDelegate
 import org.dpp.tradelab.user.generated.model.RegisterUserRequest
 import org.dpp.tradelab.user.generated.model.RegisterUserResponse
+import org.dpp.tradelab.user.generated.model.UserEmailsResponse
 import org.dpp.tradelab.user.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -20,5 +21,10 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
         )
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(RegisterUserResponse(userId = userId))
+    }
+
+    override fun getActiveUserEmails(): ResponseEntity<UserEmailsResponse> {
+        val emails = userService.getActiveUserEmails()
+        return ResponseEntity.ok(UserEmailsResponse(emails = emails))
     }
 }
