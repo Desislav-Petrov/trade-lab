@@ -6,6 +6,8 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.UserNotFoundException
+import org.dpp.tradelab.user.exception.UserNotActiveException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.User
 import org.dpp.tradelab.user.model.UserStatus
@@ -19,6 +21,7 @@ import org.mockito.kotlin.reset
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
+import java.util.Optional
 import java.util.UUID
 
 class UserServiceTest : FunSpec({
@@ -109,5 +112,57 @@ class UserServiceTest : FunSpec({
         val result = userService.getActiveUserEmails()
 
         result shouldBe emptyList()
+    }
+
+    test("getUserById_existingId_returnsUser") {
+        val user = User(id = validId, firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane@example.com", status = UserStatus.ACTIVE)
+        whenever(userRepository.findById(validId)).thenReturn(Optional.of(user))
+
+        val result = userService.getUserById(validId)
+
+        result shouldBe user
+    }
+
+    test("getUserById_unknownId_throwsUserNotFoundException") {
+        whenever(userRepository.findById(validId)).thenReturn(Optional.empty())
+
+        shouldThrow<UserNotFoundException> {
+            userService.getUserById(validId)
+        }
+    }
+
+    test("loginUser_activeUser_returnsUser") {
+        val user = User(id = validId, firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane@example.com", status = UserStatus.ACTIVE)
+        whenever(userRepository.findByEmail("jane@example.com")).thenReturn(user)
+
+        val result = userService.loginUser("jane@example.com")
+
+        result shouldBe user
+    }
+
+    test("loginUser_unknownEmail_throwsUserNotFoundException") {
+        whenever(userRepository.findByEmail("ghost@example.com")).thenReturn(null)
+
+        shouldThrow<UserNotFoundException> {
+            userService.loginUser("ghost@example.com")
+        }
+    }
+
+    test("loginUser_suspendedUser_throwsUserNotActiveException") {
+        val user = User(id = validId, firstName = "Sus", lastName = "Pended", address = "1 St", email = "sus@example.com", status = UserStatus.SUSPENDED)
+        whenever(userRepository.findByEmail("sus@example.com")).thenReturn(user)
+
+        shouldThrow<UserNotActiveException> {
+            userService.loginUser("sus@example.com")
+        }
+    }
+
+    test("loginUser_closedUser_throwsUserNotActiveException") {
+        val user = User(id = validId, firstName = "Clo", lastName = "Sed", address = "1 St", email = "clo@example.com", status = UserStatus.CLOSED)
+        whenever(userRepository.findByEmail("clo@example.com")).thenReturn(user)
+
+        shouldThrow<UserNotActiveException> {
+            userService.loginUser("clo@example.com")
+        }
     }
 })
