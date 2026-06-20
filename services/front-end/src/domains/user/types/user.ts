@@ -8,3 +8,16 @@ export interface RegisterUserRequest {
 export interface RegisterUserResponse {
   userId: string
 }
+
+export interface UserEmailsResponse {
+  emails: string[]
+}
+
+export interface LoginRequest {
+  email: string
+}
+
+export interface LoginResponse {
+  userId: string
+  email: string
+}

@@ -5,7 +5,7 @@ export function RegistrationPage() {
   const navigate = useNavigate()
 
   function handleSuccess() {
-    navigate('/login')
+    navigate('/login', { state: { banner: 'Account created. Please log in.' } })
   }
 
   return (

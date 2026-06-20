@@ -1,62 +1,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createUser } from './userApi'
+import axiosInstance from '../../../shared/api/axiosInstance'
+import { getActiveUserEmails, loginUser } from './userApi'
 
 vi.mock('../../../shared/api/axiosInstance', () => ({
-  default: {
-    post: vi.fn(),
-  },
+  default: { post: vi.fn(), get: vi.fn() },
 }))
 
-import axiosInstance from '../../../shared/api/axiosInstance'
-
+const mockGet = vi.mocked(axiosInstance.get)
 const mockPost = vi.mocked(axiosInstance.post)
 
-describe('createUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+describe('getActiveUserEmails', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('getActiveUserEmails - success - returns emails array', async () => {
+    const emails = ['a@example.com', 'b@example.com']
+    mockGet.mockResolvedValueOnce({ data: { emails } })
+
+    const result = await getActiveUserEmails()
+
+    expect(result).toEqual({ emails })
+    expect(mockGet).toHaveBeenCalledWith('/v1/users/emails')
   })
 
-  it('createUser - valid request - returns RegisterUserResponse', async () => {
-    const userId = '550e8400-e29b-41d4-a716-446655440000'
-    mockPost.mockResolvedValueOnce({ data: { userId } })
+  it('getActiveUserEmails - empty list - returns empty array', async () => {
+    mockGet.mockResolvedValueOnce({ data: { emails: [] } })
 
-    const result = await createUser({
-      firstName: 'Jane',
-      lastName: 'Doe',
-      address: '123 Main St',
-      email: 'jane@example.com',
-    })
+    const result = await getActiveUserEmails()
 
-    expect(result).toEqual({ userId })
-    expect(mockPost).toHaveBeenCalledWith('/v1/users', {
-      firstName: 'Jane',
-      lastName: 'Doe',
-      address: '123 Main St',
-      email: 'jane@example.com',
-    })
+    expect(result).toEqual({ emails: [] })
+  })
+})
+
+describe('loginUser', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('loginUser - valid email - returns LoginResponse', async () => {
+    const payload = { userId: '550e8400-e29b-41d4-a716-446655440000', email: 'a@example.com' }
+    mockPost.mockResolvedValueOnce({ data: payload })
+
+    const result = await loginUser({ email: 'a@example.com' })
+
+    expect(result).toEqual(payload)
+    expect(mockPost).toHaveBeenCalledWith('/v1/users/login', { email: 'a@example.com' })
   })
 
-  it('createUser - server returns 409 - throws AxiosError with status 409', async () => {
-    const error = Object.assign(new Error('Conflict'), {
+  it('loginUser - 404 response - throws AxiosError with status 404', async () => {
+    const error = Object.assign(new Error('Not Found'), {
       isAxiosError: true,
-      response: { status: 409 },
+      response: { status: 404 },
     })
     mockPost.mockRejectedValueOnce(error)
 
-    await expect(
-      createUser({ firstName: 'Jane', lastName: 'Doe', address: '123 Main St', email: 'dupe@example.com' })
-    ).rejects.toMatchObject({ response: { status: 409 } })
+    await expect(loginUser({ email: 'ghost@example.com' })).rejects.toMatchObject({
+      response: { status: 404 },
+    })
   })
 
-  it('createUser - server returns 400 - throws AxiosError with status 400', async () => {
-    const error = Object.assign(new Error('Bad Request'), {
+  it('loginUser - 403 response - throws AxiosError with status 403', async () => {
+    const error = Object.assign(new Error('Forbidden'), {
       isAxiosError: true,
-      response: { status: 400 },
+      response: { status: 403 },
     })
     mockPost.mockRejectedValueOnce(error)
 
-    await expect(
-      createUser({ firstName: '', lastName: 'Doe', address: '123 Main St', email: 'jane@example.com' })
-    ).rejects.toMatchObject({ response: { status: 400 } })
+    await expect(loginUser({ email: 'closed@example.com' })).rejects.toMatchObject({
+      response: { status: 403 },
+    })
   })
 })
