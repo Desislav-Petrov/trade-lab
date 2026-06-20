@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
+import type { AxiosError } from 'axios'
 import { useRegisterUser } from './useRegisterUser'
 
 vi.mock('../api/userApi', () => ({
@@ -56,7 +57,7 @@ describe('useRegisterUser', () => {
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect((result.current.error as any)?.response?.status).toBe(409)
+    expect((result.current.error as AxiosError)?.response?.status).toBe(409)
   })
 
   it('useRegisterUser - 400 response - exposesValidationError', async () => {
@@ -75,6 +76,6 @@ describe('useRegisterUser', () => {
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect((result.current.error as any)?.response?.status).toBe(400)
+    expect((result.current.error as AxiosError)?.response?.status).toBe(400)
   })
 })
