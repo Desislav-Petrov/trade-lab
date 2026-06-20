@@ -1,12 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { createElement } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { LoginResponse } from '../types/user'
 import { LoginPage } from './LoginPage'
 import * as useFetchUserProfileModule from '../hooks/useFetchUserProfile'
-import type { UserProfile } from '../types/user'
 
 vi.mock('../components/LoginForm', () => ({
   LoginForm: ({ onSuccess }: { onSuccess?: (data: LoginResponse) => void }) =>
@@ -31,6 +30,8 @@ function renderPage(initialPath = '/login', state?: Record<string, unknown>) {
 }
 
 describe('LoginPage', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('LoginPage - renders - displays LoginForm', () => {
     renderPage()
     expect(screen.getByText('LoginForm')).toBeInTheDocument()
@@ -53,33 +54,28 @@ describe('LoginPage', () => {
   })
 
   it('LoginPage - profile fetch succeeds - navigates to /trade', async () => {
-    const mockProfile: UserProfile = {
-      userId: 'u1', firstName: 'Jane', lastName: 'Doe',
-      address: '123 Main St', email: 'a@example.com',
-      status: 'active', createdAt: '2026-01-01T00:00:00Z',
-    }
-    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockReturnValue({
-      mutate: (userId: string, options?: { onSuccess?: (profile: UserProfile) => void }) => {
-        options?.onSuccess?.(mockProfile)
-      },
-      isPending: false,
-    } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
+      ({ onSuccess } = {}) => ({
+        mutate: () => { onSuccess?.() },
+        isPending: false,
+      } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+    )
 
     renderPage()
-    screen.getByRole('button', { name: /trigger success/i }).click()
+    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }))
     expect(await screen.findByText('Trade Page')).toBeInTheDocument()
   })
 
   it('LoginPage - profile fetch fails - shows profile error message', async () => {
-    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockReturnValue({
-      mutate: (_userId: string, options?: { onError?: () => void }) => {
-        options?.onError?.()
-      },
-      isPending: false,
-    } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
+      ({ onError } = {}) => ({
+        mutate: () => { onError?.() },
+        isPending: false,
+      } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+    )
 
     renderPage()
-    screen.getByRole('button', { name: /trigger success/i }).click()
+    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(/unable to load your profile/i)).toBeInTheDocument()
   })

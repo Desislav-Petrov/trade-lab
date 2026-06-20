@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Route, Routes, createElement } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { act } from 'react'
 import { Topbar } from './Topbar'
 import { useSessionStore } from '../../domains/user/hooks/useSessionStore'
