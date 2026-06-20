@@ -73,6 +73,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("io.swagger.core.v3:swagger-annotations:2.2.28")
+    implementation("de.codecentric:spring-boot-admin-starter-server:3.4.5")
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
