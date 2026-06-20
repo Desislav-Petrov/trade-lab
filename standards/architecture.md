@@ -48,29 +48,36 @@ Each domain is a top-level sub-package with a fixed internal structure.
 ```
 org/dpp/tradelab/
   user/
-    model/      # JPA entities, enums, value objects, repository interfaces
-    service/    # Business logic, flow orchestration
-    api/        # REST controllers, request/response DTOs, domain exceptions
-    messaging/  # Domain event definitions, publishers, listeners
-    util/       # Domain-scoped utility classes
-  ledger/       # same structure
-  marketdata/   # same structure
-  stocktrading/ # same structure
+    model/        # JPA entities and enums only
+    repository/   # Spring Data JPA repository interfaces
+    service/      # Business logic, flow orchestration
+    controller/   # REST delegate implementations (implement generated ApiDelegate)
+    exception/    # Domain-specific exception classes
+    api/          # Kotlin interfaces exposed to other domains (cross-domain sync only)
+    messaging/    # Domain event definitions, publishers, listeners
+    util/         # Domain-scoped utility classes
+  ledger/         # same structure
+  marketdata/     # same structure
+  stocktrading/   # same structure
   config/                     # Global Spring configuration
   GlobalExceptionHandler.kt   # Root level — handles all domains consistently
   TradingLabApplication.kt
 ```
 
-| Sub-package | What belongs here                                               |
-|-------------|------------------------------------------------------------------|
-| `model`     | JPA entities, enums, value objects, repository interfaces        |
-| `service`   | Business logic, validation, flow orchestration, event emission   |
-| `api`       | REST controllers, request/response DTOs, domain exceptions, Kotlin interfaces exposed to other domains |
+| Sub-package | What belongs here |
+|-------------|-------------------|
+| `model` | JPA entities and enums |
+| `repository` | Spring Data JPA repository interfaces |
+| `service` | Business logic, validation, flow orchestration, event emission |
+| `controller` | REST delegate implementations — implement generated `{Domain}ApiDelegate` |
+| `exception` | Domain-specific exception classes |
+| `api` | Kotlin interfaces exposed to other domains (cross-domain sync only) |
 | `messaging` | Domain event data classes, publishers, `@EventListener` handlers |
-| `util`      | Utility classes scoped to this domain only                       |
+| `util` | Utility classes scoped to this domain only |
 
-Full per-layer conventions (annotations, transactionality, naming) are defined
-in `standards/backend.md`.
+Request/response DTOs are generated from `services/contract/{domain}-openapi.yaml` — they are never hand-written. See `standards/backend.md` for full OpenAPI generation details.
+
+Full per-layer conventions (annotations, transactionality, naming) are defined in `standards/backend.md`.
 
 ---
 

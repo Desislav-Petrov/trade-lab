@@ -11,6 +11,7 @@ without real money. AI agents assist with both code generation and the trading e
 - `standards/*`        — Architecture, backend, and frontend standards
 - `services/back-end`  — Backend Spring Boot application
 - `services/front-end` — Frontend React application
+- `services/contract`  — API contracts - OpenAPI only for now
 - `tasks/`             — Decomposed implementation task lists
 
 ## Domain

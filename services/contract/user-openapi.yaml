@@ -133,12 +133,15 @@ components:
       properties:
         firstName:
           type: string
+          minLength: 1
           example: Jane
         lastName:
           type: string
+          minLength: 1
           example: Doe
         address:
           type: string
+          minLength: 1
           example: 123 Main St, Springfield
         email:
           type: string

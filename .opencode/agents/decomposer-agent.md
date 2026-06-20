@@ -54,12 +54,13 @@ Decompose tasks across these layers in this order. Only include a layer if the u
 
 | ID | Layer | What belongs here |
 |----|-------|-------------------|
-| DB | Database | JPA entity classes and enums in `{domain}.model` |
-| REPO | Repository | Spring Data JPA interfaces in `{domain}.model` |
-| SVC | Service | Business logic, validation, flow orchestration, event emission |
-| API | API | REST controller in `{domain}.api`, DTOs, domain exceptions, cross-domain Kotlin interfaces |
-| API-CONTRACT | OpenAPI Contract | Write or update `services/contract/{domain}-openapi.yaml` to reflect the operations implemented in the API task. Always the last API-layer task for a given use case. |
-| EVT | Event | Domain event data classes and `@EventListener` handlers in `{domain}.messaging` |
+| DB | Database | JPA entity classes and enums — `{domain}.model` |
+| REPO | Repository | Spring Data JPA interfaces — `{domain}.repository` |
+| SVC | Service | Business logic, validation, flow orchestration, event emission — `{domain}.service` |
+| EXCEPTION | Exception | Domain exception classes — `{domain}.exception` |
+| CONTROLLER | Controller | Delegate impl in `{domain}.controller` — implements generated `{Domain}ApiDelegate` from `services/contract/{domain}-openapi.yaml` |
+| API-CONTRACT | OpenAPI Contract | Write or update `services/contract/{domain}-openapi.yaml`. Always the last API-layer task for a given use case. |
+| EVT | Event | Domain event data classes and `@EventListener` handlers — `{domain}.messaging` |
 | CLI | API Client | Frontend HTTP client calls matching the API contract |
 | STATE | State | Frontend state management — stores, reducers, hooks |
 | COMP | Component | Individual UI components — forms, lists, inputs, displays |
