@@ -9,6 +9,9 @@ spring:
   h2:
     console:
       enabled: true
+  boot:
+    admin:
+      context-path: /admin   # Spring Boot Admin UI served at /admin
 
 management:
   endpoints:
