@@ -75,6 +75,7 @@ dependencies {
     implementation("io.swagger.core.v3:swagger-annotations:2.2.28")
     // Spring Boot Admin version must mirror Spring Boot major.minor (4.1.x → SB 4.1.x)
     implementation("de.codecentric:spring-boot-admin-starter-server:4.1.1")
+    implementation("de.codecentric:spring-boot-admin-starter-client:4.1.1")
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
