@@ -1,5 +1,22 @@
-import { useNavigate } from 'react-router-dom'
+# FE-05 — Frontend: Update Topbar with session-aware user area
+
+## Layer
+COMP (`services/front-end/src/shared/components/Topbar.tsx`)
+
+## Context
+The topbar currently renders a static `—` in the user area. It must now:
+- When no session: render "Login or Register" text linking to `/login`.
+- When session exists: render "Logged in as [firstName] [lastName]", today's date, and a Logout button.
+
+## Prerequisite
+FE-02 (session store) must be complete.
+
+## Task
+Update `Topbar.tsx`:
+
+```tsx
 import { useSessionStore } from '../../domains/user/hooks/useSessionStore'
+import { useNavigate } from 'react-router-dom'
 
 export function Topbar() {
   const user = useSessionStore((s) => s.user)
@@ -12,10 +29,7 @@ export function Topbar() {
   }
 
   const today = new Date().toLocaleDateString(undefined, {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
   })
 
   return (
@@ -41,10 +55,7 @@ export function Topbar() {
             </button>
           </>
         ) : (
-          <a
-            href="/login"
-            className="hover:text-[var(--color-text-primary)] transition-colors"
-          >
+          <a href="/login" className="hover:text-[var(--color-text-primary)] transition-colors">
             Login or Register
           </a>
         )}
@@ -52,3 +63,16 @@ export function Topbar() {
     </header>
   )
 }
+```
+
+## Tests (`Topbar.test.tsx`)
+- `Topbar - no session - shows Login or Register`
+- `Topbar - session exists - shows logged in as name and date`
+- `Topbar - logout button clicked - clears session and navigates to /login`
+- Existing tests must continue to pass.
+
+## Acceptance Criteria
+- Unauthenticated state shows "Login or Register" link.
+- Authenticated state shows name, date, and Logout button.
+- Logout clears Zustand store and redirects to `/login`.
+- All tests pass.

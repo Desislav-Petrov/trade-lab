@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LoginForm } from '../components/LoginForm'
+import { useFetchUserProfile } from '../hooks/useFetchUserProfile'
 import type { LoginResponse } from '../types/user'
 
 interface LocationState {
@@ -10,9 +12,16 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const banner = (location.state as LocationState | null)?.banner ?? null
+  const [profileError, setProfileError] = useState(false)
 
-  function handleSuccess(_data: LoginResponse) {
-    navigate('/trade')
+  const fetchProfile = useFetchUserProfile({
+    onSuccess: () => navigate('/trade'),
+    onError: () => setProfileError(true),
+  })
+
+  function handleSuccess(data: LoginResponse) {
+    setProfileError(false)
+    fetchProfile.mutate(data.userId)
   }
 
   return (
@@ -31,6 +40,12 @@ export function LoginPage() {
         )}
 
         <LoginForm onSuccess={handleSuccess} />
+
+        {profileError && (
+          <p role="alert" className="mt-3 text-xs text-[var(--color-danger)]">
+            Unable to load your profile. Please try again.
+          </p>
+        )}
 
         <p className="mt-6 text-xs text-[var(--color-text-muted)]">
           No account?{' '}

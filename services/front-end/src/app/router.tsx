@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { RootLayout } from './layouts/RootLayout'
 import { LoginPage } from '../domains/user/pages/LoginPage'
 import { RegistrationPage } from '../domains/user/pages/RegistrationPage'
+import { ProfilePage } from '../domains/user/pages/ProfilePage'
 
 export const router = createBrowserRouter([
   {
@@ -10,6 +11,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/login" replace /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegistrationPage /> },
+      { path: '/profile', element: <ProfilePage /> },
     ],
   },
 ])

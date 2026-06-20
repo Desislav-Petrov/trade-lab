@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.UserNotFoundException
+import org.dpp.tradelab.user.exception.UserNotActiveException
+import org.dpp.tradelab.user.model.User
+import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.service.UserService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
@@ -17,6 +21,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.time.Instant
 import java.util.UUID
 
 @SpringBootTest
@@ -105,6 +110,83 @@ class UserApiDelegateImplTest(
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.emails").isArray)
                 .andExpect(jsonPath("$.emails").isEmpty)
+        }
+
+        test("getUserById_existingUser_returns200WithUserResponse") {
+            val user = User(
+                id = validId,
+                firstName = "Jane",
+                lastName = "Doe",
+                address = "123 Main St",
+                email = "jane@example.com",
+                status = UserStatus.ACTIVE,
+                createdAt = Instant.parse("2026-01-01T00:00:00Z")
+            )
+            whenever(userService.getUserById(validId)).thenReturn(user)
+
+            mockMvc.perform(get("/api/v1/users/$validId"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.userId").value(validId.toString()))
+                .andExpect(jsonPath("$.firstName").value("Jane"))
+                .andExpect(jsonPath("$.lastName").value("Doe"))
+                .andExpect(jsonPath("$.email").value("jane@example.com"))
+                .andExpect(jsonPath("$.status").value("active"))
+        }
+
+        test("getUserById_unknownId_returns404") {
+            whenever(userService.getUserById(validId))
+                .thenThrow(UserNotFoundException(validId))
+
+            mockMvc.perform(get("/api/v1/users/$validId"))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.status").value(404))
+        }
+
+        test("loginUser_activeUser_returns200WithLoginResponse") {
+            val user = User(
+                id = validId,
+                firstName = "Jane",
+                lastName = "Doe",
+                address = "123 Main St",
+                email = "jane@example.com",
+                status = UserStatus.ACTIVE
+            )
+            whenever(userService.loginUser("jane@example.com")).thenReturn(user)
+
+            mockMvc.perform(
+                post("/api/v1/users/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("email" to "jane@example.com")))
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.userId").value(validId.toString()))
+                .andExpect(jsonPath("$.email").value("jane@example.com"))
+        }
+
+        test("loginUser_unknownEmail_returns404") {
+            whenever(userService.loginUser("ghost@example.com"))
+                .thenThrow(UserNotFoundException(UUID.randomUUID()))
+
+            mockMvc.perform(
+                post("/api/v1/users/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("email" to "ghost@example.com")))
+            )
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.status").value(404))
+        }
+
+        test("loginUser_suspendedUser_returns403") {
+            whenever(userService.loginUser("sus@example.com"))
+                .thenThrow(UserNotActiveException("sus@example.com"))
+
+            mockMvc.perform(
+                post("/api/v1/users/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("email" to "sus@example.com")))
+            )
+                .andExpect(status().isForbidden)
+                .andExpect(jsonPath("$.status").value(403))
         }
     }
 }
