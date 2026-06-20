@@ -57,6 +57,39 @@ paths:
                 details:
                   - "An account with this email already exists."
 
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get a user by ID
+      description: Returns the full profile of the user with the given ID.
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: No user found for the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: User not found
+                details:
+                  - "No user found with id: 550e8400-e29b-41d4-a716-446655440000"
+
   /users/emails:
     get:
       tags:
@@ -157,6 +190,43 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+
+    UserResponse:
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - address
+        - email
+        - status
+        - createdAt
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        address:
+          type: string
+          example: 123 Main St, Springfield
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        status:
+          type: string
+          enum: [active, suspended, closed]
+          example: active
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-20T12:00:00Z"
 
     UserEmailsResponse:
       type: object
