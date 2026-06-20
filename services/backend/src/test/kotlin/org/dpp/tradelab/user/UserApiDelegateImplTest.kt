@@ -13,6 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -85,6 +86,25 @@ class UserApiDelegateImplTest(
             )
                 .andExpect(status().isConflict)
                 .andExpect(jsonPath("$.status").value(409))
+        }
+
+        test("getActiveUserEmails_activeUsersExist_returns200WithEmailList") {
+            whenever(userService.getActiveUserEmails())
+                .thenReturn(listOf("alice@example.com", "bob@example.com"))
+
+            mockMvc.perform(get("/api/v1/users/emails"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.emails[0]").value("alice@example.com"))
+                .andExpect(jsonPath("$.emails[1]").value("bob@example.com"))
+        }
+
+        test("getActiveUserEmails_noActiveUsers_returns200WithEmptyList") {
+            whenever(userService.getActiveUserEmails()).thenReturn(emptyList())
+
+            mockMvc.perform(get("/api/v1/users/emails"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.emails").isArray)
+                .andExpect(jsonPath("$.emails").isEmpty)
         }
     }
 }

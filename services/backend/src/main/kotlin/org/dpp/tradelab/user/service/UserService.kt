@@ -3,6 +3,7 @@ package org.dpp.tradelab.user.service
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.User
+import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -41,4 +42,10 @@ class UserService(
 
         return user.id!!
     }
+
+    @Transactional(readOnly = true)
+    fun getActiveUserEmails(): List<String> =
+        userRepository.findAll()
+            .filter { it.status == UserStatus.ACTIVE }
+            .map { it.email }
 }
