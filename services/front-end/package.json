@@ -14,6 +14,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@tanstack/react-query": "^5.0.0",
     "axios": "^1.7.0",
     "react": "^19.0.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@tailwindcss/vite": "^4.3.1",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.0.0",
@@ -36,6 +38,7 @@
     "globals": "^15.0.0",
     "jsdom": "^25.0.0",
     "prettier": "^3.0.0",
+    "tailwindcss": "^4.3.1",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^8.0.16",
