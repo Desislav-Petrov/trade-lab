@@ -34,9 +34,41 @@ The H2 console is available at `http://localhost:8080/h2-console`
 
 ---
 
+## Spring Boot Admin
+
+Spring Boot Admin provides a web UI for monitoring and managing the running application.
+
+**URL:** `http://localhost:8080/admin`
+
+Open it in a browser after starting the backend. The application registers itself automatically — no separate admin server process is needed.
+
+### What you can do from the UI
+
+| Section | What it shows / lets you do |
+|---|---|
+| **Health** | Component health status (DB, disk, etc.) |
+| **Details** | JVM info, uptime, build info |
+| **Metrics** | Live graphs of JVM memory, CPU, HTTP request rates, and more |
+| **Environment** | All resolved config properties (secret values redacted) |
+| **Loggers** | View and change log levels per package without restarting |
+| **Mappings** | All registered HTTP routes |
+| **Threads** | Live thread dump |
+| **Beans** | All Spring beans in the application context |
+
+### Changing a log level via the UI
+
+1. Open `http://localhost:8080/admin`.
+2. Click on the **trade-lab** instance.
+3. Go to **Loggers**.
+4. Find `org.dpp.tradelab` and change the level to `DEBUG`.
+
+Changes take effect immediately with no restart required.
+
+---
+
 ## Spring Boot Actuator
 
-The backend exposes operational endpoints via Spring Boot Actuator at the `/actuator` base path.
+The backend also exposes raw operational endpoints via Spring Boot Actuator at the `/actuator` base path (the Admin UI is built on top of these).
 
 ### Available endpoints
 
