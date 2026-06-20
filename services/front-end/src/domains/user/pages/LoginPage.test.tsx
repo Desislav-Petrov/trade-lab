@@ -58,7 +58,7 @@ describe('LoginPage', () => {
       ({ onSuccess } = {}) => ({
         mutate: () => { onSuccess?.() },
         isPending: false,
-      } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+      } as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
     )
 
     renderPage()
@@ -71,7 +71,7 @@ describe('LoginPage', () => {
       ({ onError } = {}) => ({
         mutate: () => { onError?.() },
         isPending: false,
-      } as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+      } as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
     )
 
     renderPage()
