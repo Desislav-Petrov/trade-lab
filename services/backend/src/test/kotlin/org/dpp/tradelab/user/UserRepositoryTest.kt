@@ -3,8 +3,9 @@ package org.dpp.tradelab.user
 import org.dpp.tradelab.user.model.User
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,25 +30,33 @@ class UserRepositoryTest @Autowired constructor(private val userRepository: User
     }
 
     @Test
-    fun findAllByStatus_activeUsersExist_returnsOnlyActiveUsers() {
-        userRepository.save(User(firstName = "Alice", lastName = "A", address = "1 St", email = "alice@example.com", status = UserStatus.ACTIVE))
-        userRepository.save(User(firstName = "Bob", lastName = "B", address = "2 St", email = "bob@example.com", status = UserStatus.SUSPENDED))
-        userRepository.save(User(firstName = "Carol", lastName = "C", address = "3 St", email = "carol@example.com", status = UserStatus.ACTIVE))
+    fun findByEmailAndStatus_activeUserWithMatchingEmail_returnsUser() {
+        userRepository.save(
+            User(firstName = "Alice", lastName = "A", address = "1 St", email = "alice@example.com", status = UserStatus.ACTIVE)
+        )
 
-        val results = userRepository.findAllByStatus(UserStatus.ACTIVE)
+        val result = userRepository.findByEmailAndStatus("alice@example.com", UserStatus.ACTIVE)
 
-        val emails = results.map { it.email }
-        assertTrue(emails.contains("alice@example.com"))
-        assertTrue(emails.contains("carol@example.com"))
-        assertFalse(emails.contains("bob@example.com"))
+        assertNotNull(result)
+        assertTrue(result!!.email == "alice@example.com")
+        assertTrue(result.status == UserStatus.ACTIVE)
     }
 
     @Test
-    fun findAllByStatus_noActiveUsers_returnsEmptyList() {
-        userRepository.save(User(firstName = "Dave", lastName = "D", address = "4 St", email = "dave@example.com", status = UserStatus.CLOSED))
+    fun findByEmailAndStatus_emailExistsButStatusMismatch_returnsNull() {
+        userRepository.save(
+            User(firstName = "Bob", lastName = "B", address = "2 St", email = "bob@example.com", status = UserStatus.SUSPENDED)
+        )
 
-        val results = userRepository.findAllByStatus(UserStatus.ACTIVE)
+        val result = userRepository.findByEmailAndStatus("bob@example.com", UserStatus.ACTIVE)
 
-        assertEquals(0, results.size)
+        assertNull(result)
+    }
+
+    @Test
+    fun findByEmailAndStatus_emailDoesNotExist_returnsNull() {
+        val result = userRepository.findByEmailAndStatus("nobody@example.com", UserStatus.ACTIVE)
+
+        assertNull(result)
     }
 }
