@@ -65,19 +65,24 @@ class AccountServiceTest : FunSpec({
         captor.firstValue.name shouldBe "My Account"
     }
 
-    test("openAccount_nullName_usesDefaultName") {
+    test("openAccount_nullName_usesDefaultNameDerivedFromPersistedId") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
-        val savedAccount = Account(
-            id = accountId, userId = userId, name = "account-$accountId",
+
+        // First save returns the entity with the DB-assigned id but blank name.
+        val firstSave = Account(
+            id = accountId, userId = userId, name = "",
             balance = BigDecimal.ZERO, currency = Currency.GBP, status = AccountStatus.ACTIVE
         )
-        whenever(accountRepository.save(any())).thenReturn(savedAccount)
+        // Second save returns the entity with the resolved default name.
+        val secondSave = firstSave.copy(name = "account-$accountId")
 
-        accountService.openAccount(userId, Currency.GBP, null)
+        whenever(accountRepository.save(any()))
+            .thenReturn(firstSave)   // first call: persist with blank name
+            .thenReturn(secondSave)  // second call: update with resolved name
 
-        val captor = argumentCaptor<Account>()
-        verify(accountRepository).save(captor.capture())
-        captor.firstValue.name shouldBe "account-${captor.firstValue.id}"
+        val result = accountService.openAccount(userId, Currency.GBP, null)
+
+        result.name shouldBe "account-$accountId"
     }
 
     test("openAccount_validInput_returnsPersistedAccount") {
