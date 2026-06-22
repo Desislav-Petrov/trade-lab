@@ -106,13 +106,44 @@ spring:
 ## ORM — Entity Mapping
 
 - Entity classes in `{domain}.model`, annotated `@Entity`.
-- Primary keys: `UUID` with `@GeneratedValue(strategy = GenerationType.UUID)`.
+- Entity classes are plain `class` — **never `data class`**.
+- Primary keys: `UUID`, pre-assigned by the service layer via `UUID.randomUUID()` before entity construction. **Do not use `@GeneratedValue`.**
+- All entity classes implement `org.springframework.data.domain.Persistable<UUID>` with a `@Transient _isNew: Boolean = true` flag. This forces Spring Data to call `EntityManager.persist()` (INSERT) instead of `merge()` (UPDATE then INSERT) for new entities with a pre-assigned id.
+- `equals` and `hashCode` are implemented manually based on `id` only.
+- `toString` is implemented manually.
 - All columns mapped explicitly with `@Column`.
 - Enums: `@Enumerated(EnumType.STRING)` — never `ORDINAL`.
 - Monetary/decimal values: `BigDecimal` with `@Column(precision = 19, scale = 4)`.
 - Timestamps: `@CreationTimestamp` for `createdAt`, `@UpdateTimestamp` for `updatedAt`.
 - Relationships use standard JPA annotations. Lazy loading is the default.
 - `camelCase` Kotlin field names map to `snake_case` columns automatically.
+
+### Entity template
+
+```kotlin
+@Entity
+@Table(name = "things")
+class Thing(
+    @Id
+    @Column(nullable = false, updatable = false)
+    val id: UUID,
+
+    // ... other fields ...
+
+    @Transient
+    private val _isNew: Boolean = true
+) : Persistable<UUID> {
+    override fun getId(): UUID = id
+    override fun isNew(): Boolean = _isNew
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Thing) return false
+        return id == other.id
+    }
+    override fun hashCode(): Int = id.hashCode()
+    override fun toString(): String = "Thing(id=$id, ...)"
+}
+```
 
 ---
 

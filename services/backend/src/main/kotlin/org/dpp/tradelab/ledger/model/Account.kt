@@ -14,9 +14,23 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+/**
+ * JPA entity for a trading account.
+ *
+ * Implements [Persistable] with a transient [_isNew] flag so that Spring Data
+ * always calls EntityManager.persist() — never merge() — even though the UUID
+ * is pre-assigned by the service layer before construction. Without this,
+ * a non-null id causes SimpleJpaRepository to call merge(), which issues a
+ * stale UPDATE before the INSERT and throws StaleObjectStateException.
+ *
+ * Plain class (not data class) because:
+ * - data class auto-generates getId() which clashes with Persistable.getId() at the JVM level.
+ * - JPA identity must be based on id only; data class equals/hashCode includes all fields.
+ * - Hibernate proxies break data class structural equality.
+ */
 @Entity
 @Table(name = "accounts")
-data class Account(
+class Account(
     @Id
     @Column(nullable = false, updatable = false)
     val id: UUID,
@@ -46,13 +60,22 @@ data class Account(
     @Column(nullable = false)
     val updatedAt: Instant? = null,
 
-    // Tells Spring Data JPA to always call persist() instead of merge().
-    // Required because we pre-assign the UUID — without this, a non-null id
-    // causes SimpleJpaRepository to call merge(), which issues a stale UPDATE
-    // before the INSERT and throws StaleObjectStateException.
     @Transient
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
+
     override fun getId(): UUID = id
+
     override fun isNew(): Boolean = _isNew
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Account) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
+    override fun toString(): String =
+        "Account(id=$id, userId=$userId, name=$name, currency=$currency, status=$status, balance=$balance)"
 }
