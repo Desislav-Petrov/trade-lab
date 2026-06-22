@@ -19,6 +19,9 @@ import java.util.UUID
 data class Account(
     @Id
     @Column(nullable = false, updatable = false)
+    // @get:JvmName renames the auto-generated Kotlin getter at the JVM level so it
+    // no longer clashes with the getId() method required by Persistable<UUID>.
+    @get:JvmName("getAccountId")
     val id: UUID,
 
     @Column(nullable = false, updatable = false)
