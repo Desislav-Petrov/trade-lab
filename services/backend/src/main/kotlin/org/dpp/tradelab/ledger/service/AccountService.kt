@@ -1,6 +1,5 @@
 package org.dpp.tradelab.ledger.service
 
-import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException
 import org.dpp.tradelab.ledger.messaging.AccountOpenedEvent
 import org.dpp.tradelab.ledger.model.Account
@@ -26,28 +25,34 @@ class AccountService(
             throw UserNotFoundException(userId)
         }
 
-        val id = UUID.randomUUID()
-        val resolvedName = name ?: "account-$id"
-
+        // First save — let Hibernate generate the UUID via @GeneratedValue.
+        // Do NOT pre-assign id; doing so causes Spring Data to call merge() instead
+        // of persist(), which issues a stale UPDATE before the INSERT.
         val account = accountRepository.save(
             Account(
-                id = id,
                 userId = userId,
-                name = resolvedName,
+                name = name ?: "",   // placeholder — resolved below if name is null
                 currency = currency
             )
         )
 
+        // Resolve default name only after the id has been assigned by the DB.
+        val finalAccount = if (name == null) {
+            accountRepository.save(account.copy(name = "account-${account.id}"))
+        } else {
+            account
+        }
+
         eventPublisher.publishEvent(
             AccountOpenedEvent(
-                accountId = account.id!!,
-                userId = account.userId,
-                currency = account.currency.name,
+                accountId = finalAccount.id!!,
+                userId = finalAccount.userId,
+                currency = finalAccount.currency.name,
                 timestamp = Instant.now()
             )
         )
 
-        return account
+        return finalAccount
     }
 
     @Transactional(readOnly = true)
