@@ -106,10 +106,7 @@ spring:
 ## ORM — Entity Mapping
 
 - Entity classes in `{domain}.model`, annotated `@Entity`.
-- Entity classes are plain `class` — **never `data class`**. Reasons:
-  - `data class` auto-generates a `getId()` JVM getter that clashes with `Persistable<UUID>.getId()` at compile time.
-  - `data class` `equals`/`hashCode` includes all fields; JPA requires identity based on the primary key only.
-  - Hibernate proxies (lazy loading) break `data class` structural equality.
+- Entity classes are plain `class` — **never `data class`**.
 - Primary keys: `UUID`, pre-assigned by the service layer via `UUID.randomUUID()` before entity construction. **Do not use `@GeneratedValue`.**
 - All entity classes implement `org.springframework.data.domain.Persistable<UUID>` with a `@Transient _isNew: Boolean = true` flag. This forces Spring Data to call `EntityManager.persist()` (INSERT) instead of `merge()` (UPDATE then INSERT) for new entities with a pre-assigned id.
 - `equals` and `hashCode` are implemented manually based on `id` only.
