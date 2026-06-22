@@ -22,7 +22,7 @@ function renderPage(initialPath = '/login', state?: Record<string, unknown>) {
       createElement(MemoryRouter, { initialEntries: [{ pathname: initialPath, state: state ?? null }] },
         createElement(Routes, null,
           createElement(Route, { path: '/login', element: createElement(LoginPage) }),
-          createElement(Route, { path: '/trade', element: createElement('div', null, 'Trade Page') }),
+          createElement(Route, { path: '/profile', element: createElement('div', null, 'Profile Page') }),
         ),
       ),
     ),
@@ -53,7 +53,7 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('LoginPage - profile fetch succeeds - navigates to /trade', async () => {
+  it('LoginPage - profile fetch succeeds - navigates to /profile', async () => {
     vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
       ({ onSuccess } = {}) => ({
         mutate: () => { onSuccess?.() },
@@ -63,7 +63,7 @@ describe('LoginPage', () => {
 
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /trigger success/i }))
-    expect(await screen.findByText('Trade Page')).toBeInTheDocument()
+    expect(await screen.findByText('Profile Page')).toBeInTheDocument()
   })
 
   it('LoginPage - profile fetch fails - shows profile error message', async () => {
