@@ -15,7 +15,7 @@ export function LoginPage() {
   const [profileError, setProfileError] = useState(false)
 
   const fetchProfile = useFetchUserProfile({
-    onSuccess: () => navigate('/trade'),
+    onSuccess: () => navigate('/profile'),
     onError: () => setProfileError(true),
   })
 
