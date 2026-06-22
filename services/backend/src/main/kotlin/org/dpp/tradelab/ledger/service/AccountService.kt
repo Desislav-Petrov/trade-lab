@@ -25,34 +25,28 @@ class AccountService(
             throw UserNotFoundException(userId)
         }
 
-        // First save — let Hibernate generate the UUID via @GeneratedValue.
-        // Do NOT pre-assign id; doing so causes Spring Data to call merge() instead
-        // of persist(), which issues a stale UPDATE before the INSERT.
+        val id = UUID.randomUUID()
+        val resolvedName = name ?: id.toString()
+
         val account = accountRepository.save(
             Account(
+                id = id,
                 userId = userId,
-                name = name ?: "",   // placeholder — resolved below if name is null
+                name = resolvedName,
                 currency = currency
             )
         )
 
-        // Resolve default name only after the id has been assigned by the DB.
-        val finalAccount = if (name == null) {
-            accountRepository.save(account.copy(name = "account-${account.id}"))
-        } else {
-            account
-        }
-
         eventPublisher.publishEvent(
             AccountOpenedEvent(
-                accountId = finalAccount.id!!,
-                userId = finalAccount.userId,
-                currency = finalAccount.currency.name,
+                accountId = account.id,
+                userId = account.userId,
+                currency = account.currency.name,
                 timestamp = Instant.now()
             )
         )
 
-        return finalAccount
+        return account
     }
 
     @Transactional(readOnly = true)

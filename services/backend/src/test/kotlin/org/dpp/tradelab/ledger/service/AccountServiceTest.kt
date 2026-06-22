@@ -65,30 +65,26 @@ class AccountServiceTest : FunSpec({
         captor.firstValue.name shouldBe "My Account"
     }
 
-    test("openAccount_nullName_usesDefaultNameDerivedFromPersistedId") {
+    test("openAccount_nullName_usesUuidAsDefaultName") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
-
-        // First save returns the entity with the DB-assigned id but blank name.
-        val firstSave = Account(
-            id = accountId, userId = userId, name = "",
+        val savedAccount = Account(
+            id = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.GBP, status = AccountStatus.ACTIVE
         )
-        // Second save returns the entity with the resolved default name.
-        val secondSave = firstSave.copy(name = "account-$accountId")
+        whenever(accountRepository.save(any())).thenReturn(savedAccount)
 
-        whenever(accountRepository.save(any()))
-            .thenReturn(firstSave)   // first call: persist with blank name
-            .thenReturn(secondSave)  // second call: update with resolved name
+        accountService.openAccount(userId, Currency.GBP, null)
 
-        val result = accountService.openAccount(userId, Currency.GBP, null)
-
-        result.name shouldBe "account-$accountId"
+        val captor = argumentCaptor<Account>()
+        verify(accountRepository).save(captor.capture())
+        // name must equal the pre-assigned id (UUID string) when none was provided
+        captor.firstValue.name shouldBe captor.firstValue.id.toString()
     }
 
     test("openAccount_validInput_returnsPersistedAccount") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = "account-$accountId",
+            id = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.EUR, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
