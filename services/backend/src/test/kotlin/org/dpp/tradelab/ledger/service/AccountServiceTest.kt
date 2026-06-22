@@ -49,7 +49,7 @@ class AccountServiceTest : FunSpec({
     test("openAccount_validInput_persistsAccountWithActiveStatusAndZeroBalance") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = "My Account",
+            accountId = accountId, userId = userId, name = "My Account",
             balance = BigDecimal.ZERO, currency = Currency.USD, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
@@ -68,7 +68,7 @@ class AccountServiceTest : FunSpec({
     test("openAccount_nullName_usesUuidAsDefaultName") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = accountId.toString(),
+            accountId = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.GBP, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
@@ -77,14 +77,14 @@ class AccountServiceTest : FunSpec({
 
         val captor = argumentCaptor<Account>()
         verify(accountRepository).save(captor.capture())
-        // name must equal the pre-assigned id (UUID string) when none was provided
-        captor.firstValue.name shouldBe captor.firstValue.id.toString()
+        // name must equal the pre-assigned accountId (UUID string) when none was provided
+        captor.firstValue.name shouldBe captor.firstValue.accountId.toString()
     }
 
     test("openAccount_validInput_returnsPersistedAccount") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = accountId.toString(),
+            accountId = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.EUR, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
@@ -97,7 +97,7 @@ class AccountServiceTest : FunSpec({
     test("openAccount_validInput_publishesAccountOpenedEvent") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = "My Account",
+            accountId = accountId, userId = userId, name = "My Account",
             balance = BigDecimal.ZERO, currency = Currency.USD, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
@@ -114,8 +114,8 @@ class AccountServiceTest : FunSpec({
 
     test("listAccountsByUser_existingUserId_returnsAccounts") {
         val accounts = listOf(
-            Account(id = UUID.randomUUID(), userId = userId, name = "Acc 1", currency = Currency.USD),
-            Account(id = UUID.randomUUID(), userId = userId, name = "Acc 2", currency = Currency.GBP)
+            Account(accountId = UUID.randomUUID(), userId = userId, name = "Acc 1", currency = Currency.USD),
+            Account(accountId = UUID.randomUUID(), userId = userId, name = "Acc 2", currency = Currency.GBP)
         )
         whenever(accountRepository.findAllByUserId(userId)).thenReturn(accounts)
 
