@@ -1,0 +1,179 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API — Ledger
+  version: 1.0.0
+  description: Account management endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Ledger
+    description: Account opening and listing
+
+paths:
+
+  /accounts:
+    post:
+      tags:
+        - Ledger
+      summary: Open a new account
+      operationId: openAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Validation failure — missing required field or invalid currency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                error: Validation failed
+                details:
+                  - "currency: must be one of USD, GBP, EUR"
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 403
+                error: User not found
+                details:
+                  - "No user found with id: 550e8400-e29b-41d4-a716-446655440000"
+
+    get:
+      tags:
+        - Ledger
+      summary: List accounts for a user
+      operationId: listAccounts
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of accounts for the user (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    OpenAccountRequest:
+      type: object
+      required:
+        - userId
+        - currency
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        currency:
+          type: string
+          enum: [USD, GBP, EUR]
+          example: USD
+        name:
+          type: string
+          example: My Trading Account
+
+    AccountResponse:
+      type: object
+      required:
+        - id
+        - userId
+        - name
+        - balance
+        - currency
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        name:
+          type: string
+          example: My Trading Account
+        balance:
+          type: number
+          example: 0.00
+        currency:
+          type: string
+          enum: [USD, GBP, EUR]
+          example: USD
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-20T12:00:00Z"
+
+    AccountListResponse:
+      type: object
+      required:
+        - accounts
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountResponse'
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "currency: must be one of USD, GBP, EUR"
