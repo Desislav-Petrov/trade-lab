@@ -5,6 +5,7 @@ import org.dpp.tradelab.user.model.User
 import org.dpp.tradelab.user.model.UserStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
@@ -12,6 +13,7 @@ import org.springframework.boot.jpa.test.autoconfigure.AutoConfigureTestEntityMa
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @SpringBootTest
 @AutoConfigureTestEntityManager
@@ -19,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional
 class UserEntityTest @Autowired constructor(private val em: TestEntityManager) {
 
     @Test
-    fun persistUser_validFields_idAndTimestampsAreGenerated() {
+    fun persistUser_validFields_idAndTimestampsAreSet() {
+        val id = UUID.randomUUID()
         val user = User(
+            id = id,
             firstName = "Jane",
             lastName = "Doe",
             address = "123 Main St",
@@ -29,10 +33,10 @@ class UserEntityTest @Autowired constructor(private val em: TestEntityManager) {
         val saved = em.persistAndFlush(user)
         em.clear()
 
-        val found = em.find(User::class.java, saved.id!!)
+        val found = em.find(User::class.java, saved.id)
         assertNotNull(found)
         found!!
-        assertNotNull(found.id)
+        assertEquals(id, found.id)
         assertEquals("Jane", found.firstName)
         assertEquals("Doe", found.lastName)
         assertEquals("123 Main St", found.address)
@@ -44,23 +48,29 @@ class UserEntityTest @Autowired constructor(private val em: TestEntityManager) {
 
     @Test
     fun persistUser_duplicateEmail_throwsConstraintViolation() {
-        val user1 = User(firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "dupe-entity@example.com")
+        val user1 = User(id = UUID.randomUUID(), firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "dupe-entity@example.com")
         em.persistAndFlush(user1)
 
         assertThrows<PersistenceException> {
-            val user2 = User(firstName = "John", lastName = "Smith", address = "456 Oak Ave", email = "dupe-entity@example.com")
+            val user2 = User(id = UUID.randomUUID(), firstName = "John", lastName = "Smith", address = "456 Oak Ave", email = "dupe-entity@example.com")
             em.persistAndFlush(user2)
         }
     }
 
     @Test
     fun persistUser_statusDefaultsToActive() {
-        val user = User(firstName = "Alice", lastName = "Smith", address = "1 Road", email = "alice-entity@example.com")
+        val user = User(id = UUID.randomUUID(), firstName = "Alice", lastName = "Smith", address = "1 Road", email = "alice-entity@example.com")
         val saved = em.persistAndFlush(user)
         em.clear()
 
-        val found = em.find(User::class.java, saved.id!!)
+        val found = em.find(User::class.java, saved.id)
         assertNotNull(found)
         assertEquals(UserStatus.ACTIVE, found!!.status)
+    }
+
+    @Test
+    fun newUser_isNew_returnsTrue() {
+        val user = User(id = UUID.randomUUID(), firstName = "Bob", lastName = "Jones", address = "2 Road", email = "bob-entity@example.com")
+        assertTrue(user.isNew())
     }
 }

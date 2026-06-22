@@ -30,8 +30,10 @@ class UserService(
             throw DuplicateEmailException("An account with this email already exists.")
         }
 
-        val user = userRepository.save(
+        val id = UUID.randomUUID()
+        userRepository.save(
             User(
+                id = id,
                 firstName = firstName,
                 lastName = lastName,
                 address = address,
@@ -41,13 +43,13 @@ class UserService(
 
         eventPublisher.publishEvent(
             UserRegisteredEvent(
-                userId = user.id!!,
-                email = user.email,
+                userId = id,
+                email = email,
                 timestamp = Instant.now()
             )
         )
 
-        return user.id!!
+        return id
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +72,7 @@ class UserService(
         }
         eventPublisher.publishEvent(
             UserLoggedInEvent(
-                userId = user.id!!,
+                userId = user.id,
                 email = user.email,
                 timestamp = Instant.now()
             )

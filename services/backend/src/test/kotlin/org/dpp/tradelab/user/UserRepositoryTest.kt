@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @SpringBootTest
 @Transactional
@@ -16,7 +17,7 @@ class UserRepositoryTest @Autowired constructor(private val userRepository: User
     @Test
     fun existsByEmail_emailExists_returnsTrue() {
         userRepository.save(
-            User(firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane-repo@example.com")
+            User(id = UUID.randomUUID(), firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane-repo@example.com")
         )
         assertTrue(userRepository.existsByEmail("jane-repo@example.com"))
     }

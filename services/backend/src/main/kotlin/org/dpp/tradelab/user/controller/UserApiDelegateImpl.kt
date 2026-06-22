@@ -42,13 +42,13 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
         }
         return ResponseEntity.ok(
             UserResponse(
-                userId = user.id!!,
+                userId = user.id,
                 firstName = user.firstName,
                 lastName = user.lastName,
                 address = user.address,
                 email = user.email,
                 status = status,
-                createdAt = OffsetDateTime.ofInstant(user.createdAt!!, ZoneOffset.UTC)
+                createdAt = OffsetDateTime.ofInstant(user.createdAt, ZoneOffset.UTC)
             )
         )
     }
@@ -59,7 +59,7 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
         val user = userService.loginUser(loginRequest.email)
         return ResponseEntity.ok(
             LoginResponse(
-                userId = user.id!!,
+                userId = user.id,
                 email = user.email
             )
         )
