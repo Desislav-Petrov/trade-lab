@@ -1,6 +1,5 @@
 package org.dpp.tradelab.ledger.service
 
-import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException
 import org.dpp.tradelab.ledger.messaging.AccountOpenedEvent
 import org.dpp.tradelab.ledger.model.Account
@@ -27,7 +26,7 @@ class AccountService(
         }
 
         val id = UUID.randomUUID()
-        val resolvedName = name ?: "account-$id"
+        val resolvedName = name ?: id.toString()
 
         val account = accountRepository.save(
             Account(
@@ -40,7 +39,7 @@ class AccountService(
 
         eventPublisher.publishEvent(
             AccountOpenedEvent(
-                accountId = account.id!!,
+                accountId = account.id,
                 userId = account.userId,
                 currency = account.currency.name,
                 timestamp = Instant.now()

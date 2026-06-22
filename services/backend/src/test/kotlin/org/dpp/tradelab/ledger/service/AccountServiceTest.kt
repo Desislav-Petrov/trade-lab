@@ -65,10 +65,10 @@ class AccountServiceTest : FunSpec({
         captor.firstValue.name shouldBe "My Account"
     }
 
-    test("openAccount_nullName_usesDefaultName") {
+    test("openAccount_nullName_usesUuidAsDefaultName") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = "account-$accountId",
+            id = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.GBP, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
@@ -77,13 +77,14 @@ class AccountServiceTest : FunSpec({
 
         val captor = argumentCaptor<Account>()
         verify(accountRepository).save(captor.capture())
-        captor.firstValue.name shouldBe "account-${captor.firstValue.id}"
+        // name must equal the pre-assigned id (UUID string) when none was provided
+        captor.firstValue.name shouldBe captor.firstValue.id.toString()
     }
 
     test("openAccount_validInput_returnsPersistedAccount") {
         whenever(userLookupApi.existsById(userId)).thenReturn(true)
         val savedAccount = Account(
-            id = accountId, userId = userId, name = "account-$accountId",
+            id = accountId, userId = userId, name = accountId.toString(),
             balance = BigDecimal.ZERO, currency = Currency.EUR, status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.save(any())).thenReturn(savedAccount)

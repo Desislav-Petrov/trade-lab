@@ -4,12 +4,12 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Transient
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
+import org.springframework.data.domain.Persistable
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -18,9 +18,8 @@ import java.util.UUID
 @Table(name = "accounts")
 data class Account(
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, updatable = false)
-    val id: UUID? = null,
+    val id: UUID,
 
     @Column(nullable = false, updatable = false)
     val userId: UUID,
@@ -45,5 +44,15 @@ data class Account(
 
     @UpdateTimestamp
     @Column(nullable = false)
-    val updatedAt: Instant? = null
-)
+    val updatedAt: Instant? = null,
+
+    // Tells Spring Data JPA to always call persist() instead of merge().
+    // Required because we pre-assign the UUID — without this, a non-null id
+    // causes SimpleJpaRepository to call merge(), which issues a stale UPDATE
+    // before the INSERT and throws StaleObjectStateException.
+    @Transient
+    private val _isNew: Boolean = true
+) : Persistable<UUID> {
+    override fun getId(): UUID = id
+    override fun isNew(): Boolean = _isNew
+}
