@@ -42,7 +42,7 @@ class LedgerApiDelegateImplTest(
         val userId = UUID.randomUUID()
         val accountId = UUID.randomUUID()
         val validAccount = Account(
-            id = accountId,
+            accountId = accountId,
             userId = userId,
             name = "My Account",
             balance = BigDecimal.ZERO,

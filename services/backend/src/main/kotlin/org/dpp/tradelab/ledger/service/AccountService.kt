@@ -30,7 +30,7 @@ class AccountService(
 
         val account = accountRepository.save(
             Account(
-                id = id,
+                accountId = id,
                 userId = userId,
                 name = resolvedName,
                 currency = currency
@@ -39,7 +39,7 @@ class AccountService(
 
         eventPublisher.publishEvent(
             AccountOpenedEvent(
-                accountId = account.id,
+                accountId = account.accountId,
                 userId = account.userId,
                 currency = account.currency.name,
                 timestamp = Instant.now()

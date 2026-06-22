@@ -23,17 +23,16 @@ import java.util.UUID
  * a non-null id causes SimpleJpaRepository to call merge(), which issues a
  * stale UPDATE before the INSERT and throws StaleObjectStateException.
  *
- * Plain class (not data class) because:
- * - data class auto-generates getId() which clashes with Persistable.getId() at the JVM level.
- * - JPA identity must be based on id only; data class equals/hashCode includes all fields.
- * - Hibernate proxies break data class structural equality.
+ * The primary-key property is named [accountId] (not [id]) to avoid a JVM
+ * platform declaration clash: Kotlin auto-generates a getId() getter for any
+ * property named `id`, which collides with the Persistable.getId() override.
  */
 @Entity
 @Table(name = "accounts")
 class Account(
     @Id
-    @Column(nullable = false, updatable = false)
-    val id: UUID,
+    @Column(name = "id", nullable = false, updatable = false)
+    val accountId: UUID,
 
     @Column(nullable = false, updatable = false)
     val userId: UUID,
@@ -64,18 +63,18 @@ class Account(
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
 
-    override fun getId(): UUID = id
+    override fun getId(): UUID = accountId
 
     override fun isNew(): Boolean = _isNew
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Account) return false
-        return id == other.id
+        return accountId == other.accountId
     }
 
-    override fun hashCode(): Int = id.hashCode()
+    override fun hashCode(): Int = accountId.hashCode()
 
     override fun toString(): String =
-        "Account(id=$id, userId=$userId, name=$name, currency=$currency, status=$status, balance=$balance)"
+        "Account(accountId=$accountId, userId=$userId, name=$name, currency=$currency, status=$status, balance=$balance)"
 }
