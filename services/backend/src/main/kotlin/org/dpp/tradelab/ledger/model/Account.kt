@@ -16,12 +16,9 @@ import java.util.UUID
 
 @Entity
 @Table(name = "accounts")
-data class Account(
+class Account(
     @Id
     @Column(nullable = false, updatable = false)
-    // @get:JvmName renames the auto-generated Kotlin getter at the JVM level so it
-    // no longer clashes with the getId() method required by Persistable<UUID>.
-    @get:JvmName("getAccountId")
     val id: UUID,
 
     @Column(nullable = false, updatable = false)
@@ -56,6 +53,20 @@ data class Account(
     @Transient
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
+
     override fun getId(): UUID = id
+
     override fun isNew(): Boolean = _isNew
+
+    // JPA identity contract: two Account instances are equal iff they share the same id.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Account) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
+    override fun toString(): String =
+        "Account(id=$id, userId=$userId, name=$name, currency=$currency, status=$status, balance=$balance)"
 }
