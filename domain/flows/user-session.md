@@ -29,12 +29,12 @@ user visits.
 |---|-------|--------|-------------|
 | 1 | Guest Browser | Read session store | Reads `firstName`, `lastName`, `email`, and `loggedInAt` from the Zustand session store. |
 | 2 | Guest Browser | Render topbar user area | Displays "Logged in as [firstName] [lastName]" and a Logout button in the top-right of the Topbar. |
-| 3 | Guest Browser | Render sidebar profile link | Displays a "Profile" nav link in the Sidebar alongside Trade, Ledger, and Market links. |
+| 3 | Guest Browser | Render sidebar nav links | Displays Trade, Ledger, Market, **Accounts**, and Profile nav links in the Sidebar. |
 
 ### Postconditions
 
 - The topbar shows the authenticated user's name and a Logout button.
-- The sidebar shows a Profile nav link.
+- The sidebar shows Trade, Ledger, Market, Accounts, and Profile nav links.
 
 ---
 
@@ -67,7 +67,7 @@ account information.
 ### Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
+|----------|-----------|----------|
 | No active session | User navigates to `/profile` without a session | Redirect to `/login`. |
 
 ---
@@ -93,14 +93,14 @@ entry point.
 | 1 | Authenticated User | Click Logout | Clicks the Logout button in the topbar. |
 | 2 | Guest Browser | Clear session store | Removes all data from the Zustand session store. |
 | 3 | Guest Browser | Redirect to login | Navigates to `/login`. |
-| 4 | Guest Browser | Render unauthenticated topbar | Topbar user area reverts to showing "Login or Register". Sidebar Profile link is no longer shown. |
+| 4 | Guest Browser | Render unauthenticated topbar | Topbar user area reverts to showing "Login or Register". Sidebar nav links are no longer shown. |
 
 ### Postconditions
 
 - The Zustand session store is empty.
 - The user is on the `/login` page.
 - The topbar shows "Login or Register".
-- The Profile nav link is no longer visible in the sidebar.
+- The sidebar nav links (Trade, Ledger, Market, Accounts, Profile) are no longer visible.
 
 ---
 
