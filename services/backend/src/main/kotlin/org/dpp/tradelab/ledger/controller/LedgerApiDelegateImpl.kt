@@ -5,6 +5,7 @@ import org.dpp.tradelab.ledger.generated.api.AccountsApiDelegate
 import org.dpp.tradelab.ledger.generated.model.AccountListResponse
 import org.dpp.tradelab.ledger.generated.model.AccountResponse
 import org.dpp.tradelab.ledger.generated.model.OpenAccountRequest
+import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.service.AccountService
@@ -39,9 +40,9 @@ class LedgerApiDelegateImpl(private val accountService: AccountService) : Accoun
         return ResponseEntity.ok(AccountListResponse(accounts = accounts.map { it.toResponse() }))
     }
 
-    private fun org.dpp.tradelab.ledger.model.Account.toResponse(): AccountResponse =
+    private fun Account.toResponse(): AccountResponse =
         AccountResponse(
-            id = id!!,
+            id = accountId,
             userId = userId,
             name = name,
             balance = balance,
