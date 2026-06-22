@@ -48,19 +48,36 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
     ))
 }
 
+val generateLedgerApi = tasks.register<GenerateTask>("generateLedgerApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/ledger-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/ledger")
+    apiPackage.set("org.dpp.tradelab.ledger.generated.api")
+    modelPackage.set("org.dpp.tradelab.ledger.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 // Wire generated sources into the compile classpath
 // Exclude the org.openapitools scaffolding that the generator always emits
 sourceSets {
     main {
         kotlin {
             srcDir("${layout.buildDirectory.get()}/generated/user/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/ledger/src/main/kotlin")
             exclude("org/openapitools/**")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi)
+    dependsOn(generateUserApi, generateLedgerApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────────────

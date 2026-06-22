@@ -1,5 +1,7 @@
 package org.dpp.tradelab
 
+import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
+import org.dpp.tradelab.ledger.exception.UserNotFoundException as LedgerUserNotFoundException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
@@ -34,4 +36,14 @@ class GlobalExceptionHandler {
     fun handleUserNotActive(ex: UserNotActiveException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "Account unavailable", listOf(ex.message ?: "This account is suspended or closed and cannot be used to log in.")))
+
+    @ExceptionHandler(InvalidCurrencyException::class)
+    fun handleInvalidCurrency(ex: InvalidCurrencyException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Invalid currency", listOf(ex.message ?: "The provided currency is not supported.")))
+
+    @ExceptionHandler(LedgerUserNotFoundException::class)
+    fun handleLedgerUserNotFound(ex: LedgerUserNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "User not found", listOf(ex.message ?: "User not found.")))
 }

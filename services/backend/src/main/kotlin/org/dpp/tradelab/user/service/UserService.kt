@@ -1,5 +1,6 @@
 package org.dpp.tradelab.user.service
 
+import org.dpp.tradelab.user.api.UserLookupApi
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
@@ -18,7 +19,10 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val eventPublisher: ApplicationEventPublisher
-) {
+) : UserLookupApi {
+
+    @Transactional(readOnly = true)
+    override fun existsById(userId: UUID): Boolean = userRepository.existsById(userId)
 
     @Transactional
     fun registerUser(firstName: String, lastName: String, address: String, email: String): UUID {
