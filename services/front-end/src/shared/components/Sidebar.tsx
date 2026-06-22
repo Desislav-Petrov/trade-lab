@@ -21,6 +21,11 @@ export function Sidebar() {
             Profile
           </NavLink>
         )}
+        {user && (
+          <NavLink to="/accounts" className={navLinkClass}>
+            Accounts
+          </NavLink>
+        )}
       </nav>
     </aside>
   )

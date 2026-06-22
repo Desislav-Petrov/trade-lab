@@ -51,4 +51,22 @@ describe('Sidebar', () => {
     const profileLink = screen.getByRole('link', { name: /profile/i })
     expect(profileLink.className).toContain('text-[var(--color-accent)]')
   })
+
+  it('Sidebar - no session - Accounts link is not rendered', () => {
+    renderSidebar()
+    expect(screen.queryByRole('link', { name: /accounts/i })).not.toBeInTheDocument()
+  })
+
+  it('Sidebar - session exists - Accounts link is rendered', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    renderSidebar()
+    expect(screen.getByRole('link', { name: /accounts/i })).toBeInTheDocument()
+  })
+
+  it('Sidebar - active route /accounts - Accounts link has active styles', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    renderSidebar('/accounts')
+    const accountsLink = screen.getByRole('link', { name: /accounts/i })
+    expect(accountsLink.className).toContain('text-[var(--color-accent)]')
+  })
 })
