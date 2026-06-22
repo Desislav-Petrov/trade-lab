@@ -60,24 +60,24 @@ class UserServiceTest : FunSpec({
 
     test("registerUser_validInput_returnsNewUserId") {
         whenever(userRepository.existsByEmail("jane@example.com")).thenReturn(false)
-        val savedUser = User(id = validId, firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane@example.com")
-        whenever(userRepository.save(any())).thenReturn(savedUser)
+        whenever(userRepository.save(any())).thenAnswer { it.getArgument<User>(0) }
 
         val result = userService.registerUser("Jane", "Doe", "123 Main St", "jane@example.com")
 
-        result shouldBe validId
+        val captor = argumentCaptor<User>()
+        verify(userRepository).save(captor.capture())
+        result shouldBe captor.firstValue.id
     }
 
     test("registerUser_validInput_publishesUserRegisteredEvent") {
         whenever(userRepository.existsByEmail("jane@example.com")).thenReturn(false)
-        val savedUser = User(id = validId, firstName = "Jane", lastName = "Doe", address = "123 Main St", email = "jane@example.com")
-        whenever(userRepository.save(any())).thenReturn(savedUser)
+        whenever(userRepository.save(any())).thenAnswer { it.getArgument<User>(0) }
 
-        userService.registerUser("Jane", "Doe", "123 Main St", "jane@example.com")
+        val result = userService.registerUser("Jane", "Doe", "123 Main St", "jane@example.com")
 
         val captor = argumentCaptor<UserRegisteredEvent>()
         verify(eventPublisher).publishEvent(captor.capture())
-        captor.firstValue.userId shouldBe validId
+        captor.firstValue.userId shouldBe result
         captor.firstValue.email shouldBe "jane@example.com"
         captor.firstValue.timestamp shouldNotBe null
     }
