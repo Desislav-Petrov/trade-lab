@@ -78,9 +78,8 @@ export function TopUpModal({ account, onConfirm, onClose, isLoading, isSuccess, 
         <input
           id="top-up-amount"
           name="amount"
-          type="number"
-          min={1}
-          step={1}
+          type="text"
+          inputMode="numeric"
           value={amountRaw}
           onChange={handleAmountChange}
           disabled={isLoading}
