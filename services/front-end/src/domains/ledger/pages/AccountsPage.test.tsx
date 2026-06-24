@@ -31,7 +31,7 @@ vi.mock('../components/AccountList', () => ({
         : accounts.map((a) =>
             createElement(
               'div',
-              { key: a.accountId },
+              { key: a.id },
               a.name,
               createElement(
                 'button',
@@ -114,11 +114,11 @@ const mockProfile: UserProfile = {
 }
 
 const mockAccount: AccountResponse = {
-  accountId: 'acc-1',
+  id: 'acc-1',
   name: 'My USD Account',
   currency: 'USD',
   balance: 1000,
-  status: 'active',
+  status: 'ACTIVE',
   createdAt: '2026-01-01T00:00:00Z',
 }
 

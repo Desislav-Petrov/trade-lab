@@ -54,11 +54,11 @@ describe('useAccounts', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const accounts = [
       {
-        accountId: 'acc-1',
+        id: 'acc-1',
         name: 'My Account',
         currency: 'USD',
         balance: 0,
-        status: 'active',
+        status: 'ACTIVE',
         createdAt: '2026-01-01T00:00:00Z',
       },
     ]
@@ -84,11 +84,11 @@ describe('useAccounts', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const accounts = [
       {
-        accountId: 'acc-1',
+        id: 'acc-1',
         name: 'My Account',
         currency: 'USD',
         balance: 0,
-        status: 'active',
+        status: 'ACTIVE',
         createdAt: '2026-01-01T00:00:00Z',
       },
     ]
@@ -116,11 +116,11 @@ describe('useOpenAccount', () => {
   it('useOpenAccount - success - isPending transitions to false after success', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const accountResponse = {
-      accountId: 'acc-1',
+      id: 'acc-1',
       name: 'My Account',
       currency: 'USD',
       balance: 0,
-      status: 'active',
+      status: 'ACTIVE',
       createdAt: '2026-01-01T00:00:00Z',
     }
     mockCreateAccount.mockResolvedValueOnce(accountResponse)

@@ -5,7 +5,7 @@ export interface OpenAccountRequest {
 }
 
 export interface AccountResponse {
-  accountId: string
+  id: string
   name: string
   currency: string
   balance: number

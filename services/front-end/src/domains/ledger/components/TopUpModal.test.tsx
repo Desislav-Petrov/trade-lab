@@ -5,7 +5,7 @@ import { TopUpModal } from './TopUpModal'
 import type { AccountResponse } from '../types/account'
 
 const mockAccount: AccountResponse = {
-  accountId: 'acc-123',
+  id: 'acc-123',
   name: 'Test Account',
   currency: 'USD',
   balance: 1000,
