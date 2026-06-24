@@ -20,10 +20,12 @@ Represents a user's paper trading account within the Ledger domain. Holds a stor
 ## Behaviors
 
 - **Open**: Creates a new account for the owning user. Sets `balance` to `0`, `status` to `active`, and `name` to the supplied label or `account-{id}` if omitted. No `LedgerEntry` rows are created at opening — the history starts empty.
+- **TopUp**: Adds a positive whole-number amount to `balance`. The amount must be between 1 and 10,000,000 inclusive (no decimals). The account must be `active`. Appends a `CREDIT` `LedgerEntry` with `assetType: CASH` and `description: "Top-up"`. Updates `updatedAt`. The operation is always accepted instantly — there is no pending or failed state.
 
 ## Events
 
 - **AccountOpened**: Emitted after a successful open. Payload: `accountId`, `userId`, `currency`, `name`, `timestamp`.
+- **AccountToppedUp**: Emitted after a successful top-up. Payload: `accountId`, `userId`, `amount`, `currency`, `newBalance`, `ledgerEntryId`, `timestamp`.
 
 ## Relationships
 
@@ -38,3 +40,7 @@ Represents a user's paper trading account within the Ledger domain. Holds a stor
 - An account must be in `active` status to accept any balance-mutating operation.
 - A user may hold multiple accounts, including multiple accounts in the same currency.
 - At creation, `balance` is exactly `0` and the ledger history is empty.
+- Top-up `amount` must be a positive whole number. Decimals are not permitted.
+- Top-up `amount` must not exceed 10,000,000 per operation.
+- Top-up currency always matches the account's base `currency`. No FX conversion is applied.
+- A top-up may be applied to the same account multiple times. Each operation is independent.

@@ -1,5 +1,7 @@
 package org.dpp.tradelab
 
+import org.dpp.tradelab.ledger.exception.AccountNotActiveException
+import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException as LedgerUserNotFoundException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
@@ -46,4 +48,19 @@ class GlobalExceptionHandler {
     fun handleLedgerUserNotFound(ex: LedgerUserNotFoundException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "User not found", listOf(ex.message ?: "User not found.")))
+
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgument(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Bad request", listOf(ex.message ?: "Invalid request.")))
+
+    @ExceptionHandler(AccountNotFoundException::class)
+    fun handleAccountNotFound(ex: AccountNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "Account not found", listOf(ex.message ?: "Account not found.")))
+
+    @ExceptionHandler(AccountNotActiveException::class)
+    fun handleAccountNotActive(ex: AccountNotActiveException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Account not available", listOf(ex.message ?: "Account is not available for this operation.")))
 }

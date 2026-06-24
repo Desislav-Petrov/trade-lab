@@ -41,7 +41,7 @@ class Account(
     val name: String,
 
     @Column(nullable = false, precision = 19, scale = 4)
-    val balance: BigDecimal = BigDecimal.ZERO,
+    var balance: BigDecimal = BigDecimal.ZERO,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)

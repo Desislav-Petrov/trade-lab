@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AccountList } from './AccountList'
 import type { AccountResponse } from '../types/account'
 
@@ -24,42 +25,61 @@ const mockAccounts: AccountResponse[] = [
 
 describe('AccountList', () => {
   it('AccountList - empty accounts - shows empty state message', () => {
-    render(<AccountList accounts={[]} />)
+    render(<AccountList accounts={[]} onTopUp={() => {}} />)
     expect(screen.getByText(/no accounts yet/i)).toBeInTheDocument()
   })
 
   it('AccountList - with accounts - renders account names', () => {
-    render(<AccountList accounts={mockAccounts} />)
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
     expect(screen.getByText('Trading Account')).toBeInTheDocument()
     expect(screen.getByText('Savings')).toBeInTheDocument()
   })
 
   it('AccountList - with accounts - renders currencies', () => {
-    render(<AccountList accounts={mockAccounts} />)
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
     expect(screen.getByText('USD')).toBeInTheDocument()
     expect(screen.getByText('GBP')).toBeInTheDocument()
   })
 
   it('AccountList - with accounts - renders balance to 2 decimal places', () => {
-    render(<AccountList accounts={mockAccounts} />)
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
     expect(screen.getByText('1500.50')).toBeInTheDocument()
     expect(screen.getByText('0.00')).toBeInTheDocument()
   })
 
   it('AccountList - with accounts - renders status', () => {
-    render(<AccountList accounts={mockAccounts} />)
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
     const statusCells = screen.getAllByText('active')
     expect(statusCells).toHaveLength(2)
   })
 
   it('AccountList - with accounts - renders createdAt as local date', () => {
-    render(<AccountList accounts={mockAccounts} />)
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
     const date = new Date('2026-01-15T10:00:00Z').toLocaleDateString()
     expect(screen.getByText(date)).toBeInTheDocument()
   })
 
   it('AccountList - empty accounts - does not render list', () => {
-    render(<AccountList accounts={[]} />)
+    render(<AccountList accounts={[]} onTopUp={() => {}} />)
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+
+  it('AccountList - with accounts - renders a Top Up button for each account', () => {
+    render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
+    const topUpButtons = screen.getAllByRole('button', { name: /top up/i })
+    expect(topUpButtons).toHaveLength(mockAccounts.length)
+  })
+
+  it('AccountList - with accounts - clicking Top Up calls onTopUp with the correct account', async () => {
+    const user = userEvent.setup()
+    const handleTopUp = vi.fn()
+    render(<AccountList accounts={mockAccounts} onTopUp={handleTopUp} />)
+
+    const topUpButtons = screen.getAllByRole('button', { name: /top up/i })
+    await user.click(topUpButtons[0])
+
+    expect(handleTopUp).toHaveBeenCalledOnce()
+    expect(handleTopUp).toHaveBeenCalledWith(mockAccounts[0])
+    expect(handleTopUp).not.toHaveBeenCalledWith(mockAccounts[1])
   })
 })
