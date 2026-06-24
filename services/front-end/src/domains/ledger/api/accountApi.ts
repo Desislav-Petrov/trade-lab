@@ -1,5 +1,11 @@
 import axiosInstance from '../../../shared/api/axiosInstance'
-import type { OpenAccountRequest, AccountResponse, AccountListResponse } from '../types/account'
+import type {
+  OpenAccountRequest,
+  AccountResponse,
+  AccountListResponse,
+  TopUpAccountRequest,
+  TopUpAccountResponse,
+} from '../types/account'
 
 export const ACCOUNTS_QUERY_KEY = 'accounts'
 
@@ -12,5 +18,18 @@ export async function fetchAccounts(userId: string): Promise<AccountListResponse
   const response = await axiosInstance.get<AccountListResponse>('/v1/accounts', {
     params: { userId },
   })
+  return response.data
+}
+
+export const TOP_UP_ACCOUNT_KEY = 'topUpAccount'
+
+export async function topUpAccount(
+  accountId: string,
+  request: TopUpAccountRequest
+): Promise<TopUpAccountResponse> {
+  const response = await axiosInstance.post<TopUpAccountResponse>(
+    `/v1/accounts/${accountId}/top-up`,
+    request
+  )
   return response.data
 }
