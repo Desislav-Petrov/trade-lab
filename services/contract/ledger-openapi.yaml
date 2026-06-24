@@ -89,6 +89,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /accounts/{accountId}/top-up:
+    post:
+      tags:
+        - Ledger
+      summary: Top up an account balance
+      operationId: topUpAccount
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopUpAccountRequest'
+      responses:
+        '200':
+          description: Top-up successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUpAccountResponse'
+        '400':
+          description: Validation failure — invalid amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not available for top-up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
 
@@ -177,3 +228,48 @@ components:
             type: string
           example:
             - "currency: must be one of USD, GBP, EUR"
+
+    TopUpAccountRequest:
+      type: object
+      required:
+        - userId
+        - amount
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        amount:
+          type: integer
+          minimum: 1
+          maximum: 10000000
+          example: 1000
+
+    TopUpAccountResponse:
+      type: object
+      required:
+        - accountId
+        - newBalance
+        - currency
+        - ledgerEntryId
+        - timestamp
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        newBalance:
+          type: number
+          example: 1100.00
+        currency:
+          type: string
+          enum: [USD, GBP, EUR]
+          example: USD
+        ledgerEntryId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-06-24T12:00:00Z"
