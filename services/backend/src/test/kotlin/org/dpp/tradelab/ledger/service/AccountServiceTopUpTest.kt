@@ -18,6 +18,7 @@ import org.dpp.tradelab.ledger.repository.LedgerEntryRepository
 import org.dpp.tradelab.user.api.UserLookupApi
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
@@ -34,13 +35,14 @@ class AccountServiceTopUpTest : FunSpec({
     val ledgerEntryRepository = mock<LedgerEntryRepository>()
     val userLookupApi = mock<UserLookupApi>()
     val eventPublisher = mock<ApplicationEventPublisher>()
-    val accountService = AccountService(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher)
+    val topUpValidator = mock<AccountTopUpValidator>()
+    val accountService = AccountService(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher, topUpValidator)
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
 
     beforeEach {
-        reset(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher)
+        reset(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher, topUpValidator)
     }
 
     // -------------------------------------------------------------------------
@@ -216,6 +218,9 @@ class AccountServiceTopUpTest : FunSpec({
     // -------------------------------------------------------------------------
 
     test("topUpAccount_amountIsZero_throwsIllegalArgumentException") {
+        doThrow(IllegalArgumentException("amount must be greater than zero"))
+            .whenever(topUpValidator).validateAmount(BigDecimal.ZERO)
+
         shouldThrow<IllegalArgumentException> {
             accountService.topUpAccount(accountId, userId, BigDecimal.ZERO)
         }
@@ -227,6 +232,9 @@ class AccountServiceTopUpTest : FunSpec({
     }
 
     test("topUpAccount_amountIsNegative_throwsIllegalArgumentException") {
+        doThrow(IllegalArgumentException("amount must be greater than zero"))
+            .whenever(topUpValidator).validateAmount(BigDecimal("-1"))
+
         shouldThrow<IllegalArgumentException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("-1"))
         }
@@ -238,6 +246,9 @@ class AccountServiceTopUpTest : FunSpec({
     }
 
     test("topUpAccount_amountHasFractionalPart_throwsIllegalArgumentException") {
+        doThrow(IllegalArgumentException("amount must be a whole number"))
+            .whenever(topUpValidator).validateAmount(BigDecimal("1.5"))
+
         shouldThrow<IllegalArgumentException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("1.5"))
         }
@@ -249,6 +260,9 @@ class AccountServiceTopUpTest : FunSpec({
     }
 
     test("topUpAccount_amountExceedsMaximum_throwsIllegalArgumentException") {
+        doThrow(IllegalArgumentException("amount must not exceed 10,000,000"))
+            .whenever(topUpValidator).validateAmount(BigDecimal("10000001"))
+
         shouldThrow<IllegalArgumentException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("10000001"))
         }
@@ -286,6 +300,8 @@ class AccountServiceTopUpTest : FunSpec({
             status = AccountStatus.ACTIVE
         )
         whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        doThrow(AccountNotActiveException(accountId))
+            .whenever(topUpValidator).validateAccountEligibility(account, userId)
 
         shouldThrow<AccountNotActiveException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("100"))
@@ -306,6 +322,8 @@ class AccountServiceTopUpTest : FunSpec({
             status = AccountStatus.SUSPENDED
         )
         whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        doThrow(AccountNotActiveException(accountId))
+            .whenever(topUpValidator).validateAccountEligibility(account, userId)
 
         shouldThrow<AccountNotActiveException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("100"))
@@ -326,6 +344,8 @@ class AccountServiceTopUpTest : FunSpec({
             status = AccountStatus.CLOSED
         )
         whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        doThrow(AccountNotActiveException(accountId))
+            .whenever(topUpValidator).validateAccountEligibility(account, userId)
 
         shouldThrow<AccountNotActiveException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("100"))

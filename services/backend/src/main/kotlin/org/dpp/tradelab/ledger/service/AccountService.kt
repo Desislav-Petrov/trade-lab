@@ -1,12 +1,10 @@
 package org.dpp.tradelab.ledger.service
 
-import org.dpp.tradelab.ledger.exception.AccountNotActiveException
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException
 import org.dpp.tradelab.ledger.messaging.AccountOpenedEvent
 import org.dpp.tradelab.ledger.messaging.AccountToppedUpEvent
 import org.dpp.tradelab.ledger.model.Account
-import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.AssetType
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.model.EntryType
@@ -26,7 +24,8 @@ class AccountService(
     private val accountRepository: AccountRepository,
     private val ledgerEntryRepository: LedgerEntryRepository,
     private val userLookupApi: UserLookupApi,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val topUpValidator: AccountTopUpValidator
 ) {
 
     @Transactional
@@ -61,22 +60,13 @@ class AccountService(
 
     @Transactional
     fun topUpAccount(accountId: UUID, userId: UUID, amount: BigDecimal): Pair<Account, LedgerEntry> {
-        // 1. Validate amount > 0
-        if (amount <= BigDecimal.ZERO) throw IllegalArgumentException("amount must be greater than zero")
-        // 2. Validate whole number (stripTrailingZeros().scale() <= 0)
-        if (amount.stripTrailingZeros().scale() > 0) throw IllegalArgumentException("amount must be a whole number")
-        // 3. Validate amount <= 10_000_000
-        if (amount > BigDecimal(10_000_000)) throw IllegalArgumentException("amount must not exceed 10,000,000")
-        // 4. Load account
+        topUpValidator.validateAmount(amount)
         val account = accountRepository.findById(accountId).orElseThrow { AccountNotFoundException(accountId) }
-        // 5. Validate ownership
-        if (account.userId != userId) throw AccountNotActiveException(accountId)
-        // 6. Validate status
-        if (account.status != AccountStatus.ACTIVE) throw AccountNotActiveException(accountId)
-        // 7. Update balance
+        topUpValidator.validateAccountEligibility(account, userId)
+        // Update balance
         account.balance = account.balance.add(amount)
         val savedAccount = accountRepository.save(account)
-        // 8. Create ledger entry
+        // Create ledger entry
         val entryId = UUID.randomUUID()
         val entry = ledgerEntryRepository.save(
             LedgerEntry(
@@ -89,7 +79,7 @@ class AccountService(
                 description = "Top-up"
             )
         )
-        // 9. Publish event
+        // Publish event
         eventPublisher.publishEvent(
             AccountToppedUpEvent(
                 accountId = account.accountId,
@@ -101,7 +91,7 @@ class AccountService(
                 timestamp = Instant.now()
             )
         )
-        // 10. Return saved account and ledger entry
+        // Return saved account and ledger entry
         return Pair(savedAccount, entry)
     }
 

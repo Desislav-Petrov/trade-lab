@@ -29,7 +29,8 @@ class AccountServiceTest : FunSpec({
     val ledgerEntryRepository = mock<LedgerEntryRepository>()
     val userLookupApi = mock<UserLookupApi>()
     val eventPublisher = mock<ApplicationEventPublisher>()
-    val accountService = AccountService(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher)
+    val topUpValidator = mock<AccountTopUpValidator>()
+    val accountService = AccountService(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher, topUpValidator)
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
