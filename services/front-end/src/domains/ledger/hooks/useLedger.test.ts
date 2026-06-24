@@ -2,19 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
-import { useAccounts, useOpenAccount } from './useLedger'
+import { useAccounts, useOpenAccount, useTopUpAccount } from './useLedger'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import type { UserProfile } from '../../user/types/user'
 
 vi.mock('../api/accountApi', () => ({
   fetchAccounts: vi.fn(),
   createAccount: vi.fn(),
+  topUpAccount: vi.fn(),
   ACCOUNTS_QUERY_KEY: 'accounts',
+  TOP_UP_ACCOUNT_KEY: 'topUpAccount',
 }))
 
-import { fetchAccounts, createAccount } from '../api/accountApi'
+import { fetchAccounts, createAccount, topUpAccount } from '../api/accountApi'
 const mockFetchAccounts = vi.mocked(fetchAccounts)
 const mockCreateAccount = vi.mocked(createAccount)
+const mockTopUpAccount = vi.mocked(topUpAccount)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -76,6 +79,32 @@ describe('useAccounts', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
   })
+
+  it('useAccounts - staleTime 0 - refetches on every mount', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const accounts = [
+      {
+        accountId: 'acc-1',
+        name: 'My Account',
+        currency: 'USD',
+        balance: 0,
+        status: 'active',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    mockFetchAccounts.mockResolvedValue({ accounts })
+
+    const wrapper = createWrapper()
+    const { result, unmount } = renderHook(() => useAccounts(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    unmount()
+
+    const { result: result2 } = renderHook(() => useAccounts(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result2.current.isSuccess).toBe(true))
+
+    expect(mockFetchAccounts).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('useOpenAccount', () => {
@@ -125,5 +154,75 @@ describe('useOpenAccount', () => {
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+})
+
+describe('useTopUpAccount', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    act(() => useSessionStore.getState().clearSession())
+  })
+
+  it('useTopUpAccount - success - invalidates accounts query', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const topUpResponse = {
+      accountId: 'acc-1',
+      newBalance: 500,
+      currency: 'USD',
+      ledgerEntryId: 'le-1',
+      timestamp: '2026-01-01T00:00:00Z',
+    }
+    mockTopUpAccount.mockResolvedValueOnce(topUpResponse)
+
+    let capturedInvalidate: ReturnType<typeof vi.fn> | undefined
+    const OriginalQueryClient = QueryClient
+
+    const wrapper = (() => {
+      const queryClient = new OriginalQueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      })
+      capturedInvalidate = vi.spyOn(queryClient, 'invalidateQueries') as ReturnType<typeof vi.fn>
+      return ({ children }: { children: React.ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children)
+    })()
+
+    const { result } = renderHook(() => useTopUpAccount(), { wrapper })
+
+    act(() => {
+      result.current.mutate({ accountId: 'acc-1', request: { userId: 'u1', amount: 500 } })
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockTopUpAccount).toHaveBeenCalledWith('acc-1', { userId: 'u1', amount: 500 })
+    expect(capturedInvalidate).toHaveBeenCalledWith({ queryKey: ['accounts', 'u1'] })
+  })
+
+  it('useTopUpAccount - error - isError is true and invalidateQueries not called', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const error = Object.assign(new Error('Bad Request'), {
+      isAxiosError: true,
+      response: { status: 400 },
+    })
+    mockTopUpAccount.mockRejectedValueOnce(error)
+
+    let capturedInvalidate: ReturnType<typeof vi.fn> | undefined
+
+    const wrapper = (() => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      })
+      capturedInvalidate = vi.spyOn(queryClient, 'invalidateQueries') as ReturnType<typeof vi.fn>
+      return ({ children }: { children: React.ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children)
+    })()
+
+    const { result } = renderHook(() => useTopUpAccount(), { wrapper })
+
+    act(() => {
+      result.current.mutate({ accountId: 'acc-1', request: { userId: 'u1', amount: 500 } })
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(capturedInvalidate).not.toHaveBeenCalled()
   })
 })
