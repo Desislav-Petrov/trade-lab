@@ -2,18 +2,23 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
-import { useAccounts, useOpenAccount } from '../hooks/useLedger'
+import { useAccounts, useOpenAccount, useTopUpAccount } from '../hooks/useLedger'
 import { AccountList } from '../components/AccountList'
 import { OpenAccountForm } from '../components/OpenAccountForm'
+import { TopUpModal } from '../components/TopUpModal'
+import type { AccountResponse } from '../types/account'
 
 export function AccountsPage() {
   const user = useSessionStore((s) => s.user)
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState<string | undefined>(undefined)
+  const [selectedAccount, setSelectedAccount] = useState<AccountResponse | null>(null)
+  const [topUpError, setTopUpError] = useState<string | undefined>(undefined)
 
   const { data, isLoading: isLoadingAccounts } = useAccounts()
   const openAccount = useOpenAccount()
+  const topUpAccount = useTopUpAccount()
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -84,7 +89,56 @@ export function AccountsPage() {
       {isLoadingAccounts ? (
         <p className="text-xs text-[var(--color-text-muted)]">Loading accounts…</p>
       ) : (
-        <AccountList accounts={accounts} />
+        <AccountList
+          accounts={accounts}
+          onTopUp={(account) => {
+            topUpAccount.reset()
+            setTopUpError(undefined)
+            setSelectedAccount(account)
+          }}
+        />
+      )}
+
+      {selectedAccount && (
+        <TopUpModal
+          account={selectedAccount}
+          isLoading={topUpAccount.isPending}
+          isSuccess={topUpAccount.isSuccess}
+          error={topUpError}
+          onConfirm={(amount) => {
+            topUpAccount.mutate(
+              { accountId: selectedAccount.accountId, request: { userId: user!.userId, amount } },
+              {
+                onSuccess: () => {
+                  // isSuccess will be true — TopUpModal shows confirmation
+                  // onClose will clear selectedAccount after user dismisses
+                },
+                onError: (err) => {
+                  const axiosError = err as AxiosError
+                  const status = axiosError?.response?.status
+                  if (status === 401) {
+                    navigate('/login', { replace: true })
+                  } else {
+                    setTopUpError(
+                      status === 400
+                        ? 'Invalid amount. Please check your input.'
+                        : status === 403
+                          ? 'This account is not available for top-up.'
+                          : status === 404
+                            ? 'Account not found.'
+                            : 'Something went wrong. Please try again.',
+                    )
+                  }
+                },
+              },
+            )
+          }}
+          onClose={() => {
+            setSelectedAccount(null)
+            setTopUpError(undefined)
+            topUpAccount.reset()
+          }}
+        />
       )}
     </div>
   )

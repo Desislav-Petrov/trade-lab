@@ -6,19 +6,40 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccountsPage } from './AccountsPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import type { UserProfile } from '../../user/types/user'
+import type { AccountResponse } from '../types/account'
 import { act } from 'react'
 
 vi.mock('../hooks/useLedger', () => ({
   useAccounts: vi.fn(),
   useOpenAccount: vi.fn(),
+  useTopUpAccount: vi.fn(),
 }))
 
 vi.mock('../components/AccountList', () => ({
-  AccountList: ({ accounts }: { accounts: { accountId: string; name: string }[] }) =>
-    createElement('div', { 'data-testid': 'account-list' },
+  AccountList: ({
+    accounts,
+    onTopUp,
+  }: {
+    accounts: AccountResponse[]
+    onTopUp: (account: AccountResponse) => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'account-list' },
       accounts.length === 0
         ? 'No accounts yet. Open one to get started.'
-        : accounts.map((a) => createElement('div', { key: a.accountId }, a.name)),
+        : accounts.map((a) =>
+            createElement(
+              'div',
+              { key: a.accountId },
+              a.name,
+              createElement(
+                'button',
+                { onClick: () => onTopUp(a) },
+                'Top Up',
+              ),
+            ),
+          ),
     ),
 }))
 
@@ -34,7 +55,9 @@ vi.mock('../components/OpenAccountForm', () => ({
     isLoading: boolean
     error?: string
   }) =>
-    createElement('div', { 'data-testid': 'open-account-form' },
+    createElement(
+      'div',
+      { 'data-testid': 'open-account-form' },
       error ? createElement('p', { role: 'alert' }, error) : null,
       createElement('button', { onClick: () => onSubmit('USD', 'Test Account') }, 'Submit Form'),
       createElement('button', { onClick: onCancel }, 'Cancel Form'),
@@ -42,9 +65,43 @@ vi.mock('../components/OpenAccountForm', () => ({
     ),
 }))
 
-import { useAccounts, useOpenAccount } from '../hooks/useLedger'
+vi.mock('../components/TopUpModal', () => ({
+  TopUpModal: ({
+    account,
+    onConfirm,
+    onClose,
+    isLoading,
+    isSuccess,
+    error,
+  }: {
+    account: AccountResponse
+    onConfirm: (amount: number) => void
+    onClose: () => void
+    isLoading: boolean
+    isSuccess: boolean
+    error?: string
+  }) => {
+    if (isSuccess) {
+      return createElement('div', { 'data-testid': 'top-up-modal' }, 'Top up successful')
+    }
+    return createElement(
+      'div',
+      { 'data-testid': 'top-up-modal' },
+      createElement('p', null, `Top up: ${account.name}`),
+      createElement('label', { htmlFor: 'amount-input' }, 'Amount'),
+      createElement('input', { id: 'amount-input', 'data-testid': 'amount-input', type: 'number' }),
+      error ? createElement('p', { role: 'alert' }, error) : null,
+      createElement('button', { onClick: () => onConfirm(500) }, 'Confirm Top Up'),
+      createElement('button', { onClick: onClose }, 'Cancel'),
+      isLoading ? createElement('span', null, 'loading') : null,
+    )
+  },
+}))
+
+import { useAccounts, useOpenAccount, useTopUpAccount } from '../hooks/useLedger'
 const mockUseAccounts = vi.mocked(useAccounts)
 const mockUseOpenAccount = vi.mocked(useOpenAccount)
+const mockUseTopUpAccount = vi.mocked(useTopUpAccount)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -56,12 +113,27 @@ const mockProfile: UserProfile = {
   createdAt: '2026-01-01T00:00:00Z',
 }
 
+const mockAccount: AccountResponse = {
+  accountId: 'acc-1',
+  name: 'My USD Account',
+  currency: 'USD',
+  balance: 1000,
+  status: 'active',
+  createdAt: '2026-01-01T00:00:00Z',
+}
+
 function renderPage(initialPath = '/accounts') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return render(
-    createElement(QueryClientProvider, { client: queryClient },
-      createElement(MemoryRouter, { initialEntries: [initialPath] },
-        createElement(Routes, null,
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(
+        MemoryRouter,
+        { initialEntries: [initialPath] },
+        createElement(
+          Routes,
+          null,
           createElement(Route, { path: '/accounts', element: createElement(AccountsPage) }),
           createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
         ),
@@ -70,17 +142,33 @@ function renderPage(initialPath = '/accounts') {
   )
 }
 
-function setupMocks(overrides: Partial<{ mutate: ReturnType<typeof vi.fn>; isPending: boolean }> = {}) {
+function setupMocks(
+  overrides: Partial<{
+    openAccountMutate: ReturnType<typeof vi.fn>
+    openAccountIsPending: boolean
+    topUpMutate: ReturnType<typeof vi.fn>
+    topUpIsPending: boolean
+    topUpIsSuccess: boolean
+    topUpReset: ReturnType<typeof vi.fn>
+    accounts: AccountResponse[]
+  }> = {},
+) {
   mockUseAccounts.mockReturnValue({
-    data: { accounts: [] },
+    data: { accounts: overrides.accounts ?? [] },
     isLoading: false,
   } as unknown as ReturnType<typeof useAccounts>)
 
   mockUseOpenAccount.mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-    ...overrides,
+    mutate: overrides.openAccountMutate ?? vi.fn(),
+    isPending: overrides.openAccountIsPending ?? false,
   } as unknown as ReturnType<typeof useOpenAccount>)
+
+  mockUseTopUpAccount.mockReturnValue({
+    mutate: overrides.topUpMutate ?? vi.fn(),
+    isPending: overrides.topUpIsPending ?? false,
+    isSuccess: overrides.topUpIsSuccess ?? false,
+    reset: overrides.topUpReset ?? vi.fn(),
+  } as unknown as ReturnType<typeof useTopUpAccount>)
 }
 
 describe('AccountsPage', () => {
@@ -112,6 +200,12 @@ describe('AccountsPage', () => {
       mutate: vi.fn(),
       isPending: false,
     } as unknown as ReturnType<typeof useOpenAccount>)
+    mockUseTopUpAccount.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isSuccess: false,
+      reset: vi.fn(),
+    } as unknown as ReturnType<typeof useTopUpAccount>)
     renderPage()
     expect(screen.getByText(/loading accounts/i)).toBeInTheDocument()
   })
@@ -147,7 +241,7 @@ describe('AccountsPage', () => {
   it('AccountsPage - form submitted - calls mutate with userId and currency', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const mutate = vi.fn()
-    setupMocks({ mutate })
+    setupMocks({ openAccountMutate: mutate })
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
@@ -162,7 +256,7 @@ describe('AccountsPage', () => {
   it('AccountsPage - mutation success - hides form', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const mutate = vi.fn((_, { onSuccess }: { onSuccess: () => void }) => onSuccess())
-    setupMocks({ mutate })
+    setupMocks({ openAccountMutate: mutate })
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
@@ -178,7 +272,7 @@ describe('AccountsPage', () => {
       response: { status: 401 },
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
-    setupMocks({ mutate })
+    setupMocks({ openAccountMutate: mutate })
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
@@ -194,7 +288,7 @@ describe('AccountsPage', () => {
       response: { status: 400 },
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
-    setupMocks({ mutate })
+    setupMocks({ openAccountMutate: mutate })
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
@@ -211,7 +305,7 @@ describe('AccountsPage', () => {
       response: { status: 403 },
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
-    setupMocks({ mutate })
+    setupMocks({ openAccountMutate: mutate })
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
@@ -219,5 +313,97 @@ describe('AccountsPage', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(/not authorised/i)).toBeInTheDocument()
+  })
+
+  // --- Top-up flow tests ---
+
+  it('AccountsPage - clicking Top Up on an account - opens TopUpModal for that account', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ accounts: [mockAccount] })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+
+    expect(screen.getByTestId('top-up-modal')).toBeInTheDocument()
+    expect(screen.getByText(/Amount/i)).toBeInTheDocument()
+  })
+
+  it('AccountsPage - successful top-up - isSuccess passed as true to modal', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ accounts: [mockAccount], topUpIsSuccess: true })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+
+    expect(screen.getByText('Top up successful')).toBeInTheDocument()
+  })
+
+  it('AccountsPage - closing modal - clears selectedAccount', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ accounts: [mockAccount] })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+    expect(screen.getByTestId('top-up-modal')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByTestId('top-up-modal')).not.toBeInTheDocument()
+  })
+
+  it('AccountsPage - top-up 401 error - navigates to /login', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const error = Object.assign(new Error('Unauthorized'), {
+      isAxiosError: true,
+      response: { status: 401 },
+    })
+    const topUpMutate = vi.fn(
+      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
+    )
+    setupMocks({ accounts: [mockAccount], topUpMutate })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
+
+    expect(screen.getByText('Login Page')).toBeInTheDocument()
+  })
+
+  it('AccountsPage - top-up 403 error - passes correct error string to modal', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const error = Object.assign(new Error('Forbidden'), {
+      isAxiosError: true,
+      response: { status: 403 },
+    })
+    const topUpMutate = vi.fn(
+      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
+    )
+    setupMocks({ accounts: [mockAccount], topUpMutate })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('This account is not available for top-up.')).toBeInTheDocument()
+  })
+
+  it('AccountsPage - top-up 404 error - passes correct error string to modal', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const error = Object.assign(new Error('Not Found'), {
+      isAxiosError: true,
+      response: { status: 404 },
+    })
+    const topUpMutate = vi.fn(
+      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
+    )
+    setupMocks({ accounts: [mockAccount], topUpMutate })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /top up/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('Account not found.')).toBeInTheDocument()
   })
 })
