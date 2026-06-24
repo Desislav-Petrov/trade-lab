@@ -7,8 +7,8 @@ import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.ledger.model.AssetType
 import org.dpp.tradelab.ledger.model.EntryType
 import org.dpp.tradelab.ledger.model.LedgerEntry
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import java.math.BigDecimal
 import java.util.UUID
 
