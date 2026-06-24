@@ -14,11 +14,11 @@ describe('createAccount', () => {
 
   it('createAccount - success - returns AccountResponse', async () => {
     const response = {
-      accountId: 'acc-1',
+      id: 'acc-1',
       name: 'My Account',
       currency: 'USD',
       balance: 0,
-      status: 'active',
+      status: 'ACTIVE',
       createdAt: '2026-01-01T00:00:00Z',
     }
     mockPost.mockResolvedValueOnce({ data: response })
@@ -35,11 +35,11 @@ describe('createAccount', () => {
 
   it('createAccount - without name - posts without name field', async () => {
     const response = {
-      accountId: 'acc-2',
+      id: 'acc-2',
       name: 'USD Account',
       currency: 'USD',
       balance: 0,
-      status: 'active',
+      status: 'ACTIVE',
       createdAt: '2026-01-01T00:00:00Z',
     }
     mockPost.mockResolvedValueOnce({ data: response })
@@ -69,11 +69,11 @@ describe('fetchAccounts', () => {
   it('fetchAccounts - success - returns AccountListResponse', async () => {
     const accounts = [
       {
-        accountId: 'acc-1',
+        id: 'acc-1',
         name: 'My Account',
         currency: 'USD',
         balance: 100,
-        status: 'active',
+        status: 'ACTIVE',
         createdAt: '2026-01-01T00:00:00Z',
       },
     ]

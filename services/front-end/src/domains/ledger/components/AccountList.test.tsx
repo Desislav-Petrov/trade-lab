@@ -6,19 +6,19 @@ import type { AccountResponse } from '../types/account'
 
 const mockAccounts: AccountResponse[] = [
   {
-    accountId: 'acc-1',
+    id: 'acc-1',
     name: 'Trading Account',
     currency: 'USD',
     balance: 1500.5,
-    status: 'active',
+    status: 'ACTIVE',
     createdAt: '2026-01-15T10:00:00Z',
   },
   {
-    accountId: 'acc-2',
+    id: 'acc-2',
     name: 'Savings',
     currency: 'GBP',
     balance: 0,
-    status: 'active',
+    status: 'ACTIVE',
     createdAt: '2026-02-01T08:30:00Z',
   },
 ]
@@ -49,7 +49,7 @@ describe('AccountList', () => {
 
   it('AccountList - with accounts - renders status', () => {
     render(<AccountList accounts={mockAccounts} onTopUp={() => {}} />)
-    const statusCells = screen.getAllByText('active')
+    const statusCells = screen.getAllByText('ACTIVE')
     expect(statusCells).toHaveLength(2)
   })
 

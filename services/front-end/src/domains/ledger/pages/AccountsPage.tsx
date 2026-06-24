@@ -107,7 +107,7 @@ export function AccountsPage() {
           error={topUpError}
           onConfirm={(amount) => {
             topUpAccount.mutate(
-              { accountId: selectedAccount.accountId, request: { userId: user!.userId, amount } },
+              { accountId: selectedAccount.id, request: { userId: user!.userId, amount } },
               {
                 onSuccess: () => {
                   // isSuccess will be true — TopUpModal shows confirmation

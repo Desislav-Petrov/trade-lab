@@ -18,7 +18,7 @@ export function AccountList({ accounts, onTopUp }: AccountListProps) {
     <ul className="flex flex-col gap-3">
       {accounts.map((account) => (
         <li
-          key={account.accountId}
+          key={account.id}
           className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
         >
           <dl className="flex flex-col gap-1">
