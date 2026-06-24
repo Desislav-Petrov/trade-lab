@@ -60,7 +60,7 @@ class AccountService(
     }
 
     @Transactional
-    fun topUpAccount(accountId: UUID, userId: UUID, amount: BigDecimal): Account {
+    fun topUpAccount(accountId: UUID, userId: UUID, amount: BigDecimal): Pair<Account, LedgerEntry> {
         // 1. Validate amount > 0
         if (amount <= BigDecimal.ZERO) throw IllegalArgumentException("amount must be greater than zero")
         // 2. Validate whole number (stripTrailingZeros().scale() <= 0)
@@ -101,8 +101,8 @@ class AccountService(
                 timestamp = Instant.now()
             )
         )
-        // 10. Return saved account
-        return savedAccount
+        // 10. Return saved account and ledger entry
+        return Pair(savedAccount, entry)
     }
 
     @Transactional(readOnly = true)

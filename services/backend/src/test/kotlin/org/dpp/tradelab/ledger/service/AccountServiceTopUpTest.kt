@@ -79,7 +79,7 @@ class AccountServiceTopUpTest : FunSpec({
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
-        val result = accountService.topUpAccount(accountId, userId, amount)
+        val (result, _) = accountService.topUpAccount(accountId, userId, amount)
 
         result.balance shouldBe BigDecimal("700.0000")
     }
@@ -206,7 +206,7 @@ class AccountServiceTopUpTest : FunSpec({
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
-        val result = accountService.topUpAccount(accountId, userId, amount)
+        val (result, _) = accountService.topUpAccount(accountId, userId, amount)
 
         result shouldBe savedAccount
     }

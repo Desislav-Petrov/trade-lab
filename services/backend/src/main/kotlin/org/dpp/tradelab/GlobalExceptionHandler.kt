@@ -49,6 +49,11 @@ class GlobalExceptionHandler {
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "User not found", listOf(ex.message ?: "User not found.")))
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgument(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Bad request", listOf(ex.message ?: "Invalid request.")))
+
     @ExceptionHandler(AccountNotFoundException::class)
     fun handleAccountNotFound(ex: AccountNotFoundException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
