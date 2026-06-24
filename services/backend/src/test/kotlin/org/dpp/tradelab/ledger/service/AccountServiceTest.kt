@@ -10,6 +10,7 @@ import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.repository.AccountRepository
+import org.dpp.tradelab.ledger.repository.LedgerEntryRepository
 import org.dpp.tradelab.user.api.UserLookupApi
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -25,15 +26,16 @@ import java.util.UUID
 class AccountServiceTest : FunSpec({
 
     val accountRepository = mock<AccountRepository>()
+    val ledgerEntryRepository = mock<LedgerEntryRepository>()
     val userLookupApi = mock<UserLookupApi>()
     val eventPublisher = mock<ApplicationEventPublisher>()
-    val accountService = AccountService(accountRepository, userLookupApi, eventPublisher)
+    val accountService = AccountService(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher)
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
 
     beforeEach {
-        reset(accountRepository, userLookupApi, eventPublisher)
+        reset(accountRepository, ledgerEntryRepository, userLookupApi, eventPublisher)
     }
 
     test("openAccount_unknownUserId_throwsUserNotFoundException") {
