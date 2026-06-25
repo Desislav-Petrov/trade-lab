@@ -19,6 +19,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import tools.jackson.databind.json.JsonMapper
 import java.math.BigDecimal
 import java.net.URI
 import java.time.Instant
@@ -29,8 +30,9 @@ class MarketDataFeedServiceTest : FunSpec({
     val repository = mock<AssetSubscriptionRepository>()
     val priceFeedGenerator = mock<PriceFeedGenerator>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
+    val objectMapper = JsonMapper.builder().build()
 
-    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig)
+    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, objectMapper)
 
     val userId = UUID.randomUUID()
     val aaplSnapshot = MarketDataSnapshot(
@@ -323,6 +325,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
         payload.contains("\"type\":\"TICK\"") shouldBe true
         payload.contains("\"ticker\":\"AAPL\"") shouldBe true
-        payload.contains("\"currentPrice\":\"150.000\"") shouldBe true
+        // Prices are serialised as JSON numbers (not strings) to exactly 3 decimal places
+        payload.contains("\"currentPrice\":150.000") shouldBe true
     }
 })
