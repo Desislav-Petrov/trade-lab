@@ -1,7 +1,7 @@
 # Decision: Supported tickers list delivery to the frontend
 
 **Date:** 2026-06-25  
-**Status:** accepted
+**Status:** superseded by `2026-06-25-supported-tickers-api-endpoint.md`
 
 ## Context
 
@@ -15,16 +15,6 @@ Two options were considered:
 
 ## Decision
 
-Option 2 — static frontend asset.
+~~Option 2 — static frontend asset.~~ **Superseded.**
 
-The supported tickers list is static configuration that does not change at runtime. It is not user-specific and has no security sensitivity. Serving it as a static file via the frontend build tool (Vite) is simpler, removes an unnecessary HTTP round-trip on page load, and requires no API-CONTRACT or backend changes. The frontend reads `public/supported-tickers.csv` once via `fetch` (or imports it as a module) and parses it client-side.
-
-A `useSupportedTickers` hook in `domains/marketdata/hooks/` owns the load and parse logic, keeping components free of raw fetch calls.
-
-## Consequences
-
-- `supported-tickers.csv` is also placed at `services/front-end/public/supported-tickers.csv`.
-- A `useSupportedTickers` hook is added to `services/front-end/src/domains/marketdata/hooks/` — returns `SubscriptionResponse[]` (ticker + companyName pairs) parsed from the CSV.
-- `SCREEN-1` is unblocked. `StockTradingPage` passes `useSupportedTickers` data minus current subscriptions to `AddTickerPanel`.
-- No new backend endpoint is added for this use case. If the ticker list ever needs to become dynamic (e.g. admin-managed), a new decision log entry must be created and the backend endpoint approach revisited.
-- `tasks/manage-asset-subscriptions.md` SCREEN-1 note is superseded by this decision.
+This decision was reversed during PR review. Duplicating the configuration across backend resources and frontend public assets was identified as a maintenance problem. See `decisions/2026-06-25-supported-tickers-api-endpoint.md` for the accepted replacement decision.
