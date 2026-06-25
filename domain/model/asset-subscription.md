@@ -23,8 +23,8 @@ Represents a single user's active subscription to a stock ticker symbol within t
 
 ## Events
 
-- **AssetSubscribedEvent**: Emitted after a successful subscribe or bulk subscribe. Payload: `userId`, `tickers` (list), `timestamp`.
-- **AssetUnsubscribedEvent**: Emitted after a successful unsubscribe or bulk unsubscribe. Payload: `userId`, `tickers` (list), `timestamp`.
+- **AssetSubscribedEvent**: Emitted after a successful subscribe or bulk subscribe. Payload: `userId`, `tickers` (list), `timestamp`. Consumed by the WebSocket feed component to update the in-memory subscription lookup and push an immediate price snapshot to the user's open connection for the new ticker(s).
+- **AssetUnsubscribedEvent**: Emitted after a successful unsubscribe or bulk unsubscribe. Payload: `userId`, `tickers` (list), `timestamp`. Consumed by the WebSocket feed component to remove the ticker(s) from the in-memory subscription lookup, stopping further price updates to that user for those ticker(s).
 
 ## Relationships
 
@@ -41,3 +41,4 @@ Represents a single user's active subscription to a stock ticker symbol within t
 - `AssetSubscription` records are owned by the Market Data domain. No other domain may read or write them directly — cross-domain access must go through the Market Data `api/` interface.
 - The supported tickers configuration is static and loaded at application startup. It is not a database entity.
 - There is no `updatedAt` field — subscriptions are immutable after creation; the only lifecycle events are create and delete.
+- At application startup, all `AssetSubscription` records are loaded from the database to seed the WebSocket feed component's in-memory subscription lookup (keyed by ticker → set of userIds, and by userId → set of tickers).
