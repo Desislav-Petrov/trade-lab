@@ -46,6 +46,33 @@ paths:
                 details:
                   - "An unexpected error occurred. Please try again later."
 
+  /market-data/feed:
+    get:
+      tags:
+        - Market Data
+      summary: Connect to real-time market data feed (WebSocket)
+      operationId: connectMarketDataFeed
+      description: >
+        WebSocket upgrade endpoint. After a successful HTTP 101 handshake, the server
+        immediately pushes a SNAPSHOT message containing current price data for all
+        of the user's subscribed tickers. Subsequent TICK messages are pushed as the
+        price feed updates (~every 250 ms).
+        Close codes: 4401 — userId missing or invalid; 4500 — internal server error.
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '101':
+          description: WebSocket handshake successful
+        '4401':
+          description: userId missing or invalid
+        '4500':
+          description: Internal server error during snapshot
+
   /market-data/subscriptions:
     get:
       tags:
@@ -296,3 +323,64 @@ components:
             type: string
           example:
             - "ticker must not be blank"
+
+    MarketDataUpdate:
+      type: object
+      required:
+        - ticker
+        - companyName
+        - currentPrice
+        - open
+        - dayLow
+        - fiftyTwoWeekHigh
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        companyName:
+          type: string
+          example: Apple Inc.
+        currentPrice:
+          type: number
+          multipleOf: 0.001
+          example: 150.000
+        open:
+          type: number
+          multipleOf: 0.001
+          example: 148.000
+        dayLow:
+          type: number
+          multipleOf: 0.001
+          example: 147.500
+        fiftyTwoWeekHigh:
+          type: number
+          multipleOf: 0.001
+          example: 200.000
+
+    SnapshotMessage:
+      type: object
+      required:
+        - type
+        - data
+      properties:
+        type:
+          type: string
+          enum:
+            - SNAPSHOT
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketDataUpdate'
+
+    TickMessage:
+      type: object
+      required:
+        - type
+        - data
+      properties:
+        type:
+          type: string
+          enum:
+            - TICK
+        data:
+          $ref: '#/components/schemas/MarketDataUpdate'
