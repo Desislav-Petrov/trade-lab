@@ -296,3 +296,36 @@ components:
             type: string
           example:
             - "ticker must not be blank"
+
+    MarketDataUpdate:
+      type: object
+      required:
+        - ticker
+        - companyName
+        - currentPrice
+        - open
+        - dayLow
+        - fiftyTwoWeekHigh
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        companyName:
+          type: string
+          example: Apple Inc.
+        currentPrice:
+          type: number
+          multipleOf: 0.001
+          example: 150.000
+        open:
+          type: number
+          multipleOf: 0.001
+          example: 148.000
+        dayLow:
+          type: number
+          multipleOf: 0.001
+          example: 147.500
+        fiftyTwoWeekHigh:
+          type: number
+          multipleOf: 0.001
+          example: 200.000

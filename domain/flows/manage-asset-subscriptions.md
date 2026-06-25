@@ -4,6 +4,8 @@
 
 Covers the operations a user performs on their stock watchlist from the Stock Trading page: loading their current subscriptions on page entry, bulk-adding new ticker subscriptions, and bulk-removing existing ones. All operations are scoped to the authenticated user and are backed by REST APIs in the Market Data domain. The full list of subscribable tickers is retrieved from the backend at session start and cached client-side for the duration of the session.
 
+> **Real-time grid integration:** The subscription list is displayed above the market data grid on the Stock Trading page. Adding a subscription causes a new row to appear in the grid (populated by the next WebSocket tick for that ticker). Removing a subscription causes the grid row to be removed immediately on REST success. See `domain/flows/market-data-websocket-feed` for the full WebSocket lifecycle.
+
 ---
 
 ## Flow A — Load Subscriptions
@@ -76,11 +78,14 @@ The user selects one or more tickers from the supported list and adds them to th
 | 10 | System | Return HTTP 201 | Response body: array of newly created `{ ticker, companyName }` objects. |
 | 11 | Guest Browser | Update subscription list | Adds the new entries to the displayed subscription list without a full page reload. Closes the add panel. |
 
+> **Grid side-effect:** The backend's WebSocket feed component receives `AssetSubscribedEvent` and immediately pushes a `TICK` message for the new ticker(s) to the user's open WebSocket connection. New grid row(s) appear with current cached prices. See `domain/flows/market-data-websocket-feed` Flow C.
+
 ### Postconditions
 
 - One `AssetSubscription` record exists per newly added ticker for this user.
 - `AssetSubscribedEvent` has been emitted.
 - The Stock Trading page subscription list reflects the additions.
+- New row(s) appear in the market data grid populated with the latest cached price data.
 
 ### Error Cases
 
@@ -121,13 +126,17 @@ The user selects one or more of their existing subscriptions and removes them in
 | 5 | System | Delete subscriptions | Permanently deletes each matching `AssetSubscription` record. |
 | 6 | System | Emit event | Emits `AssetUnsubscribedEvent`. |
 | 7 | System | Return HTTP 204 | No response body. |
-| 8 | Guest Browser | Update subscription list | Removes the deleted entries from the displayed list without a full page reload. Clears the selection state. |
+| 8 | Guest Browser | Remove grid row(s) | On receiving HTTP 204, immediately removes the row(s) for the unsubscribed ticker(s) from the market data grid. |
+| 9 | Guest Browser | Update subscription list | Removes the deleted entries from the displayed subscription list without a full page reload. Clears the selection state. |
+
+> **Grid side-effect:** The backend's WebSocket feed component receives `AssetUnsubscribedEvent` and removes the ticker(s) from the in-memory subscription lookup. No further `TICK` messages will be dispatched for those ticker(s). See `domain/flows/market-data-websocket-feed` Flow D.
 
 ### Postconditions
 
 - The selected `AssetSubscription` records no longer exist in the database.
 - `AssetUnsubscribedEvent` has been emitted.
 - The Stock Trading page subscription list no longer shows the removed tickers.
+- The market data grid row(s) for the removed tickers have been removed immediately.
 - If all subscriptions were removed, the empty-state message is displayed.
 
 ### Error Cases
@@ -135,9 +144,9 @@ The user selects one or more of their existing subscriptions and removes them in
 | Scenario | Condition | Outcome |
 |----------|-----------|---------|
 | No tickers selected | User clicks Remove with nothing selected | Frontend-level validation: Remove button remains disabled until at least one subscription is selected. |
-| Ticker not found | One or more submitted tickers do not exist in the user's subscriptions | System returns HTTP 404. Frontend displays an error message; no records are deleted. |
+| Ticker not found | One or more submitted tickers do not exist in the user's subscriptions | System returns HTTP 404. Frontend displays an error message; no records are deleted. Grid rows are not removed. |
 | Unauthenticated request | No valid session | System returns HTTP 401. Frontend redirects to `/login`. |
-| Server error | Backend fails during deletion | System returns HTTP 500. Frontend displays a generic error message; no records are deleted. |
+| Server error | Backend fails during deletion | System returns HTTP 500. Frontend displays a generic error message; no records are deleted. Grid rows are not removed. |
 
 ---
 
@@ -178,8 +187,8 @@ Fetches the full list of subscribable tickers from the backend once per session 
 
 ## Events Emitted
 
-- **AssetSubscribedEvent**: Emitted at step 9 of Flow B. Payload: `userId`, `tickers` (list of added ticker symbols), `timestamp`.
-- **AssetUnsubscribedEvent**: Emitted at step 6 of Flow C. Payload: `userId`, `tickers` (list of removed ticker symbols), `timestamp`.
+- **AssetSubscribedEvent**: Emitted at step 9 of Flow B. Payload: `userId`, `tickers` (list of added ticker symbols), `timestamp`. Also consumed by the WebSocket feed component to update the in-memory subscription lookup and push an immediate tick to the connected user.
+- **AssetUnsubscribedEvent**: Emitted at step 6 of Flow C. Payload: `userId`, `tickers` (list of removed ticker symbols), `timestamp`. Also consumed by the WebSocket feed component to remove the ticker(s) from the in-memory subscription lookup.
 
 ---
 
@@ -187,3 +196,4 @@ Fetches the full list of subscribable tickers from the backend once per session 
 
 - **AssetSubscription**: Read in Flow A; created in Flow B; deleted in Flow C.
 - **Session**: Read in all flows to resolve the authenticated `userId`.
+- **MarketDataSnapshot**: Not directly involved in these flows, but the WebSocket feed component uses the snapshot cache when pushing ticks triggered by `AssetSubscribedEvent`. See `domain/flows/market-data-websocket-feed`.
