@@ -2,7 +2,7 @@
 
 ## Overview
 
-Covers the three discrete operations a user performs on their stock watchlist from the Stock Trading page: loading their current subscriptions on page entry, bulk-adding new ticker subscriptions, and bulk-removing existing ones. All operations are scoped to the authenticated user and are backed by REST APIs in the Market Data domain. The supported ticker list is sourced from a static configuration file loaded at application startup.
+Covers the operations a user performs on their stock watchlist from the Stock Trading page: loading their current subscriptions on page entry, bulk-adding new ticker subscriptions, and bulk-removing existing ones. All operations are scoped to the authenticated user and are backed by REST APIs in the Market Data domain. The full list of subscribable tickers is retrieved from the backend at session start and cached client-side for the duration of the session.
 
 ---
 
@@ -19,6 +19,7 @@ Fetches and displays the authenticated user's current asset subscriptions when t
 ### Preconditions
 
 - The user has an active session (is logged in).
+- The supported tickers list has been fetched and cached by the frontend (see Flow D).
 
 ### Steps
 
@@ -57,13 +58,14 @@ The user selects one or more tickers from the supported list and adds them to th
 
 - The user has an active session (is logged in).
 - The Stock Trading page is loaded (Flow A has completed).
+- The supported tickers list is cached in the frontend (Flow D has completed).
 
 ### Steps
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Open add panel | Clicks "Add tickers" to open the subscription selection panel. |
-| 2 | Guest Browser | Render supported ticker list | Displays the full list of supported tickers (sourced from static config), excluding tickers the user is already subscribed to. Each entry shows `ticker` and `companyName`. |
+| 2 | Guest Browser | Render supported ticker list | Displays the full list of supported tickers (from the cached Flow D result), excluding tickers the user is already subscribed to. Each entry shows `ticker` and `companyName`. |
 | 3 | Authenticated User | Filter tickers (optional) | Types in the filter input. The displayed list is narrowed in real-time client-side to tickers whose `ticker` field starts with or contains the typed string (case-insensitive). |
 | 4 | Authenticated User | Select tickers | Selects one or more tickers from the filtered list using checkboxes or multi-select. |
 | 5 | Authenticated User | Click "Add" | Submits the selection. |
@@ -136,6 +138,41 @@ The user selects one or more of their existing subscriptions and removes them in
 | Ticker not found | One or more submitted tickers do not exist in the user's subscriptions | System returns HTTP 404. Frontend displays an error message; no records are deleted. |
 | Unauthenticated request | No valid session | System returns HTTP 401. Frontend redirects to `/login`. |
 | Server error | Backend fails during deletion | System returns HTTP 500. Frontend displays a generic error message; no records are deleted. |
+
+---
+
+## Flow D — Fetch Supported Tickers (session start)
+
+Fetches the full list of subscribable tickers from the backend once per session and caches it client-side.
+
+### Actors
+
+- **Guest Browser**: The React frontend fetching and caching the supported tickers list.
+- **System**: The Market Data backend returning the configured ticker list.
+
+### Preconditions
+
+- The user has an active session (is logged in).
+
+### Steps
+
+| # | Actor | Action | Description |
+|---|-------|--------|-------------|
+| 1 | Guest Browser | Fetch supported tickers | Calls `GET /api/v1/market-data/supported-tickers` (no authentication parameter required — list is not user-specific). |
+| 2 | System | Read config | Reads the full `SupportedTickerConfig` map (loaded from `supported-tickers.csv` at application startup). |
+| 3 | System | Return HTTP 200 | Response body: array of `{ ticker, companyName }` objects, sorted by ticker ascending. |
+| 4 | Guest Browser | Cache result | Stores the result in the TanStack Query cache with `staleTime: Infinity` — the list will not be re-fetched for the duration of the session. |
+
+### Postconditions
+
+- The supported tickers list is cached in the frontend for the duration of the session.
+- Flow B can use the cached list without an additional network request.
+
+### Error Cases
+
+| Scenario | Condition | Outcome |
+|----------|-----------|---------|
+| Server error | Backend fails to return the supported list | System returns HTTP 500. Frontend shows no available tickers in the add panel; user may retry by reopening the panel. |
 
 ---
 

@@ -64,6 +64,22 @@ val generateLedgerApi = tasks.register<GenerateTask>("generateLedgerApi") {
     ))
 }
 
+val generateMarketdataApi = tasks.register<GenerateTask>("generateMarketdataApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/marketdata-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/marketdata")
+    apiPackage.set("org.dpp.tradelab.marketdata.generated.api")
+    modelPackage.set("org.dpp.tradelab.marketdata.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 // Wire generated sources into the compile classpath
 // Exclude the org.openapitools scaffolding that the generator always emits
 sourceSets {
@@ -71,13 +87,14 @@ sourceSets {
         kotlin {
             srcDir("${layout.buildDirectory.get()}/generated/user/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/ledger/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
             exclude("org/openapitools/**")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi)
+    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────────────

@@ -1,0 +1,298 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API — Market Data
+  version: 1.0.0
+  description: Market data subscription endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Market Data
+    description: Asset subscription management
+
+paths:
+
+  /market-data/supported-tickers:
+    get:
+      tags:
+        - Market Data
+      summary: Get all supported tickers
+      description: >
+        Returns the full list of stock ticker symbols that users may subscribe to.
+        The list is static configuration loaded at application startup.
+        Clients should cache this response for the duration of the user session.
+      operationId: getSupportedTickers
+      responses:
+        '200':
+          description: Full list of supported tickers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                error: Internal server error
+                details:
+                  - "An unexpected error occurred. Please try again later."
+
+  /market-data/subscriptions:
+    get:
+      tags:
+        - Market Data
+      summary: Get all subscriptions for a user
+      operationId: getSubscriptions
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of subscriptions for the user (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionResponse'
+        '401':
+          description: Unauthenticated request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 401
+                error: Unauthorized
+                details:
+                  - "Authentication is required to access this resource."
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                error: Internal server error
+                details:
+                  - "An unexpected error occurred. Please try again later."
+
+    post:
+      tags:
+        - Market Data
+      summary: Bulk add subscriptions
+      operationId: bulkAddSubscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkAddSubscriptionsRequest'
+      responses:
+        '201':
+          description: Subscriptions created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkAddSubscriptionsResponse'
+        '400':
+          description: One or more tickers are not in the supported list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                error: Unsupported ticker
+                details:
+                  - "Ticker 'XYZ' is not in the supported tickers list."
+        '401':
+          description: Unauthenticated request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 401
+                error: Unauthorized
+                details:
+                  - "Authentication is required to access this resource."
+        '409':
+          description: One or more tickers are already subscribed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: Ticker already subscribed
+                details:
+                  - "Ticker 'AAPL' is already subscribed."
+        '422':
+          description: Adding the tickers would exceed the subscription limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 422
+                error: Subscription limit exceeded
+                details:
+                  - "Adding these tickers would exceed your 1000 subscription limit."
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                error: Internal server error
+                details:
+                  - "An unexpected error occurred. Please try again later."
+
+    delete:
+      tags:
+        - Market Data
+      summary: Bulk remove subscriptions
+      operationId: bulkRemoveSubscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRemoveSubscriptionsRequest'
+      responses:
+        '204':
+          description: Subscriptions removed successfully
+        '401':
+          description: Unauthenticated request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 401
+                error: Unauthorized
+                details:
+                  - "Authentication is required to access this resource."
+        '404':
+          description: One or more tickers are not found in the user's subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: Subscription not found
+                details:
+                  - "No subscription found for ticker 'AAPL'."
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                error: Internal server error
+                details:
+                  - "An unexpected error occurred. Please try again later."
+
+components:
+  schemas:
+
+    SubscriptionResponse:
+      type: object
+      required:
+        - ticker
+        - companyName
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        companyName:
+          type: string
+          example: Apple Inc.
+
+    BulkAddSubscriptionsRequest:
+      type: object
+      required:
+        - userId
+        - tickers
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        tickers:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - AAPL
+            - MSFT
+
+    BulkAddSubscriptionsResponse:
+      type: object
+      required:
+        - subscriptions
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionResponse'
+
+    BulkRemoveSubscriptionsRequest:
+      type: object
+      required:
+        - userId
+        - tickers
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        tickers:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - AAPL
+            - MSFT
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "ticker must not be blank"

@@ -69,4 +69,22 @@ describe('Sidebar', () => {
     const accountsLink = screen.getByRole('link', { name: /accounts/i })
     expect(accountsLink.className).toContain('text-[var(--color-accent)]')
   })
+
+  it('Sidebar - no session - Stock Trading link is not rendered', () => {
+    renderSidebar()
+    expect(screen.queryByRole('link', { name: /stock trading/i })).not.toBeInTheDocument()
+  })
+
+  it('Sidebar - session exists - Stock Trading link is rendered', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    renderSidebar()
+    expect(screen.getByRole('link', { name: /stock trading/i })).toBeInTheDocument()
+  })
+
+  it('Sidebar - active route /trade - Stock Trading link has active styles', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    renderSidebar('/trade')
+    const tradeLink = screen.getByRole('link', { name: /stock trading/i })
+    expect(tradeLink.className).toContain('text-[var(--color-accent)]')
+  })
 })
