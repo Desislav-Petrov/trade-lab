@@ -323,6 +323,6 @@ class MarketDataFeedServiceTest : FunSpec({
 
         payload.contains("\"type\":\"TICK\"") shouldBe true
         payload.contains("\"ticker\":\"AAPL\"") shouldBe true
-        payload.contains("\"currentPrice\":\"150.000\"") shouldBe true
+        payload.contains("\"currentPrice\":150.000") shouldBe true
     }
 })

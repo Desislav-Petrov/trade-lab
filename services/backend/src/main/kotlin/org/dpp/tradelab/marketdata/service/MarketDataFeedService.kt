@@ -172,7 +172,7 @@ class MarketDataFeedService(
         val fiftyTwoWeekHigh = snapshot.fiftyTwoWeekHigh.setScale(3, RoundingMode.HALF_UP).toPlainString()
         val ticker = escapeJson(snapshot.ticker)
         val companyName = escapeJson(snapshot.companyName)
-        return """{"ticker":"$ticker","companyName":"$companyName","currentPrice":"$currentPrice","open":"$open","dayLow":"$dayLow","fiftyTwoWeekHigh":"$fiftyTwoWeekHigh"}"""
+        return """{"ticker":"$ticker","companyName":"$companyName","currentPrice":$currentPrice,"open":$open,"dayLow":$dayLow,"fiftyTwoWeekHigh":$fiftyTwoWeekHigh}"""
     }
 
     private fun escapeJson(value: String): String =

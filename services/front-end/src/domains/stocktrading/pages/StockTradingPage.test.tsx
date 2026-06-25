@@ -16,6 +16,14 @@ vi.mock('../../marketdata/hooks/useSubscriptions', () => ({
   useSupportedTickers: vi.fn(),
 }))
 
+vi.mock('../../marketdata/hooks/useMarketDataFeed', () => ({
+  useMarketDataFeed: vi.fn(() => ({ rows: [], feedStatus: 'connecting' })),
+}))
+
+vi.mock('../components/MarketDataGrid', () => ({
+  MarketDataGrid: () => createElement('div', { 'data-testid': 'market-data-grid' }),
+}))
+
 vi.mock('../components/SubscriptionList', () => ({
   SubscriptionList: ({
     subscriptions,

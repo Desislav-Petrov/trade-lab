@@ -8,9 +8,11 @@ import {
   useBulkRemoveSubscriptions,
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
+import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
 import { SubscriptionList } from '../components/SubscriptionList'
 import { AddTickerPanel } from '../components/AddTickerPanel'
 import { RemoveTickerBar } from '../components/RemoveTickerBar'
+import { MarketDataGrid } from '../components/MarketDataGrid'
 
 function extractErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ error?: string }>
@@ -29,6 +31,9 @@ export function StockTradingPage() {
   const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
+
+  const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
+  const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -129,6 +134,8 @@ export function StockTradingPage() {
         onSelectionChange={setSelectedTickers}
         isLoading={isLoading}
       />
+
+      <MarketDataGrid rows={rows} feedStatus={feedStatus} />
     </div>
   )
 }
