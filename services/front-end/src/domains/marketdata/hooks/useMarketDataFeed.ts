@@ -56,6 +56,7 @@ export function useMarketDataFeed(
   }, [userId])
 
   useEffect(() => {
+    if (subscribedTickers.length === 0) return   // not loaded yet — do nothing
     setRows((prev) => prev.filter((r) => subscribedTickers.includes(r.ticker)))
   }, [subscribedTickers])
 
