@@ -19,7 +19,6 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
-import tools.jackson.databind.json.JsonMapper
 import java.math.BigDecimal
 import java.net.URI
 import java.time.Instant
@@ -30,9 +29,8 @@ class MarketDataFeedServiceTest : FunSpec({
     val repository = mock<AssetSubscriptionRepository>()
     val priceFeedGenerator = mock<PriceFeedGenerator>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
-    val objectMapper = JsonMapper.builder().build()
 
-    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, objectMapper)
+    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig)
 
     val userId = UUID.randomUUID()
     val aaplSnapshot = MarketDataSnapshot(
@@ -72,7 +70,7 @@ class MarketDataFeedServiceTest : FunSpec({
         reset(repository, priceFeedGenerator, supportedTickerConfig)
     }
 
-    // ── @PostConstruct seeding ─────────────────────────────────────────────
+    // ── @PostConstruct seeding ──────────────────────────────────────────────────────────
 
     test("init_seedsSnapshotCacheForAllSupportedTickers") {
         val supportedTickers = mapOf(
@@ -110,7 +108,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers[userId]!!.contains("AAPL") shouldBe true
     }
 
-    // ── dispatchTicks ────────────────────────────────────────────────────
+    // ── dispatchTicks ─────────────────────────────────────────────────────────────
 
     test("dispatchTicks_dispatchesOnlyToSubscribedConnectedUsers") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
@@ -173,7 +171,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.dispatchTicks()
     }
 
-    // ── onAssetSubscribed ───────────────────────────────────────────────
+    // ── onAssetSubscribed ──────────────────────────────────────────────────────────
 
     test("onAssetSubscribed_updatesLookupMapsAndSendsImmediateTickWhenConnected") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("MSFT" to "Microsoft Corporation"))
@@ -216,7 +214,7 @@ class MarketDataFeedServiceTest : FunSpec({
         // No exception; no session to send to
     }
 
-    // ── onAssetUnsubscribed ───────────────────────────────────────────────
+    // ── onAssetUnsubscribed ───────────────────────────────────────────────────────
 
     test("onAssetUnsubscribed_removesTickers_fromBothMaps") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
@@ -250,7 +248,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.onAssetUnsubscribed(event)
     }
 
-    // ── removeSession ──────────────────────────────────────────────────────
+    // ── removeSession ─────────────────────────────────────────────────────────────
 
     test("removeSession_stopsDispatchToUser") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
@@ -274,7 +272,7 @@ class MarketDataFeedServiceTest : FunSpec({
         verify(session, never()).sendMessage(any<TextMessage>())
     }
 
-    // ── getSnapshotForUser ──────────────────────────────────────────────
+    // ── getSnapshotForUser ─────────────────────────────────────────────────────────
 
     test("getSnapshotForUser_returnsOnlySubscribedTickers") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf(
@@ -307,7 +305,7 @@ class MarketDataFeedServiceTest : FunSpec({
         result.size shouldBe 0
     }
 
-    // ── JSON shape ─────────────────────────────────────────────────────────────
+    // ── JSON shape ──────────────────────────────────────────────────────────────
 
     test("sendTick_jsonPayload_hasCorrectShapeAndPricesTo3dp") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
@@ -325,7 +323,6 @@ class MarketDataFeedServiceTest : FunSpec({
 
         payload.contains("\"type\":\"TICK\"") shouldBe true
         payload.contains("\"ticker\":\"AAPL\"") shouldBe true
-        // Prices are serialised as JSON numbers (not strings) to exactly 3 decimal places
         payload.contains("\"currentPrice\":150.000") shouldBe true
     }
 })
