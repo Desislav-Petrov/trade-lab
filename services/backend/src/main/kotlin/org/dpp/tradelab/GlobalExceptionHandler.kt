@@ -4,6 +4,10 @@ import org.dpp.tradelab.ledger.exception.AccountNotActiveException
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException as LedgerUserNotFoundException
+import org.dpp.tradelab.marketdata.exception.SubscriptionLimitExceededException
+import org.dpp.tradelab.marketdata.exception.SubscriptionNotFoundException
+import org.dpp.tradelab.marketdata.exception.TickerAlreadySubscribedException
+import org.dpp.tradelab.marketdata.exception.UnsupportedTickerException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
@@ -63,4 +67,24 @@ class GlobalExceptionHandler {
     fun handleAccountNotActive(ex: AccountNotActiveException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "Account not available", listOf(ex.message ?: "Account is not available for this operation.")))
+
+    @ExceptionHandler(TickerAlreadySubscribedException::class)
+    fun handleTickerAlreadySubscribed(ex: TickerAlreadySubscribedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse(409, "Ticker already subscribed", listOf(ex.message ?: "One or more tickers are already subscribed.")))
+
+    @ExceptionHandler(UnsupportedTickerException::class)
+    fun handleUnsupportedTicker(ex: UnsupportedTickerException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Unsupported ticker", listOf(ex.message ?: "One or more tickers are not in the supported list.")))
+
+    @ExceptionHandler(SubscriptionLimitExceededException::class)
+    fun handleSubscriptionLimitExceeded(ex: SubscriptionLimitExceededException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ErrorResponse(422, "Subscription limit exceeded", listOf(ex.message ?: "Adding these tickers would exceed your 1000 subscription limit.")))
+
+    @ExceptionHandler(SubscriptionNotFoundException::class)
+    fun handleSubscriptionNotFound(ex: SubscriptionNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "Subscription not found", listOf(ex.message ?: "No subscription found for the given ticker.")))
 }
