@@ -29,12 +29,12 @@ user visits.
 |---|-------|--------|-------------|
 | 1 | Guest Browser | Read session store | Reads `firstName`, `lastName`, `email`, and `loggedInAt` from the Zustand session store. |
 | 2 | Guest Browser | Render topbar user area | Displays "Logged in as [firstName] [lastName]" and a Logout button in the top-right of the Topbar. |
-| 3 | Guest Browser | Render sidebar nav links | Displays Trade, Ledger, Market, **Accounts**, and Profile nav links in the Sidebar. |
+| 3 | Guest Browser | Render sidebar nav links | Displays **Stock Trading**, Ledger, Market, Accounts, and Profile nav links in the Sidebar. |
 
 ### Postconditions
 
 - The topbar shows the authenticated user's name and a Logout button.
-- The sidebar shows Trade, Ledger, Market, Accounts, and Profile nav links.
+- The sidebar shows Stock Trading, Ledger, Market, Accounts, and Profile nav links.
 
 ---
 
@@ -100,7 +100,7 @@ entry point.
 - The Zustand session store is empty.
 - The user is on the `/login` page.
 - The topbar shows "Login or Register".
-- The sidebar nav links (Trade, Ledger, Market, Accounts, Profile) are no longer visible.
+- The sidebar nav links (Stock Trading, Ledger, Market, Accounts, Profile) are no longer visible.
 
 ---
 
