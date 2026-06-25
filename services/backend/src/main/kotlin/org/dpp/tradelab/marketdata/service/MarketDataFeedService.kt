@@ -31,34 +31,28 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Prices are serialised to exactly 3 decimal places as JSON numbers in all outbound messages.
  * This is achieved via a custom [ValueSerializer] for [BigDecimal] registered on a private
- * [ObjectMapper] derived from the Spring-managed one.
+ * [JsonMapper] derived from the Spring-managed one.
  */
 @Service
 class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
     private val supportedTickerConfig: SupportedTickerConfig,
-    objectMapper: ObjectMapper
+    objectMapper: JsonMapper
 ) {
 
     // ── ObjectMapper with 3 d.p. BigDecimal serialisation ────────────────────
 
+    private val bigDecimalSerializer: ValueSerializer<BigDecimal> =
+        object : ValueSerializer<BigDecimal>() {
+            override fun serialize(value: BigDecimal, gen: JsonGenerator, ctxt: SerializationContext) {
+                gen.writeNumber(value.setScale(3, RoundingMode.HALF_UP).toPlainString())
+            }
+        }
+
     private val mapper: ObjectMapper = objectMapper
         .rebuild()
-        .addModule(
-            SimpleModule().addSerializer(
-                BigDecimal::class.java,
-                object : ValueSerializer<BigDecimal>() {
-                    override fun serialize(
-                        value: BigDecimal,
-                        gen: JsonGenerator,
-                        ctxt: SerializationContext
-                    ) {
-                        gen.writeNumber(value.setScale(3, RoundingMode.HALF_UP).toPlainString())
-                    }
-                }
-            )
-        )
+        .addModule(SimpleModule().addSerializer(BigDecimal::class.java, bigDecimalSerializer))
         .build()
 
     // ── Internal state ───────────────────────────────────────────────────────
