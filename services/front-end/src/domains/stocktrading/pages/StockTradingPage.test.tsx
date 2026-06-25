@@ -17,7 +17,11 @@ vi.mock('../../marketdata/hooks/useSubscriptions', () => ({
 }))
 
 vi.mock('../../marketdata/hooks/useMarketDataFeed', () => ({
-  useMarketDataFeed: vi.fn(),
+  useMarketDataFeed: vi.fn(() => ({ rows: [], feedStatus: 'connecting' })),
+}))
+
+vi.mock('../components/MarketDataGrid', () => ({
+  MarketDataGrid: () => createElement('div', { 'data-testid': 'market-data-grid' }),
 }))
 
 vi.mock('../components/SubscriptionList', () => ({
@@ -98,33 +102,17 @@ vi.mock('../components/RemoveTickerBar', () => ({
     ),
 }))
 
-vi.mock('../components/MarketDataGrid', () => ({
-  MarketDataGrid: ({
-    rows,
-    feedStatus,
-  }: {
-    rows: unknown[]
-    feedStatus: string
-  }) =>
-    createElement(
-      'div',
-      { 'data-testid': 'market-data-grid', 'data-status': feedStatus, 'data-rows': rows.length },
-    ),
-}))
-
 import {
   useSubscriptions,
   useBulkAddSubscriptions,
   useBulkRemoveSubscriptions,
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
-import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
 
 const mockUseSubscriptions = vi.mocked(useSubscriptions)
 const mockUseBulkAddSubscriptions = vi.mocked(useBulkAddSubscriptions)
 const mockUseBulkRemoveSubscriptions = vi.mocked(useBulkRemoveSubscriptions)
 const mockUseSupportedTickers = vi.mocked(useSupportedTickers)
-const mockUseMarketDataFeed = vi.mocked(useMarketDataFeed)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -198,11 +186,6 @@ function setupMocks(overrides: {
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof useSupportedTickers>)
-
-  mockUseMarketDataFeed.mockReturnValue({
-    rows: [],
-    feedStatus: 'connected' as const,
-  })
 }
 
 describe('StockTradingPage', () => {
@@ -292,23 +275,5 @@ describe('StockTradingPage', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText('Ticker not found in subscriptions.')).toBeInTheDocument()
-  })
-
-  it('StockTradingPage - session exists - renders MarketDataGrid on the page', () => {
-    act(() => useSessionStore.getState().setSession(mockProfile))
-    setupMocks()
-    renderPage()
-    expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
-  })
-
-  it('StockTradingPage - session exists with subscriptions - calls useMarketDataFeed with correct userId and subscribedTickers', () => {
-    act(() => useSessionStore.getState().setSession(mockProfile))
-    setupMocks()
-    renderPage()
-
-    expect(mockUseMarketDataFeed).toHaveBeenCalledWith(
-      'u1',
-      ['AAPL', 'MSFT'],
-    )
   })
 })

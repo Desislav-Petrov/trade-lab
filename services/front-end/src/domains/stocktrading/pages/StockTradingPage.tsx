@@ -32,7 +32,7 @@ export function StockTradingPage() {
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
-  const subscribedTickers = subscriptionsData?.map((s) => s.ticker) ?? []
+  const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
 
   if (!user) {
