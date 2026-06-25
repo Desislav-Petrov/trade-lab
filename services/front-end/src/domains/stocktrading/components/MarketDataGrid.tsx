@@ -17,13 +17,6 @@ const COLUMNS: { key: keyof MarketDataUpdate; label: string }[] = [
   { key: 'fiftyTwoWeekHigh', label: '52W High (USD)' },
 ]
 
-const PRICE_COLUMNS = new Set<keyof MarketDataUpdate>([
-  'currentPrice',
-  'open',
-  'dayLow',
-  'fiftyTwoWeekHigh',
-])
-
 function nextDirection(
   column: keyof MarketDataUpdate,
   sortColumn: keyof MarketDataUpdate | null,
