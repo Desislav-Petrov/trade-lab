@@ -39,7 +39,7 @@ describe('useMarketDataFeed', () => {
         capturedOnMessage = onMessage
         capturedOnError = onError
         capturedOnClose = onClose
-        return mockCleanup
+        return mockCleanup as unknown as () => void
       },
     )
   })
