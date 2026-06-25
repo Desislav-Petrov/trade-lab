@@ -15,6 +15,37 @@ tags:
 
 paths:
 
+  /market-data/supported-tickers:
+    get:
+      tags:
+        - Market Data
+      summary: Get all supported tickers
+      description: >
+        Returns the full list of stock ticker symbols that users may subscribe to.
+        The list is static configuration loaded at application startup.
+        Clients should cache this response for the duration of the user session.
+      operationId: getSupportedTickers
+      responses:
+        '200':
+          description: Full list of supported tickers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                error: Internal server error
+                details:
+                  - "An unexpected error occurred. Please try again later."
+
   /market-data/subscriptions:
     get:
       tags:

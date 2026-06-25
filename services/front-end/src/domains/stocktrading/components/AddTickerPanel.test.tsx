@@ -86,7 +86,6 @@ describe('AddTickerPanel', () => {
   })
 
   it('AddTickerPanel - isLoading true - Add button shows loading state and is disabled', async () => {
-    const user = userEvent.setup()
     renderPanel({ isLoading: true })
 
     // Even with a checked ticker the Add button must be disabled during loading

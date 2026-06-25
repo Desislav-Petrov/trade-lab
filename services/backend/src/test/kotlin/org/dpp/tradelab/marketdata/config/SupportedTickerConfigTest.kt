@@ -1,4 +1,4 @@
-package org.dpp.tradelab.marketdata.service
+package org.dpp.tradelab.marketdata.config
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.maps.shouldContainKey

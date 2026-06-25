@@ -1,4 +1,4 @@
-package org.dpp.tradelab.marketdata.service
+package org.dpp.tradelab.marketdata.config
 
 import jakarta.annotation.PostConstruct
 import org.springframework.core.io.ClassPathResource

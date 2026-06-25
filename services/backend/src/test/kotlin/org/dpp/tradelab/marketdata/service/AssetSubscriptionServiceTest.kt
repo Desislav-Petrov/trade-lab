@@ -1,6 +1,7 @@
 package org.dpp.tradelab.marketdata.service
 
 import io.kotest.assertions.throwables.shouldThrow
+import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
@@ -42,6 +43,19 @@ class AssetSubscriptionServiceTest : FunSpec({
         ticker = ticker,
         companyName = companyName
     )
+
+    // ── getSupportedTickers ──────────────────────────────────────────────────
+
+    test("getSupportedTickers_happyPath_returnsSortedTickerPairs") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(
+            mapOf("MSFT" to "Microsoft Corporation", "AAPL" to "Apple Inc.", "GOOGL" to "Alphabet Inc.")
+        )
+
+        val result = service.getSupportedTickers()
+
+        result.map { it.first } shouldBe listOf("AAPL", "GOOGL", "MSFT")
+        result.map { it.second } shouldBe listOf("Apple Inc.", "Alphabet Inc.", "Microsoft Corporation")
+    }
 
     // ── getSubscriptions ─────────────────────────────────────────────────────
 

@@ -26,7 +26,7 @@ export function StockTradingPage() {
   const [addError, setAddError] = useState<string | null>(null)
 
   const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
-  const supportedTickers = useSupportedTickers()
+  const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
@@ -35,6 +35,7 @@ export function StockTradingPage() {
   }
 
   const subscriptions = subscriptionsData ?? []
+  const supportedTickers = supportedTickersData ?? []
 
   const subscribedSet = new Set(subscriptions.map((s) => s.ticker))
   const availableTickers = supportedTickers.filter((t) => !subscribedSet.has(t.ticker))

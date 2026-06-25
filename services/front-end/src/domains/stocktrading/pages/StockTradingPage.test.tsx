@@ -169,11 +169,15 @@ function setupMocks(overrides: {
     error: overrides.removeError ?? null,
   } as unknown as ReturnType<typeof useBulkRemoveSubscriptions>)
 
-  mockUseSupportedTickers.mockReturnValue([
-    { ticker: 'AAPL', companyName: 'Apple Inc.' },
-    { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
-    { ticker: 'GOOG', companyName: 'Alphabet Inc.' },
-  ])
+  mockUseSupportedTickers.mockReturnValue({
+    data: [
+      { ticker: 'AAPL', companyName: 'Apple Inc.' },
+      { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
+      { ticker: 'GOOG', companyName: 'Alphabet Inc.' },
+    ],
+    isLoading: false,
+    error: null,
+  } as unknown as ReturnType<typeof useSupportedTickers>)
 }
 
 describe('StockTradingPage', () => {

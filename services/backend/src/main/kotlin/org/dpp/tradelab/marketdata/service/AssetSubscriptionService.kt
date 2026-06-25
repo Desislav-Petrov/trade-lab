@@ -1,5 +1,6 @@
 package org.dpp.tradelab.marketdata.service
 
+import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.exception.SubscriptionLimitExceededException
 import org.dpp.tradelab.marketdata.exception.SubscriptionNotFoundException
 import org.dpp.tradelab.marketdata.exception.TickerAlreadySubscribedException
@@ -24,6 +25,11 @@ class AssetSubscriptionService(
     @Transactional(readOnly = true)
     fun getSubscriptions(userId: UUID): List<AssetSubscription> =
         repository.findAllByUserIdOrderByTickerAsc(userId)
+
+    fun getSupportedTickers(): List<Pair<String, String>> =
+        supportedTickerConfig.getAll().entries
+            .map { Pair(it.key, it.value) }
+            .sortedBy { it.first }
 
     @Transactional
     fun bulkAdd(userId: UUID, tickers: List<String>): List<AssetSubscription> {

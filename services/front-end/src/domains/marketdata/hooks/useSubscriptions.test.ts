@@ -13,18 +13,22 @@ vi.mock('../api/subscriptionApi', () => ({
   fetchSubscriptions: vi.fn(),
   bulkAddSubscriptions: vi.fn(),
   bulkRemoveSubscriptions: vi.fn(),
+  fetchSupportedTickers: vi.fn(),
   SUBSCRIPTIONS_QUERY_KEY: 'subscriptions',
+  SUPPORTED_TICKERS_QUERY_KEY: 'supportedTickers',
 }))
 
 import {
   fetchSubscriptions,
   bulkAddSubscriptions,
   bulkRemoveSubscriptions,
+  fetchSupportedTickers,
 } from '../api/subscriptionApi'
 
 const mockFetchSubscriptions = vi.mocked(fetchSubscriptions)
 const mockBulkAddSubscriptions = vi.mocked(bulkAddSubscriptions)
 const mockBulkRemoveSubscriptions = vi.mocked(bulkRemoveSubscriptions)
+const mockFetchSupportedTickers = vi.mocked(fetchSupportedTickers)
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -187,64 +191,31 @@ describe('useBulkRemoveSubscriptions', () => {
 })
 
 describe('useSupportedTickers', () => {
-  afterEach(() => vi.restoreAllMocks())
+  beforeEach(() => vi.clearAllMocks())
 
-  it('useSupportedTickers - success - parses CSV lines into SubscriptionResponse array', async () => {
-    const csvContent = 'AAPL,Apple Inc.\nMSFT,Microsoft Corporation\nGOOGL,Alphabet Inc.\n'
-    const mockFetch = vi.fn().mockResolvedValue({
-      text: () => Promise.resolve(csvContent),
-    })
-    vi.stubGlobal('fetch', mockFetch)
-
-    const { result } = renderHook(() => useSupportedTickers())
-
-    await waitFor(() => expect(result.current.length).toBeGreaterThan(0))
-
-    expect(result.current).toEqual([
+  it('useSupportedTickers - success - returns data from API', async () => {
+    const tickers = [
       { ticker: 'AAPL', companyName: 'Apple Inc.' },
       { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
-      { ticker: 'GOOGL', companyName: 'Alphabet Inc.' },
-    ])
-    expect(mockFetch).toHaveBeenCalledWith('/supported-tickers.csv')
+    ]
+    mockFetchSupportedTickers.mockResolvedValueOnce(tickers)
+
+    const { result } = renderHook(() => useSupportedTickers(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toEqual(tickers)
+    expect(mockFetchSupportedTickers).toHaveBeenCalledOnce()
   })
 
-  it('useSupportedTickers - fetch fails - returns empty array silently', async () => {
-    const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'))
-    vi.stubGlobal('fetch', mockFetch)
-
-    const { result } = renderHook(() => useSupportedTickers())
-
-    // Allow time for the effect to run and fail
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50))
+  it('useSupportedTickers - server error - isError is true', async () => {
+    const error = Object.assign(new Error('Internal Server Error'), {
+      isAxiosError: true,
+      response: { status: 500 },
     })
+    mockFetchSupportedTickers.mockRejectedValueOnce(error)
 
-    expect(result.current).toEqual([])
-  })
+    const { result } = renderHook(() => useSupportedTickers(), { wrapper: createWrapper() })
 
-  it('useSupportedTickers - CSV with company name containing comma - parses correctly', async () => {
-    const csvContent = 'BRK.B,Berkshire Hathaway Inc.\nJPM,JPMorgan Chase & Co.\n'
-    const mockFetch = vi.fn().mockResolvedValue({
-      text: () => Promise.resolve(csvContent),
-    })
-    vi.stubGlobal('fetch', mockFetch)
-
-    const { result } = renderHook(() => useSupportedTickers())
-
-    await waitFor(() => expect(result.current.length).toBeGreaterThan(0))
-
-    expect(result.current).toEqual([
-      { ticker: 'BRK.B', companyName: 'Berkshire Hathaway Inc.' },
-      { ticker: 'JPM', companyName: 'JPMorgan Chase & Co.' },
-    ])
-  })
-
-  it('useSupportedTickers - starts with empty array while loading', () => {
-    const mockFetch = vi.fn().mockReturnValue(new Promise(() => {})) // never resolves
-    vi.stubGlobal('fetch', mockFetch)
-
-    const { result } = renderHook(() => useSupportedTickers())
-
-    expect(result.current).toEqual([])
+    await waitFor(() => expect(result.current.isError).toBe(true))
   })
 })

@@ -16,6 +16,12 @@ class MarketDataApiDelegateImpl(
     private val service: AssetSubscriptionService
 ) : MarketDataApiDelegate {
 
+    override fun getSupportedTickers(): ResponseEntity<List<SubscriptionResponse>> {
+        val tickers = service.getSupportedTickers()
+            .map { SubscriptionResponse(ticker = it.first, companyName = it.second) }
+        return ResponseEntity.ok(tickers)
+    }
+
     override fun getSubscriptions(userId: UUID): ResponseEntity<List<SubscriptionResponse>> {
         val subscriptions = service.getSubscriptions(userId)
             .map { SubscriptionResponse(ticker = it.ticker, companyName = it.companyName) }

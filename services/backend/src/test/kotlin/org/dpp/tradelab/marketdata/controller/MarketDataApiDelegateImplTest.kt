@@ -46,6 +46,21 @@ class MarketDataApiDelegateImplTest(
             companyName = companyName
         )
 
+        // ── GET /api/v1/market-data/supported-tickers ────────────────────────
+
+        test("getSupportedTickers_returns200WithFullList") {
+            whenever(assetSubscriptionService.getSupportedTickers()).thenReturn(
+                listOf(Pair("AAPL", "Apple Inc."), Pair("MSFT", "Microsoft Corporation"))
+            )
+
+            mockMvc.perform(get("/api/v1/market-data/supported-tickers"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("$[0].companyName").value("Apple Inc."))
+                .andExpect(jsonPath("$[1].ticker").value("MSFT"))
+                .andExpect(jsonPath("$[1].companyName").value("Microsoft Corporation"))
+        }
+
         // ── GET /api/v1/market-data/subscriptions ────────────────────────────
 
         test("getSubscriptions_withItems_returns200WithSubscriptionList") {

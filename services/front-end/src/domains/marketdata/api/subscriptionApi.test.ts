@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axiosInstance from '../../../shared/api/axiosInstance'
 import {
+  fetchSupportedTickers,
   fetchSubscriptions,
   bulkAddSubscriptions,
   bulkRemoveSubscriptions,
@@ -13,6 +14,33 @@ vi.mock('../../../shared/api/axiosInstance', () => ({
 const mockGet = vi.mocked(axiosInstance.get)
 const mockPost = vi.mocked(axiosInstance.post)
 const mockDelete = vi.mocked(axiosInstance.delete)
+
+describe('fetchSupportedTickers', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('fetchSupportedTickers - success - calls GET with correct URL and returns list', async () => {
+    const tickers = [
+      { ticker: 'AAPL', companyName: 'Apple Inc.' },
+      { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
+    ]
+    mockGet.mockResolvedValueOnce({ data: tickers })
+
+    const result = await fetchSupportedTickers()
+
+    expect(result).toEqual(tickers)
+    expect(mockGet).toHaveBeenCalledWith('/v1/market-data/supported-tickers')
+  })
+
+  it('fetchSupportedTickers - 500 response - throws AxiosError with status 500', async () => {
+    const error = Object.assign(new Error('Internal Server Error'), {
+      isAxiosError: true,
+      response: { status: 500 },
+    })
+    mockGet.mockRejectedValueOnce(error)
+
+    await expect(fetchSupportedTickers()).rejects.toMatchObject({ response: { status: 500 } })
+  })
+})
 
 describe('fetchSubscriptions', () => {
   beforeEach(() => vi.clearAllMocks())

@@ -7,6 +7,12 @@ import type {
 } from '../types/subscription'
 
 export const SUBSCRIPTIONS_QUERY_KEY = 'subscriptions'
+export const SUPPORTED_TICKERS_QUERY_KEY = 'supportedTickers'
+
+export async function fetchSupportedTickers(): Promise<SubscriptionResponse[]> {
+  const response = await axiosInstance.get<SubscriptionResponse[]>('/v1/market-data/supported-tickers')
+  return response.data
+}
 
 export async function fetchSubscriptions(userId: string): Promise<SubscriptionResponse[]> {
   const response = await axiosInstance.get<SubscriptionResponse[]>('/v1/market-data/subscriptions', {
