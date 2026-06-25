@@ -11,6 +11,13 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.module.SimpleModule
+import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -22,14 +29,37 @@ import java.util.concurrent.ConcurrentHashMap
  * Thread safety: all four maps are [ConcurrentHashMap]. The nested [MutableSet] instances
  * are created as [ConcurrentHashMap.newKeySet()] to ensure thread-safe mutations.
  *
- * Prices are serialised to exactly 3 decimal places in all outbound JSON messages.
+ * Prices are serialised to exactly 3 decimal places as JSON numbers in all outbound messages.
+ * This is achieved via a custom [ValueSerializer] for [BigDecimal] registered on a private
+ * [ObjectMapper] derived from the Spring-managed one.
  */
 @Service
 class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
-    private val supportedTickerConfig: SupportedTickerConfig
+    private val supportedTickerConfig: SupportedTickerConfig,
+    objectMapper: ObjectMapper
 ) {
+
+    // ── ObjectMapper with 3 d.p. BigDecimal serialisation ────────────────────
+
+    private val mapper: ObjectMapper = objectMapper
+        .rebuild()
+        .addModule(
+            SimpleModule().addSerializer(
+                BigDecimal::class.java,
+                object : ValueSerializer<BigDecimal>() {
+                    override fun serialize(
+                        value: BigDecimal,
+                        gen: JsonGenerator,
+                        ctxt: SerializationContext
+                    ) {
+                        gen.writeNumber(value.setScale(3, RoundingMode.HALF_UP).toPlainString())
+                    }
+                }
+            )
+        )
+        .build()
 
     // ── Internal state ───────────────────────────────────────────────────────
 
@@ -115,12 +145,16 @@ class MarketDataFeedService(
     // ── WebSocket message senders ─────────────────────────────────────────────
 
     fun sendTick(session: WebSocketSession, snapshot: MarketDataSnapshot) {
-        val json = buildTickJson(snapshot)
+        val json = mapper.writeValueAsString(
+            mapOf("type" to "TICK", "data" to snapshotToMap(snapshot))
+        )
         session.sendMessage(TextMessage(json))
     }
 
     fun sendSnapshot(session: WebSocketSession, snapshots: List<MarketDataSnapshot>) {
-        val json = buildSnapshotJson(snapshots)
+        val json = mapper.writeValueAsString(
+            mapOf("type" to "SNAPSHOT", "data" to snapshots.map { snapshotToMap(it) })
+        )
         session.sendMessage(TextMessage(json))
     }
 
@@ -154,27 +188,14 @@ class MarketDataFeedService(
         }
     }
 
-    // ── JSON building helpers ─────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun buildTickJson(snapshot: MarketDataSnapshot): String {
-        return """{"type":"TICK","data":${snapshotToJson(snapshot)}}"""
-    }
-
-    private fun buildSnapshotJson(snapshots: List<MarketDataSnapshot>): String {
-        val dataJson = snapshots.joinToString(",") { snapshotToJson(it) }
-        return """{"type":"SNAPSHOT","data":[$dataJson]}"""
-    }
-
-    internal fun snapshotToJson(snapshot: MarketDataSnapshot): String {
-        val currentPrice = snapshot.currentPrice.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val open = snapshot.open.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val dayLow = snapshot.dayLow.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val fiftyTwoWeekHigh = snapshot.fiftyTwoWeekHigh.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val ticker = escapeJson(snapshot.ticker)
-        val companyName = escapeJson(snapshot.companyName)
-        return """{"ticker":"$ticker","companyName":"$companyName","currentPrice":"$currentPrice","open":"$open","dayLow":"$dayLow","fiftyTwoWeekHigh":"$fiftyTwoWeekHigh"}"""
-    }
-
-    private fun escapeJson(value: String): String =
-        value.replace("\\", "\\\\").replace("\"", "\\\"")
+    private fun snapshotToMap(snapshot: MarketDataSnapshot): Map<String, Any> = mapOf(
+        "ticker" to snapshot.ticker,
+        "companyName" to snapshot.companyName,
+        "currentPrice" to snapshot.currentPrice,
+        "open" to snapshot.open,
+        "dayLow" to snapshot.dayLow,
+        "fiftyTwoWeekHigh" to snapshot.fiftyTwoWeekHigh
+    )
 }
