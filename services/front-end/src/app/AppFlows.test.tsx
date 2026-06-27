@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { RootLayout } from './layouts/RootLayout'
@@ -161,15 +161,17 @@ beforeEach(() => {
   mockLoginUser.mockResolvedValue({ userId: profile.userId, email: profile.email })
   mockFetchUserById.mockResolvedValue(profile)
   mockFetchSupportedTickers.mockResolvedValue([aaplSubscription, msftSubscription, googSubscription])
-  mockConnectMarketDataFeed.mockImplementation((userId: string, onMessage: (message: FeedMessage) => void) => {
-    emitFeedMessage = onMessage
-    onMessage({ type: 'SNAPSHOT', data: [aaplFeedRow] })
-    return () => {
-      if (emitFeedMessage === onMessage) {
-        emitFeedMessage = null
+  mockConnectMarketDataFeed.mockImplementation(
+    (userId: string, onMessage: (message: FeedMessage) => void) => {
+      emitFeedMessage = onMessage
+      onMessage({ type: 'SNAPSHOT', data: [aaplFeedRow] })
+      return () => {
+        if (emitFeedMessage === onMessage) {
+          emitFeedMessage = null
+        }
       }
-    }
-  })
+    },
+  )
 })
 
 describe('App flows', () => {
@@ -274,10 +276,12 @@ describe('App flows', () => {
     await user.click(await screen.findByLabelText(/msft/i))
     await user.click(screen.getByRole('button', { name: /^add$/i }))
 
-    await waitFor(() => expect(mockBulkAddSubscriptions).toHaveBeenCalledWith(
-      { userId: profile.userId, tickers: ['MSFT'] },
-      expect.any(Object),
-    ))
+    await waitFor(() =>
+      expect(mockBulkAddSubscriptions).toHaveBeenCalledWith(
+        { userId: profile.userId, tickers: ['MSFT'] },
+        expect.any(Object),
+      ),
+    )
 
     await waitFor(() => expect(screen.queryByRole('button', { name: /adding/i })).not.toBeInTheDocument())
     emitFeedMessage?.({ type: 'TICK', data: msftFeedRow })
@@ -287,10 +291,12 @@ describe('App flows', () => {
     await user.click(screen.getByLabelText(/aapl/i))
     await user.click(screen.getByRole('button', { name: /remove selected \(1\)/i }))
 
-    await waitFor(() => expect(mockBulkRemoveSubscriptions).toHaveBeenCalledWith(
-      { userId: profile.userId, tickers: ['AAPL'] },
-      expect.any(Object),
-    ))
+    await waitFor(() =>
+      expect(mockBulkRemoveSubscriptions).toHaveBeenCalledWith(
+        { userId: profile.userId, tickers: ['AAPL'] },
+        expect.any(Object),
+      ),
+    )
 
     await waitFor(() => expect(screen.queryByText('AAPL')).not.toBeInTheDocument())
     await screen.findByText('MSFT')
