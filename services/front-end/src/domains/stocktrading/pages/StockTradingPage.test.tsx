@@ -259,6 +259,18 @@ describe('StockTradingPage', () => {
     )
   })
 
+  it('StockTradingPage - subscriptions and grid are visibly separated', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks()
+    renderPage()
+
+    const divider = screen.getByTestId('subscriptions-grid-divider')
+    expect(divider).toHaveClass('border-t')
+    expect(divider).toHaveClass('pt-6')
+    expect(screen.getByTestId('subscription-list')).toBeInTheDocument()
+    expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
+  })
+
   it('StockTradingPage - remove mutation fails - displays error message', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Server Error'), {
