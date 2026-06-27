@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
 
 interface MarketDataGridProps {
@@ -7,6 +7,7 @@ interface MarketDataGridProps {
 }
 
 type SortDirection = 'asc' | 'desc' | 'none'
+type PriceMovement = 'up' | 'down' | 'none'
 
 const COLUMNS: { key: keyof MarketDataUpdate; label: string }[] = [
   { key: 'ticker', label: 'Ticker' },
@@ -62,9 +63,27 @@ function getSortIndicator(
   return sortDirection === 'asc' ? ' ▲' : ' ▼'
 }
 
+function getPriceMovement(
+  currentPrice: number,
+  previousPrice: number | undefined,
+): PriceMovement {
+  if (previousPrice === undefined || previousPrice === currentPrice) {
+    return 'none'
+  }
+
+  return currentPrice > previousPrice ? 'up' : 'down'
+}
+
 export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
   const [sortColumn, setSortColumn] = useState<keyof MarketDataUpdate | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
+  const previousPricesRef = useRef<Map<string, number>>(new Map())
+
+  const previousPrices = previousPricesRef.current
+
+  useEffect(() => {
+    previousPricesRef.current = new Map(rows.map((row) => [row.ticker, row.currentPrice]))
+  }, [rows])
 
   if (feedStatus === 'connecting') {
     return <p>Connecting…</p>
@@ -97,12 +116,17 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
   const sortedRows = sortRows(rows, sortColumn, sortDirection)
 
   return (
-    <div style={{ overflowX: 'auto', overflowY: 'auto' }}>
-      <table>
-        <thead>
+    <div className="overflow-x-auto overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <table className="min-w-full border-collapse text-left text-xs">
+        <thead className="bg-[var(--color-surface-raised)]">
           <tr>
             {COLUMNS.map(({ key, label }) => (
-              <th key={key} onClick={() => handleHeaderClick(key)} style={{ cursor: 'pointer' }}>
+              <th
+                key={key}
+                scope="col"
+                onClick={() => handleHeaderClick(key)}
+                className="cursor-pointer select-none border border-[var(--color-border)] px-3 py-2 font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+              >
                 {label}
                 {getSortIndicator(key, sortColumn, sortDirection)}
               </th>
@@ -110,16 +134,44 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
           </tr>
         </thead>
         <tbody>
-          {sortedRows.map((row) => (
-            <tr key={row.ticker}>
-              <td>{row.ticker}</td>
-              <td>{row.companyName}</td>
-              <td>{row.currentPrice.toFixed(3)}</td>
-              <td>{row.open.toFixed(3)}</td>
-              <td>{row.dayLow.toFixed(3)}</td>
-              <td>{row.fiftyTwoWeekHigh.toFixed(3)}</td>
-            </tr>
-          ))}
+          {sortedRows.map((row) => {
+            const tickerMovement = getPriceMovement(row.currentPrice, previousPrices.get(row.ticker))
+
+            return (
+              <tr key={row.ticker} className="bg-[var(--color-bg)]">
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span>{row.ticker}</span>
+                    {tickerMovement === 'up' && (
+                      <span className="text-[var(--color-success)]" aria-label={`${row.ticker} price increased`}>
+                        ↑
+                      </span>
+                    )}
+                    {tickerMovement === 'down' && (
+                      <span className="text-[var(--color-danger)]" aria-label={`${row.ticker} price decreased`}>
+                        ↓
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.companyName}
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.currentPrice.toFixed(3)}
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.open.toFixed(3)}
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.dayLow.toFixed(3)}
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.fiftyTwoWeekHigh.toFixed(3)}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
