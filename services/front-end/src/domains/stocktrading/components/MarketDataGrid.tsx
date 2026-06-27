@@ -125,7 +125,7 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
                 key={key}
                 scope="col"
                 onClick={() => handleHeaderClick(key)}
-                className="cursor-pointer select-none border border-[var(--color-border)] px-3 py-2 font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+                className="cursor-pointer select-none border border-b border-[var(--color-border)] px-3 py-2 font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
               >
                 {label}
                 {getSortIndicator(key, sortColumn, sortDirection)}
