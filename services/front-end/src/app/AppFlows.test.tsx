@@ -162,7 +162,7 @@ beforeEach(() => {
   mockFetchUserById.mockResolvedValue(profile)
   mockFetchSupportedTickers.mockResolvedValue([aaplSubscription, msftSubscription, googSubscription])
   mockConnectMarketDataFeed.mockImplementation(
-    (userId: string, onMessage: (message: FeedMessage) => void) => {
+    (_userId: string, onMessage: (message: FeedMessage) => void) => {
       emitFeedMessage = onMessage
       onMessage({ type: 'SNAPSHOT', data: [aaplFeedRow] })
       return () => {
