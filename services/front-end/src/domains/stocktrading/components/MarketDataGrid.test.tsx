@@ -67,6 +67,16 @@ describe('MarketDataGrid', () => {
     expect(screen.getByText(/^52W High \(USD\)/)).toBeInTheDocument()
   })
 
+  it('MarketDataGrid - connected rows - renders always visible sort indicators on sortable headers', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+    expect(screen.getByText('Ticker ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Company Name ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Current Price (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Open (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Day Low (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('52W High (USD) ⇅')).toBeInTheDocument()
+  })
+
   it('MarketDataGrid - feedStatus connected with rows - renders row data', () => {
     render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
     expect(screen.getByText('AAPL')).toBeInTheDocument()
