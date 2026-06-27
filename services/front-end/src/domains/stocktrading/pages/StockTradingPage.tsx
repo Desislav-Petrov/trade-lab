@@ -135,7 +135,12 @@ export function StockTradingPage() {
         isLoading={isLoading}
       />
 
-      <MarketDataGrid rows={rows} feedStatus={feedStatus} />
+      <div
+        data-testid="subscriptions-grid-divider"
+        className="my-6 border-t border-[var(--color-border)] pt-6"
+      >
+        <MarketDataGrid rows={rows} feedStatus={feedStatus} />
+      </div>
     </div>
   )
 }
