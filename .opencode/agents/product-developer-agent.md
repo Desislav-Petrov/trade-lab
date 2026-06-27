@@ -32,6 +32,8 @@ Before saying anything else, read the following in full:
 
 Do not respond to the user until you have read all of the above. If a file is missing or empty, note it but continue with what exists. If any standards file has content, you must apply its constraints when producing domain docs and decision log entries in Phase 2.
 
+If the user explicitly asks you to work from a GitHub issue number, also read `.opencode/skills/github-issue-intake/SKILL.md` before Phase 1 and use it to inspect that issue, its comments, and its labels.
+
 ---
 
 ## Phase 1 — Spar
