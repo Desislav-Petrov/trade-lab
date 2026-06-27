@@ -50,6 +50,18 @@ function sortRows(
   })
 }
 
+function getSortIndicator(
+  column: keyof MarketDataUpdate,
+  sortColumn: keyof MarketDataUpdate | null,
+  sortDirection: SortDirection,
+): string {
+  if (sortColumn !== column || sortDirection === 'none') {
+    return ' ⇅'
+  }
+
+  return sortDirection === 'asc' ? ' ▲' : ' ▼'
+}
+
 export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
   const [sortColumn, setSortColumn] = useState<keyof MarketDataUpdate | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
@@ -92,11 +104,7 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
             {COLUMNS.map(({ key, label }) => (
               <th key={key} onClick={() => handleHeaderClick(key)} style={{ cursor: 'pointer' }}>
                 {label}
-                {sortColumn === key && sortDirection !== 'none'
-                  ? sortDirection === 'asc'
-                    ? ' ▲'
-                    : ' ▼'
-                  : ''}
+                {getSortIndicator(key, sortColumn, sortDirection)}
               </th>
             ))}
           </tr>
