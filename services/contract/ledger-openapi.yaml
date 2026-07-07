@@ -75,6 +75,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, SUSPENDED, CLOSED]
       responses:
         '200':
           description: List of accounts for the user (may be empty)

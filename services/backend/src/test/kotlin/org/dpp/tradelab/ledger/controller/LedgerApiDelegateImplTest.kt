@@ -14,8 +14,8 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -148,6 +148,30 @@ class LedgerApiDelegateImplTest(
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.accounts").isArray)
                 .andExpect(jsonPath("$.accounts").isEmpty)
+        }
+
+        test("listAccounts_statusActive_returns200WithActiveAccountsOnly") {
+            whenever(accountService.listActiveAccountsByUser(userId))
+                .thenReturn(listOf(validAccount))
+
+            mockMvc.perform(
+                get("/api/v1/accounts")
+                    .param("userId", userId.toString())
+                    .param("status", "ACTIVE")
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.accounts[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("$.accounts[0].status").value("ACTIVE"))
+        }
+
+        test("listAccounts_statusInvalid_returns400WithErrorResponse") {
+            mockMvc.perform(
+                get("/api/v1/accounts")
+                    .param("userId", userId.toString())
+                    .param("status", "INVALID")
+            )
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.status").value(400))
         }
     }
 }

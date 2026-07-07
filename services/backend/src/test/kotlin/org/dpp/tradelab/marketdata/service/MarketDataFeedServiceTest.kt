@@ -185,7 +185,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.registerSession(userId, session)
 
         val event = AssetSubscribedEvent(userId = userId, tickers = listOf("MSFT"), timestamp = Instant.now())
-        service.onAssetSubscribed(event)
+        service.handleAssetSubscribed(event)
 
         service.tickerToUsers["MSFT"]!!.contains(userId) shouldBe true
         service.userToTickers[userId]!!.contains("MSFT") shouldBe true
@@ -207,7 +207,7 @@ class MarketDataFeedServiceTest : FunSpec({
         // No session registered for userId
 
         val event = AssetSubscribedEvent(userId = userId, tickers = listOf("MSFT"), timestamp = Instant.now())
-        service.onAssetSubscribed(event)
+        service.handleAssetSubscribed(event)
 
         service.tickerToUsers["MSFT"]!!.contains(userId) shouldBe true
         service.userToTickers[userId]!!.contains("MSFT") shouldBe true
@@ -227,7 +227,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
         val event = AssetUnsubscribedEvent(userId = userId, tickers = listOf("AAPL"), timestamp = Instant.now())
-        service.onAssetUnsubscribed(event)
+        service.handleAssetUnsubscribed(event)
 
         service.tickerToUsers["AAPL"]!!.contains(userId) shouldBe false
         service.userToTickers[userId]!!.contains("AAPL") shouldBe false
@@ -245,7 +245,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
         // No session registered - should not throw
         val event = AssetUnsubscribedEvent(userId = userId, tickers = listOf("AAPL"), timestamp = Instant.now())
-        service.onAssetUnsubscribed(event)
+        service.handleAssetUnsubscribed(event)
     }
 
     // ── removeSession ─────────────────────────────────────────────────────────────

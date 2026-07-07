@@ -38,8 +38,16 @@ class LedgerApiDelegateImpl(private val accountService: AccountService) : Accoun
         return ResponseEntity.status(HttpStatus.CREATED).body(account.toResponse())
     }
 
-    override fun listAccounts(userId: UUID): ResponseEntity<AccountListResponse> {
-        val accounts = accountService.listAccountsByUser(userId)
+    override fun listAccounts(userId: UUID, status: String?): ResponseEntity<AccountListResponse> {
+        val validStatuses = setOf("ACTIVE", "SUSPENDED", "CLOSED")
+        if (status != null && status !in validStatuses) {
+            throw IllegalArgumentException("status must be one of ${validStatuses.joinToString()}")
+        }
+
+        val accounts = when (status) {
+            "ACTIVE" -> accountService.listActiveAccountsByUser(userId)
+            else -> accountService.listAccountsByUser(userId)
+        }
         return ResponseEntity.ok(AccountListResponse(accounts = accounts.map { it.toResponse() }))
     }
 
