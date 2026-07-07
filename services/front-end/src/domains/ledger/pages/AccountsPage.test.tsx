@@ -19,9 +19,11 @@ vi.mock('../components/AccountList', () => ({
   AccountList: ({
     accounts,
     onTopUp,
+    onTransactions,
   }: {
     accounts: AccountResponse[]
     onTopUp: (account: AccountResponse) => void
+    onTransactions: (account: AccountResponse) => void
   }) =>
     createElement(
       'div',
@@ -37,6 +39,11 @@ vi.mock('../components/AccountList', () => ({
                 'button',
                 { onClick: () => onTopUp(a) },
                 'Top Up',
+              ),
+              createElement(
+                'button',
+                { onClick: () => onTransactions(a) },
+                'Transactions',
               ),
             ),
           ),
@@ -136,6 +143,10 @@ function renderPage(initialPath = '/accounts') {
           null,
           createElement(Route, { path: '/accounts', element: createElement(AccountsPage) }),
           createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
+          createElement(Route, {
+            path: '/accounts/:accountId/transactions',
+            element: createElement('div', null, 'Transaction List Page'),
+          }),
         ),
       ),
     ),
@@ -405,5 +416,17 @@ describe('AccountsPage', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText('Account not found.')).toBeInTheDocument()
+  })
+
+  // --- Transactions navigation tests ---
+
+  it('AccountsPage - clicking Transactions on an account - navigates to transaction list page', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ accounts: [mockAccount] })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /transactions/i }))
+
+    expect(screen.getByText('Transaction List Page')).toBeInTheDocument()
   })
 })
