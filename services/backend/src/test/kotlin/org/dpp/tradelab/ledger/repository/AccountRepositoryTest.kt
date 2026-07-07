@@ -8,8 +8,8 @@ import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
-import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import java.util.UUID
 
 @DataJpaTest
