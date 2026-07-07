@@ -61,4 +61,4 @@ Authenticated user clicks the "Top Up" button on an account card and submits the
 - Scheduled or recurring top-ups.
 - Withdrawals or debiting cash out of an account.
 - Non-cash asset top-ups (stock positions).
-- Top-up history view (covered by the ledger).
+- Top-up history view — see `domain/usecases/view-transaction-list`.
