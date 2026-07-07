@@ -14,10 +14,15 @@ export async function createAccount(request: OpenAccountRequest): Promise<Accoun
   return response.data
 }
 
-export async function fetchAccounts(userId: string): Promise<AccountListResponse> {
-  const response = await axiosInstance.get<AccountListResponse>('/v1/accounts', {
-    params: { userId },
-  })
+export async function fetchAccounts(
+  userId: string,
+  status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+): Promise<AccountListResponse> {
+  const params: { userId: string; status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' } = { userId }
+  if (status !== undefined) {
+    params.status = status
+  }
+  const response = await axiosInstance.get<AccountListResponse>('/v1/accounts', { params })
   return response.data
 }
 

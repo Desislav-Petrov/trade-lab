@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { StockTradingPage } from './StockTradingPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
+import { useStockTradingStore } from '../hooks/useStockTradingStore'
 import type { UserProfile } from '../../user/types/user'
 import type { SubscriptionResponse } from '../../marketdata/types/subscription'
+import type { AccountListResponse } from '../../ledger/types/account'
 
 vi.mock('../../marketdata/hooks/useSubscriptions', () => ({
   useSubscriptions: vi.fn(),
@@ -18,6 +20,41 @@ vi.mock('../../marketdata/hooks/useSubscriptions', () => ({
 
 vi.mock('../../marketdata/hooks/useMarketDataFeed', () => ({
   useMarketDataFeed: vi.fn(() => ({ rows: [], feedStatus: 'connecting' })),
+}))
+
+vi.mock('../../ledger/hooks/useLedger', () => ({
+  useActiveAccounts: vi.fn(),
+}))
+
+vi.mock('../components/AccountSelector', () => ({
+  AccountSelector: ({
+    accounts,
+    selectedAccountId,
+    onSelect,
+    isLoading,
+    isError,
+  }: {
+    accounts: { id: string; name: string; currency: string }[]
+    selectedAccountId: string | null
+    onSelect: (id: string) => void
+    isLoading: boolean
+    isError: boolean
+  }) => {
+    if (isLoading) return createElement('p', { 'data-testid': 'account-selector-loading' }, 'Loading accounts…')
+    if (isError) return createElement('p', { role: 'alert', 'data-testid': 'account-selector-error' }, 'Could not load accounts.')
+    if (accounts.length === 0) return createElement('p', { 'data-testid': 'account-selector-empty' }, 'No accounts available. Open an account first.')
+    return createElement(
+      'select',
+      {
+        'data-testid': 'account-selector',
+        value: selectedAccountId ?? '',
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onSelect(e.target.value),
+      },
+      accounts.map((a) =>
+        createElement('option', { key: a.id, value: a.id }, `${a.name} (${a.currency})`),
+      ),
+    )
+  },
 }))
 
 vi.mock('../components/MarketDataGrid', () => ({
@@ -108,11 +145,13 @@ import {
   useBulkRemoveSubscriptions,
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
+import { useActiveAccounts } from '../../ledger/hooks/useLedger'
 
 const mockUseSubscriptions = vi.mocked(useSubscriptions)
 const mockUseBulkAddSubscriptions = vi.mocked(useBulkAddSubscriptions)
 const mockUseBulkRemoveSubscriptions = vi.mocked(useBulkRemoveSubscriptions)
 const mockUseSupportedTickers = vi.mocked(useSupportedTickers)
+const mockUseActiveAccounts = vi.mocked(useActiveAccounts)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -127,6 +166,25 @@ const mockProfile: UserProfile = {
 const mockSubscriptions: SubscriptionResponse[] = [
   { ticker: 'AAPL', companyName: 'Apple Inc.' },
   { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
+]
+
+const mockActiveAccounts = [
+  {
+    id: 'acc-1',
+    name: 'My USD Account',
+    currency: 'USD',
+    balance: 100,
+    status: 'ACTIVE',
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'acc-2',
+    name: 'My GBP Account',
+    currency: 'GBP',
+    balance: 200,
+    status: 'ACTIVE',
+    createdAt: '2026-01-02T00:00:00Z',
+  },
 ]
 
 function renderPage(initialPath = '/trade') {
@@ -158,6 +216,9 @@ function setupMocks(overrides: {
   addIsPending?: boolean
   removeIsPending?: boolean
   removeError?: Error | null
+  activeAccounts?: typeof mockActiveAccounts
+  isAccountsLoading?: boolean
+  isAccountsError?: boolean
 } = {}) {
   mockUseSubscriptions.mockReturnValue({
     data: overrides.subscriptions !== undefined ? overrides.subscriptions : mockSubscriptions,
@@ -186,12 +247,20 @@ function setupMocks(overrides: {
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof useSupportedTickers>)
+
+  const accounts = overrides.activeAccounts !== undefined ? overrides.activeAccounts : mockActiveAccounts
+  mockUseActiveAccounts.mockReturnValue({
+    data: { accounts } as AccountListResponse,
+    isLoading: overrides.isAccountsLoading ?? false,
+    isError: overrides.isAccountsError ?? false,
+  } as unknown as ReturnType<typeof useActiveAccounts>)
 }
 
 describe('StockTradingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     act(() => useSessionStore.getState().clearSession())
+    act(() => useStockTradingStore.getState().clearSelectedAccountId())
   })
 
   it('StockTradingPage - no session - redirects to /login', () => {
@@ -273,7 +342,71 @@ describe('StockTradingPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getAllByRole('alert').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Ticker not found in subscriptions.')).toBeInTheDocument()
+  })
+
+  // Account selector scenario tests (SCREEN-1)
+  it('StockTradingPage - AccountSelector rendered - account selector is present on the page', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks()
+    renderPage()
+    expect(screen.getByTestId('account-selector')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - accounts returned with no prior selection - sets first account as default', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-1')
+    })
+  })
+
+  it('StockTradingPage - accounts returned with prior selection - does not change existing selection', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-2'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
+    })
+  })
+
+  it('StockTradingPage - no accounts returned - selectedAccountId remains null', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [] })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBeNull()
+    })
+  })
+
+  it('StockTradingPage - user selects different account - selectedAccountId updates in store', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    const select = screen.getByTestId('account-selector')
+    fireEvent.change(select, { target: { value: 'acc-2' } })
+
+    expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
+  })
+
+  it('StockTradingPage - accounts loading - forwards isLoading to AccountSelector', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [], isAccountsLoading: true })
+    renderPage()
+    expect(screen.getByTestId('account-selector-loading')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - accounts error - forwards isError to AccountSelector', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [], isAccountsError: true })
+    renderPage()
+    expect(screen.getByTestId('account-selector-error')).toBeInTheDocument()
   })
 })
