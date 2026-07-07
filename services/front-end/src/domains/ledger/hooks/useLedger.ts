@@ -14,6 +14,17 @@ export function useAccounts() {
   })
 }
 
+export function useActiveAccounts() {
+  const userId = useSessionStore((s) => s.user?.userId)
+
+  return useQuery({
+    queryKey: [ACCOUNTS_QUERY_KEY, userId, 'ACTIVE'],
+    queryFn: () => fetchAccounts(userId!, 'ACTIVE'),
+    enabled: !!userId,
+    staleTime: 0,
+  })
+}
+
 export function useOpenAccount() {
   const queryClient = useQueryClient()
   const userId = useSessionStore((s) => s.user?.userId)
