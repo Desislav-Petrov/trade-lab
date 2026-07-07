@@ -16,6 +16,8 @@ export function useMarketDataFeed(
   const cleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    if (!userId) return
+
     setFeedStatus('connecting')
 
     const cleanup = connectMarketDataFeed(
