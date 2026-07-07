@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.FunSpec
 import org.dpp.tradelab.marketdata.service.MarketDataFeedService
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -18,7 +19,7 @@ class MarketDataEventListenerTest : FunSpec({
     val listener = MarketDataEventListener(marketDataFeedService)
 
     test("onAssetSubscribed_withEvent_delegatesToHandleAssetSubscribed") {
-        val event = AssetSubscribedEvent(userId = UUID.randomUUID(), tickers = listOf("AAPL", "MSFT"))
+        val event = AssetSubscribedEvent(userId = UUID.randomUUID(), tickers = listOf("AAPL", "MSFT"), timestamp = Instant.now())
 
         listener.onAssetSubscribed(event)
 
@@ -26,7 +27,7 @@ class MarketDataEventListenerTest : FunSpec({
     }
 
     test("onAssetUnsubscribed_withEvent_delegatesToHandleAssetUnsubscribed") {
-        val event = AssetUnsubscribedEvent(userId = UUID.randomUUID(), tickers = listOf("AAPL"))
+        val event = AssetUnsubscribedEvent(userId = UUID.randomUUID(), tickers = listOf("AAPL"), timestamp = Instant.now())
 
         listener.onAssetUnsubscribed(event)
 
