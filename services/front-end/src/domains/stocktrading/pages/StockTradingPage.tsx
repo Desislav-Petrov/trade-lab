@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -9,6 +9,9 @@ import {
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
 import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
+import { useActiveAccounts } from '../../ledger/hooks/useLedger'
+import { useStockTradingStore } from '../hooks/useStockTradingStore'
+import { AccountSelector } from '../components/AccountSelector'
 import { SubscriptionList } from '../components/SubscriptionList'
 import { AddTickerPanel } from '../components/AddTickerPanel'
 import { RemoveTickerBar } from '../components/RemoveTickerBar'
@@ -34,6 +37,16 @@ export function StockTradingPage() {
 
   const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
+
+  const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
+  const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
+  const setSelectedAccountId = useStockTradingStore((s) => s.setSelectedAccountId)
+
+  useEffect(() => {
+    if (selectedAccountId === null && (activeAccountsData?.accounts?.length ?? 0) > 0) {
+      setSelectedAccountId(activeAccountsData!.accounts[0].id)
+    }
+  }, [activeAccountsData])
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -91,6 +104,16 @@ export function StockTradingPage() {
             Add tickers
           </button>
         )}
+      </div>
+
+      <div className="mb-4">
+        <AccountSelector
+          accounts={activeAccountsData?.accounts ?? []}
+          selectedAccountId={selectedAccountId}
+          onSelect={setSelectedAccountId}
+          isLoading={isAccountsLoading}
+          isError={isAccountsError}
+        />
       </div>
 
       {loadError && (
