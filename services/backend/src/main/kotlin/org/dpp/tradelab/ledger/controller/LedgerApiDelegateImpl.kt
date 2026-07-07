@@ -7,11 +7,14 @@ import org.dpp.tradelab.ledger.generated.model.AccountResponse
 import org.dpp.tradelab.ledger.generated.model.OpenAccountRequest
 import org.dpp.tradelab.ledger.generated.model.TopUpAccountRequest
 import org.dpp.tradelab.ledger.generated.model.TopUpAccountResponse
+import org.dpp.tradelab.ledger.generated.model.TransactionListResponse
+import org.dpp.tradelab.ledger.generated.model.TransactionResponse
 import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.model.LedgerEntry
 import org.dpp.tradelab.ledger.service.AccountService
+import org.dpp.tradelab.ledger.service.LedgerService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
@@ -20,7 +23,10 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
-class LedgerApiDelegateImpl(private val accountService: AccountService) : AccountsApiDelegate {
+class LedgerApiDelegateImpl(
+    private val accountService: AccountService,
+    private val ledgerService: LedgerService
+) : AccountsApiDelegate {
 
     override fun openAccount(openAccountRequest: OpenAccountRequest): ResponseEntity<AccountResponse> {
         val currency = try {
@@ -61,6 +67,34 @@ class LedgerApiDelegateImpl(private val accountService: AccountService) : Accoun
             amount = topUpAccountRequest.amount.toBigDecimal()
         )
         return ResponseEntity.ok(buildTopUpResponse(account, entry))
+    }
+
+    override fun getAccountTransactions(
+        accountId: UUID,
+        userId: UUID,
+        page: Int
+    ): ResponseEntity<TransactionListResponse> {
+        val result = ledgerService.getTransactions(accountId, userId, page, 25)
+        val transactions = result.content.map { entry ->
+            TransactionResponse(
+                id = entry.entryId,
+                type = TransactionResponse.Type.valueOf(entry.type.name),
+                assetType = TransactionResponse.AssetType.valueOf(entry.assetType.name),
+                amount = entry.amount,
+                currency = entry.currency,
+                ticker = entry.ticker,
+                shares = entry.shares,
+                description = entry.description,
+                createdAt = entry.createdAt!!.atOffset(ZoneOffset.UTC)
+            )
+        }
+        val body = TransactionListResponse(
+            transactions = transactions,
+            page = result.number,
+            totalPages = result.totalPages,
+            totalCount = result.totalElements.toInt()
+        )
+        return ResponseEntity.ok(body)
     }
 
     private fun Account.toResponse(): AccountResponse =
