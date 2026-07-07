@@ -51,6 +51,12 @@ class LedgerEntry(
     val currency: String,
 
     @Column(nullable = true, updatable = false)
+    val ticker: String? = null,
+
+    @Column(nullable = true, precision = 19, scale = 4, updatable = false)
+    val shares: BigDecimal? = null,
+
+    @Column(nullable = true, updatable = false)
     val description: String? = null,
 
     @CreationTimestamp
@@ -74,5 +80,7 @@ class LedgerEntry(
     override fun hashCode(): Int = entryId.hashCode()
 
     override fun toString(): String =
-        "LedgerEntry(entryId=$entryId, accountId=$accountId, type=$type, assetType=$assetType, amount=$amount, currency=$currency, description=$description, createdAt=$createdAt)"
+        "LedgerEntry(entryId=$entryId, accountId=$accountId, type=$type, assetType=$assetType, " +
+            "amount=$amount, currency=$currency, ticker=$ticker, shares=$shares, " +
+            "description=$description, createdAt=$createdAt)"
 }
