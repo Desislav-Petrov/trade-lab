@@ -149,5 +149,29 @@ class LedgerApiDelegateImplTest(
                 .andExpect(jsonPath("$.accounts").isArray)
                 .andExpect(jsonPath("$.accounts").isEmpty)
         }
+
+        test("listAccounts_statusActive_returns200WithActiveAccountsOnly") {
+            whenever(accountService.listActiveAccountsByUser(userId))
+                .thenReturn(listOf(validAccount))
+
+            mockMvc.perform(
+                get("/api/v1/accounts")
+                    .param("userId", userId.toString())
+                    .param("status", "ACTIVE")
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.accounts[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("$.accounts[0].status").value("ACTIVE"))
+        }
+
+        test("listAccounts_statusInvalid_returns400WithErrorResponse") {
+            mockMvc.perform(
+                get("/api/v1/accounts")
+                    .param("userId", userId.toString())
+                    .param("status", "INVALID")
+            )
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.status").value(400))
+        }
     }
 }
