@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import org.dpp.tradelab.ledger.exception.AccountNotActiveException
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
+import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -31,6 +32,14 @@ class AccountNotActiveTestController {
     }
 }
 
+@RestController
+class AccountOwnershipTestController {
+    @GetMapping("/test/account-ownership")
+    fun trigger(): String {
+        throw AccountOwnershipException(UUID.fromString("00000000-0000-0000-0000-000000000003"))
+    }
+}
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class LedgerExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
@@ -43,7 +52,7 @@ class LedgerExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Account not found"))
-                .andExpect(jsonPath("$.details[0]").value("No account found with id: 00000000-0000-0000-0000-000000000001"))
+                .andExpect(jsonPath("$.details[0]").value("Account not found: 00000000-0000-0000-0000-000000000001"))
         }
 
         test("handleAccountNotActive_accountNotActiveException_returns403WithErrorBody") {
@@ -52,6 +61,14 @@ class LedgerExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.error").value("Account not available"))
                 .andExpect(jsonPath("$.details[0]").value("Account 00000000-0000-0000-0000-000000000002 is not available for this operation"))
+        }
+
+        test("handleAccountOwnership_accountOwnershipException_returns403WithErrorBody") {
+            mockMvc.perform(get("/test/account-ownership"))
+                .andExpect(status().isForbidden)
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Account ownership violation"))
+                .andExpect(jsonPath("$.details[0]").value("Account 00000000-0000-0000-0000-000000000003 does not belong to the requesting user"))
         }
     }
 }
