@@ -160,6 +160,80 @@ class LedgerEntryTest : DescribeSpec({
 
             entry.createdAt shouldBe null
         }
+
+        it("ticker defaults to null when omitted") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.CREDIT,
+                assetType = AssetType.CASH,
+                amount = BigDecimal("500.0000"),
+                currency = "USD"
+            )
+
+            entry.ticker shouldBe null
+        }
+
+        it("returns correct ticker when provided") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.DEBIT,
+                assetType = AssetType.STOCK_BUY,
+                amount = BigDecimal("1500.0000"),
+                currency = "USD",
+                ticker = "AAPL",
+                shares = BigDecimal("10.0000")
+            )
+
+            entry.ticker shouldBe "AAPL"
+        }
+
+        it("shares defaults to null when omitted") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.CREDIT,
+                assetType = AssetType.CASH,
+                amount = BigDecimal("500.0000"),
+                currency = "USD"
+            )
+
+            entry.shares shouldBe null
+        }
+
+        it("returns correct shares when provided") {
+            val shares = BigDecimal("10.0000")
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.DEBIT,
+                assetType = AssetType.STOCK_BUY,
+                amount = BigDecimal("1500.0000"),
+                currency = "USD",
+                ticker = "AAPL",
+                shares = shares
+            )
+
+            entry.shares shouldBe shares
+        }
+
+        it("supports STOCK_SELL assetType with ticker and shares") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.CREDIT,
+                assetType = AssetType.STOCK_SELL,
+                amount = BigDecimal("1500.0000"),
+                currency = "USD",
+                ticker = "AAPL",
+                shares = BigDecimal("10.0000")
+            )
+
+            entry.assetType shouldBe AssetType.STOCK_SELL
+            entry.ticker shouldBe "AAPL"
+            entry.shares shouldBe BigDecimal("10.0000")
+        }
     }
 
     describe("LedgerEntry equals and hashCode") {
@@ -177,7 +251,7 @@ class LedgerEntryTest : DescribeSpec({
                 entryId = entryId,
                 accountId = UUID.randomUUID(),
                 type = EntryType.DEBIT,
-                assetType = AssetType.STOCK,
+                assetType = AssetType.STOCK_BUY,
                 amount = BigDecimal("999.0000"),
                 currency = "GBP"
             )
@@ -262,6 +336,36 @@ class LedgerEntryTest : DescribeSpec({
             )
 
             entry.toString().contains("USD") shouldBe true
+        }
+
+        it("toString contains ticker when set") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.DEBIT,
+                assetType = AssetType.STOCK_BUY,
+                amount = BigDecimal("1500.0000"),
+                currency = "USD",
+                ticker = "AAPL",
+                shares = BigDecimal("10.0000")
+            )
+
+            entry.toString().contains("AAPL") shouldBe true
+        }
+
+        it("toString contains shares when set") {
+            val entry = LedgerEntry(
+                entryId = entryId,
+                accountId = accountId,
+                type = EntryType.DEBIT,
+                assetType = AssetType.STOCK_BUY,
+                amount = BigDecimal("1500.0000"),
+                currency = "USD",
+                ticker = "AAPL",
+                shares = BigDecimal("10.0000")
+            )
+
+            entry.toString().contains("shares") shouldBe true
         }
     }
 })
