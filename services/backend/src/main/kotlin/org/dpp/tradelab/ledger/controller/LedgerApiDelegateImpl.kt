@@ -4,7 +4,6 @@ import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.generated.api.AccountsApiDelegate
 import org.dpp.tradelab.ledger.generated.model.AccountListResponse
 import org.dpp.tradelab.ledger.generated.model.AccountResponse
-import org.dpp.tradelab.ledger.generated.model.ErrorResponse
 import org.dpp.tradelab.ledger.generated.model.OpenAccountRequest
 import org.dpp.tradelab.ledger.generated.model.TopUpAccountRequest
 import org.dpp.tradelab.ledger.generated.model.TopUpAccountResponse
@@ -40,10 +39,9 @@ class LedgerApiDelegateImpl(private val accountService: AccountService) : Accoun
     }
 
     override fun listAccounts(userId: UUID, status: String?): ResponseEntity<AccountListResponse> {
-        if (status != null && status != "ACTIVE" && status != "SUSPENDED" && status != "CLOSED") {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                AccountListResponse(accounts = emptyList())
-            )
+        val validStatuses = setOf("ACTIVE", "SUSPENDED", "CLOSED")
+        if (status != null && status !in validStatuses) {
+            throw IllegalArgumentException("status must be one of ${validStatuses.joinToString()}")
         }
 
         val accounts = when (status) {
