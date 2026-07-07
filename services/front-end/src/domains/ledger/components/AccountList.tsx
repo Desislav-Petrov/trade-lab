@@ -1,26 +1,18 @@
-import { useNavigate } from 'react-router-dom'
 import type { AccountResponse } from '../types/account'
 
 interface AccountListProps {
   accounts: AccountResponse[]
   onTopUp: (account: AccountResponse) => void
+  onTransactions: (account: AccountResponse) => void
 }
 
-export function AccountList({ accounts, onTopUp }: AccountListProps) {
-  const navigate = useNavigate()
-
+export function AccountList({ accounts, onTopUp, onTransactions }: AccountListProps) {
   if (accounts.length === 0) {
     return (
       <p className="text-xs text-[var(--color-text-muted)]">
         No accounts yet. Open one to get started.
       </p>
     )
-  }
-
-  function handleTransactions(account: AccountResponse) {
-    navigate(`/accounts/${account.id}/transactions`, {
-      state: { accountName: account.name, currency: account.currency },
-    })
   }
 
   return (
@@ -59,7 +51,7 @@ export function AccountList({ accounts, onTopUp }: AccountListProps) {
           <div className="mt-3 flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => handleTransactions(account)}
+              onClick={() => onTransactions(account)}
               className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)]"
             >
               Transactions

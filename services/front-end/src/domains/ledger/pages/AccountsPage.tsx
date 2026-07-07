@@ -55,6 +55,12 @@ export function AccountsPage() {
     setFormError(undefined)
   }
 
+  function handleTransactions(account: AccountResponse) {
+    navigate(`/accounts/${account.id}/transactions`, {
+      state: { accountName: account.name, currency: account.currency },
+    })
+  }
+
   const accounts = data?.accounts ?? []
 
   return (
@@ -96,6 +102,7 @@ export function AccountsPage() {
             setTopUpError(undefined)
             setSelectedAccount(account)
           }}
+          onTransactions={handleTransactions}
         />
       )}
 
