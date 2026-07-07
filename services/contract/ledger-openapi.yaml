@@ -95,6 +95,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /accounts/{accountId}/transactions:
+    get:
+      tags:
+        - Ledger
+      summary: List transactions for an account
+      operationId: getAccountTransactions
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Paginated list of transactions for the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionListResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not owned by the requesting user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /accounts/{accountId}/top-up:
     post:
       tags:
@@ -279,3 +331,70 @@ components:
           type: string
           format: date-time
           example: "2026-06-24T12:00:00Z"
+
+    TransactionResponse:
+      type: object
+      required:
+        - id
+        - type
+        - assetType
+        - amount
+        - currency
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        type:
+          type: string
+          enum: [CREDIT, DEBIT]
+          example: CREDIT
+        assetType:
+          type: string
+          enum: [CASH, STOCK_BUY, STOCK_SELL]
+          example: CASH
+        amount:
+          type: number
+          example: 1000.00
+        currency:
+          type: string
+          example: USD
+        ticker:
+          type: string
+          nullable: true
+          example: AAPL
+        shares:
+          type: number
+          nullable: true
+          example: 10.5
+        description:
+          type: string
+          nullable: true
+          example: Top-up
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-24T12:00:00Z"
+
+    TransactionListResponse:
+      type: object
+      required:
+        - transactions
+        - page
+        - totalPages
+        - totalCount
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+        page:
+          type: integer
+          example: 0
+        totalPages:
+          type: integer
+          example: 5
+        totalCount:
+          type: integer
+          example: 120
