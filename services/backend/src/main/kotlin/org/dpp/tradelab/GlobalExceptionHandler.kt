@@ -2,6 +2,7 @@ package org.dpp.tradelab
 
 import org.dpp.tradelab.ledger.exception.AccountNotActiveException
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
+import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.ledger.exception.InvalidCurrencyException
 import org.dpp.tradelab.ledger.exception.UserNotFoundException as LedgerUserNotFoundException
 import org.dpp.tradelab.marketdata.exception.SubscriptionLimitExceededException
@@ -62,6 +63,11 @@ class GlobalExceptionHandler {
     fun handleAccountNotFound(ex: AccountNotFoundException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(ErrorResponse(404, "Account not found", listOf(ex.message ?: "Account not found.")))
+
+    @ExceptionHandler(AccountOwnershipException::class)
+    fun handleAccountOwnership(ex: AccountOwnershipException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Account ownership violation", listOf(ex.message ?: "Account does not belong to the requesting user.")))
 
     @ExceptionHandler(AccountNotActiveException::class)
     fun handleAccountNotActive(ex: AccountNotActiveException): ResponseEntity<ErrorResponse> =
