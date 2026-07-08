@@ -153,4 +153,31 @@ describe('useTransactions', () => {
 
     expect(result.current.error).toBe(forbiddenError)
   })
+
+  it('useTransactions - empty userId - does not call fetchTransactions', async () => {
+    const { result } = renderHook(
+      () => useTransactions('acc-1', '', 0),
+      { wrapper: createWrapper() }
+    )
+
+    // Give TanStack Query a tick to potentially fire
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(mockFetchTransactions).not.toHaveBeenCalled()
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('useTransactions - empty accountId - does not call fetchTransactions', async () => {
+    const { result } = renderHook(
+      () => useTransactions('', 'user-1', 0),
+      { wrapper: createWrapper() }
+    )
+
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(mockFetchTransactions).not.toHaveBeenCalled()
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
 })
