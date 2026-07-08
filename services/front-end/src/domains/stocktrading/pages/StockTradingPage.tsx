@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useDeferredValue } from 'react'
 import { Navigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -45,6 +45,11 @@ export function StockTradingPage() {
 
   const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
+
+  // Defer feed row updates so rapid WebSocket ticks are treated as non-urgent.
+  // React will yield to user-initiated events (e.g. sidebar navigation clicks)
+  // before committing deferred renders, keeping the UI responsive.
+  const deferredRows = useDeferredValue(rows)
 
   const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
   const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
@@ -167,7 +172,7 @@ export function StockTradingPage() {
       />
 
       <MarketDataGrid
-          rows={rows}
+          rows={deferredRows}
           feedStatus={feedStatus}
           onBuy={selectedAccountId
             ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
