@@ -1,0 +1,35 @@
+import axiosInstance from '../../../shared/api/axiosInstance'
+
+export interface PlaceOrderRequest {
+  accountId: string
+  ticker: string
+  quantity: string
+  orderType: 'MARKET'
+  priceSnapshot: string
+}
+
+export interface PlaceOrderResponse {
+  orderId: string
+  status: 'FILLED' | 'REJECTED'
+  ticker: string
+  quantity: string
+  executionPrice: string | null
+  totalCost: string | null
+  rejectionReason: string | null
+  accountId: string
+  createdAt: string
+}
+
+export const ORDERS_QUERY_KEY = ['orders'] as const
+
+export async function placeOrder(
+  idempotencyKey: string,
+  request: PlaceOrderRequest
+): Promise<PlaceOrderResponse> {
+  const response = await axiosInstance.post<PlaceOrderResponse>('/v1/stock-orders', request, {
+    headers: {
+      'Idempotency-Key': idempotencyKey,
+    },
+  })
+  return response.data
+}

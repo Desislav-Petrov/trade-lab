@@ -16,6 +16,13 @@ import { SubscriptionList } from '../components/SubscriptionList'
 import { AddTickerPanel } from '../components/AddTickerPanel'
 import { RemoveTickerBar } from '../components/RemoveTickerBar'
 import { MarketDataGrid } from '../components/MarketDataGrid'
+import { BuyPanel } from '../components/BuyPanel'
+
+interface BuyContext {
+  ticker: string
+  companyName: string
+  priceSnapshot: string
+}
 
 function extractErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ error?: string }>
@@ -29,6 +36,7 @@ export function StockTradingPage() {
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
+  const [buyContext, setBuyContext] = useState<BuyContext | null>(null)
 
   const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
   const { data: supportedTickersData } = useSupportedTickers()
@@ -158,7 +166,28 @@ export function StockTradingPage() {
         isLoading={isLoading}
       />
 
-      <MarketDataGrid rows={rows} feedStatus={feedStatus} />
+      <MarketDataGrid
+          rows={rows}
+          feedStatus={feedStatus}
+          onBuy={selectedAccountId
+            ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
+            : undefined}
+        />
+
+      {buyContext && selectedAccountId && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+          role="presentation"
+        >
+          <BuyPanel
+            ticker={buyContext.ticker}
+            companyName={buyContext.companyName}
+            priceSnapshot={buyContext.priceSnapshot}
+            accountId={selectedAccountId}
+            onClose={() => setBuyContext(null)}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -58,7 +58,27 @@ vi.mock('../components/AccountSelector', () => ({
 }))
 
 vi.mock('../components/MarketDataGrid', () => ({
-  MarketDataGrid: () => createElement('div', { 'data-testid': 'market-data-grid' }),
+  MarketDataGrid: ({
+    onBuy,
+  }: {
+    rows: unknown[]
+    feedStatus: string
+    onBuy?: (ticker: string, companyName: string, priceSnapshot: string) => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'market-data-grid' },
+      onBuy
+        ? createElement(
+            'button',
+            {
+              onClick: () => onBuy('AAPL', 'Apple Inc.', '180.000'),
+              'data-testid': 'trigger-buy',
+            },
+            'Trigger Buy',
+          )
+        : null,
+    ),
 }))
 
 vi.mock('../components/SubscriptionList', () => ({
@@ -136,6 +156,31 @@ vi.mock('../components/RemoveTickerBar', () => ({
       'div',
       { 'data-testid': 'remove-ticker-bar' },
       createElement('button', { onClick: onRemove, disabled: selectedCount === 0 }, `Remove selected (${selectedCount})`),
+    ),
+}))
+
+vi.mock('../components/BuyPanel', () => ({
+  BuyPanel: ({
+    ticker,
+    companyName,
+    priceSnapshot,
+    accountId,
+    onClose,
+  }: {
+    ticker: string
+    companyName: string
+    priceSnapshot: string
+    accountId: string
+    onClose: () => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'buy-panel' },
+      createElement('span', { 'data-testid': 'buy-panel-ticker' }, ticker),
+      createElement('span', { 'data-testid': 'buy-panel-company' }, companyName),
+      createElement('span', { 'data-testid': 'buy-panel-price' }, priceSnapshot),
+      createElement('span', { 'data-testid': 'buy-panel-account' }, accountId),
+      createElement('button', { onClick: onClose, 'data-testid': 'buy-panel-close' }, 'Close'),
     ),
 }))
 
@@ -408,5 +453,54 @@ describe('StockTradingPage', () => {
     setupMocks({ activeAccounts: [], isAccountsError: true })
     renderPage()
     expect(screen.getByTestId('account-selector-error')).toBeInTheDocument()
+  })
+
+  // SCREEN-1: Buy flow wiring
+  it('StockTradingPage - account selected and onBuy triggered - BuyPanel renders with correct props', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    // MarketDataGrid mock renders a trigger button only when onBuy is provided
+    const triggerBtn = screen.getByTestId('trigger-buy')
+    fireEvent.click(triggerBtn)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('buy-panel')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('buy-panel-ticker')).toHaveTextContent('AAPL')
+    expect(screen.getByTestId('buy-panel-company')).toHaveTextContent('Apple Inc.')
+    expect(screen.getByTestId('buy-panel-price')).toHaveTextContent('180.000')
+    expect(screen.getByTestId('buy-panel-account')).toHaveTextContent('acc-1')
+  })
+
+  it('StockTradingPage - BuyPanel onClose - removes BuyPanel from DOM', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    fireEvent.click(screen.getByTestId('trigger-buy'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('buy-panel')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('buy-panel-close'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('buy-panel')).not.toBeInTheDocument()
+    })
+  })
+
+  it('StockTradingPage - no account selected - MarketDataGrid does not receive onBuy', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    // Do not set any selectedAccountId — remains null
+    setupMocks({ activeAccounts: [] })
+    renderPage()
+
+    // MarketDataGrid mock only renders trigger-buy button when onBuy is provided
+    expect(screen.queryByTestId('trigger-buy')).not.toBeInTheDocument()
   })
 })

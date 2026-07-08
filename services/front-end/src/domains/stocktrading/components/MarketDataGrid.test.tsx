@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MarketDataGrid } from './MarketDataGrid'
 import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
@@ -212,5 +212,67 @@ describe('MarketDataGrid', () => {
     expect(screen.getByRole('columnheader', { name: 'Ticker ⇅' })).toHaveClass('border')
     expect(screen.getByRole('columnheader', { name: 'Ticker ⇅' })).toHaveClass('border-b')
     expect(screen.getByRole('cell', { name: /AAPL/ })).toHaveClass('border')
+  })
+
+  // Context menu (COMP-1)
+  it('MarketDataGrid - right-click on row with onBuy - shows context menu with Buy option', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1]) // AAPL row
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Buy' })).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - clicking Buy in context menu - invokes onBuy with correct args', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1]) // AAPL row (currentPrice 180.123 → '180.123')
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Buy' }))
+
+    expect(onBuy).toHaveBeenCalledWith('AAPL', 'Apple Inc.', '180.123')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - click outside context menu - dismisses menu without invoking onBuy', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.mouseDown(document.body)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(onBuy).not.toHaveBeenCalled()
+  })
+
+  it('MarketDataGrid - press Escape - dismisses context menu without invoking onBuy', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(onBuy).not.toHaveBeenCalled()
+  })
+
+  it('MarketDataGrid - right-click without onBuy prop - does not show context menu', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })
