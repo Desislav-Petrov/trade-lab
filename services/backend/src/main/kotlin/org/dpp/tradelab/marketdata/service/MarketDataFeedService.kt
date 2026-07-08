@@ -1,6 +1,8 @@
 package org.dpp.tradelab.marketdata.service
 
 import jakarta.annotation.PostConstruct
+import org.dpp.tradelab.marketdata.api.MarketDataApi
+import org.dpp.tradelab.marketdata.api.MarketDataSupportedTickersApi
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
@@ -10,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -32,7 +35,7 @@ class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
     private val supportedTickerConfig: SupportedTickerConfig
-) {
+) : MarketDataApi, MarketDataSupportedTickersApi {
 
     // ── Internal state ──────────────────────────────────────────────────
 
@@ -114,6 +117,22 @@ class MarketDataFeedService(
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }
     }
+
+    // ── MarketDataApi implementation ────────────────────────────────────────
+
+    override fun getCurrentPrice(ticker: String): BigDecimal {
+        val snapshot = snapshotCache[ticker.uppercase()]
+            ?: throw IllegalStateException(
+                "No cache entry for ticker '$ticker'. " +
+                    "The cache should be fully seeded at startup — this is a programming error."
+            )
+        return snapshot.currentPrice
+    }
+
+    // ── MarketDataSupportedTickersApi implementation ───────────────────────
+
+    override fun isTickerSupported(ticker: String): Boolean =
+        supportedTickerConfig.resolve(ticker) != null
 
     // ── WebSocket message senders ──────────────────────────────────────────────
 
