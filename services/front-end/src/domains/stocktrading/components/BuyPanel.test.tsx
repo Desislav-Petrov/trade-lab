@@ -65,29 +65,37 @@ describe('BuyPanel', () => {
     defaultProps.onClose = vi.fn()
   })
 
-  it('BuyPanel - initial render - shows ticker, company name, MARKET order type, quantity input and estimated cost', () => {
+  it('BuyPanel - initial render - shows ticker, company name, order type dropdown, quantity input and estimated cost', () => {
     setupMockMutation()
     renderBuyPanel()
 
     expect(screen.getByText('AAPL')).toBeInTheDocument()
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument()
-    expect(screen.getByText('Order Type: MARKET')).toBeInTheDocument()
+    // Order type must be a disabled select showing MARKET
+    const orderTypeSelect = screen.getByRole('combobox', { name: 'Order Type' })
+    expect(orderTypeSelect).toBeInTheDocument()
+    expect(orderTypeSelect).toBeDisabled()
+    expect((orderTypeSelect as HTMLSelectElement).value).toBe('MARKET')
     expect(screen.getByLabelText('Quantity')).toBeInTheDocument()
     expect(screen.getByText(/Estimated cost:/)).toBeInTheDocument()
   })
 
-  it('BuyPanel - initial render - Confirm button is disabled with empty quantity', () => {
+  it('BuyPanel - initial render - Confirm button is a green tick icon and is disabled with empty quantity', () => {
     setupMockMutation()
     renderBuyPanel()
 
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm buy' })
+    expect(confirmBtn).toBeDisabled()
+    expect(confirmBtn).toBeInTheDocument()
   })
 
-  it('BuyPanel - initial render - Decline button is enabled', () => {
+  it('BuyPanel - initial render - Decline button is a red cross icon and is enabled', () => {
     setupMockMutation()
     renderBuyPanel()
 
-    expect(screen.getByRole('button', { name: /Decline/ })).toBeEnabled()
+    const declineBtn = screen.getByRole('button', { name: 'Decline buy' })
+    expect(declineBtn).toBeEnabled()
+    expect(declineBtn).toBeInTheDocument()
   })
 
   it('BuyPanel - entering valid quantity - updates estimated cost in real time', () => {
@@ -106,7 +114,7 @@ describe('BuyPanel', () => {
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '1.5' } })
 
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeEnabled()
   })
 
   it('BuyPanel - entering zero quantity - shows inline error and disables Confirm', () => {
@@ -118,7 +126,7 @@ describe('BuyPanel', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText('Quantity must be greater than zero.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeDisabled()
   })
 
   it('BuyPanel - entering negative quantity - shows inline error and disables Confirm', () => {
@@ -129,7 +137,7 @@ describe('BuyPanel', () => {
     fireEvent.blur(screen.getByLabelText('Quantity'))
 
     expect(screen.getByText('Quantity must be greater than zero.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeDisabled()
   })
 
   it('BuyPanel - entering non-numeric quantity - shows valid number error and disables Confirm', () => {
@@ -140,7 +148,7 @@ describe('BuyPanel', () => {
     fireEvent.blur(screen.getByLabelText('Quantity'))
 
     expect(screen.getByText('Please enter a valid number.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeDisabled()
   })
 
   it('BuyPanel - Confirm clicked with valid quantity - calls usePlaceOrder mutate with correct args', () => {
@@ -149,7 +157,7 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -169,7 +177,7 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '1' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     const callArgs = mutate.mock.calls[0][0]
     expect(callArgs).toHaveProperty('idempotencyKey')
@@ -197,7 +205,7 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Order filled ✓/)).toBeInTheDocument()
@@ -226,7 +234,7 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '100' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Order rejected: Insufficient funds/)).toBeInTheDocument()
@@ -241,14 +249,14 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => {
       expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument()
     })
     // Buttons should be re-enabled (stage back to 'error' allows interaction)
-    expect(screen.getByRole('button', { name: /Confirm/ })).toBeEnabled()
-    expect(screen.getByRole('button', { name: /Decline/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Decline buy' })).toBeEnabled()
   })
 
   it('BuyPanel - network error - generates new idempotencyKey for retry', async () => {
@@ -259,7 +267,7 @@ describe('BuyPanel', () => {
     renderBuyPanel()
 
     fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } })
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => {
       expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument()
@@ -268,7 +276,7 @@ describe('BuyPanel', () => {
     const firstKey = mutate.mock.calls[0][0].idempotencyKey
 
     // Retry: click confirm again
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2))
 
@@ -291,7 +299,7 @@ describe('BuyPanel', () => {
       { wrapper: createWrapper() },
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Decline/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Decline buy' }))
 
     expect(onClose).toHaveBeenCalledOnce()
     expect(mutate).not.toHaveBeenCalled()

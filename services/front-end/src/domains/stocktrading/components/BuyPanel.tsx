@@ -152,8 +152,26 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, onClos
       className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
     >
       <p className="mb-1 font-medium text-[var(--color-text-primary)]">{ticker}</p>
-      <p className="mb-1 text-[var(--color-text-secondary)]">{companyName}</p>
-      <p className="mb-2 text-[var(--color-text-secondary)]">Order Type: MARKET</p>
+      <p className="mb-2 text-[var(--color-text-secondary)]">{companyName}</p>
+
+      <div className="mb-2">
+        <label
+          htmlFor="buy-panel-order-type"
+          className="mb-1 block text-[var(--color-text-primary)]"
+        >
+          Order Type
+        </label>
+        <select
+          id="buy-panel-order-type"
+          value="MARKET"
+          disabled
+          aria-label="Order Type"
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text-primary)] disabled:opacity-70"
+          onChange={() => undefined}
+        >
+          <option value="MARKET">MARKET</option>
+        </select>
+      </div>
 
       <div className="mb-2">
         <label htmlFor="buy-panel-quantity" className="mb-1 block text-[var(--color-text-primary)]">
@@ -198,21 +216,25 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, onClos
           type="button"
           onClick={handleConfirm}
           disabled={isLoading || !isQuantityValid}
-          className="rounded bg-[var(--color-success)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] disabled:opacity-50"
+          aria-label="Confirm buy"
+          title="Confirm"
+          className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-success)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
         >
           {isLoading ? (
             <span aria-label="Loading">⏳</span>
           ) : (
-            <>✓ Confirm</>
+            <span aria-hidden="true">✓</span>
           )}
         </button>
         <button
           type="button"
           onClick={handleDecline}
           disabled={isLoading}
-          className="rounded bg-[var(--color-danger)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] disabled:opacity-50"
+          aria-label="Decline buy"
+          title="Decline"
+          className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-danger)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
         >
-          ✗ Decline
+          <span aria-hidden="true">✗</span>
         </button>
       </div>
     </div>
