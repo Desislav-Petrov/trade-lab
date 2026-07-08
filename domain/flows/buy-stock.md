@@ -2,7 +2,7 @@
 
 ## Overview
 
-Allows an authenticated user to purchase shares in a stock at market price from the Stock Trading page. The user right-clicks a ticker row in the market data grid, reviews the indicative price, enters a quantity, and confirms. The backend reads the current cached price at execution time, checks the selected account has sufficient funds, persists the order, and writes two atomic ledger entries (cash debit + stock credit). The order is settled synchronously — it moves from `PENDING` to `FILLED` or `REJECTED` within the same request.
+Allows an authenticated user to purchase shares in a stock at market price from the Stock Trading page. The user right-clicks a ticker row in the market data grid, reviews the indicative price, enters a quantity, and confirms. The backend reads the current cached price at execution time, checks the selected account has sufficient funds, and — only if funds are sufficient — writes two ledger entries (cash debit + stock credit) atomically before marking the order `FILLED`. If funds are insufficient the order is marked `REJECTED` and no ledger entries are written. The order is settled synchronously within the same request.
 
 ---
 
@@ -68,7 +68,7 @@ The user enters a share quantity and reviews the real-time cost estimate.
 ### Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
+|----------|-----------|--------|
 | Quantity is zero or negative | `quantity` ≤ 0 | Inline field error: "Quantity must be greater than zero." Confirm button disabled. |
 | Quantity is not a number | Non-numeric input | Inline field error: "Please enter a valid number." Confirm button disabled. |
 
@@ -76,7 +76,7 @@ The user enters a share quantity and reviews the real-time cost estimate.
 
 ## Flow C — Confirm Order
 
-The user submits the buy order. The backend validates, fills, and returns the result.
+The user submits the buy order. The backend validates, fills or rejects, and returns the result. Ledger entries are written **only** after the fund check passes — a rejected order never touches the ledger.
 
 ### Actors
 
@@ -95,16 +95,17 @@ The user submits the buy order. The backend validates, fills, and returns the re
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Click "Confirm" (green tick) | Submits the order. |
 | 2 | Guest Browser | Show loading state | Disables both Confirm and Decline buttons. Shows a loading indicator. |
-| 3 | Guest Browser | Submit order | Calls `POST /api/v1/orders` with body `{ accountId, ticker, quantity, orderType: "MARKET", priceSnapshot }` and header `Idempotency-Key: {idempotencyKey}`. |
-| 4 | System | Validate request | Checks: `quantity` > 0, `orderType` is `MARKET`, `ticker` exists in supported config, `accountId` resolves to an account belonging to the authenticated user with `status: active`. |
-| 5 | System | Persist order as PENDING | Creates the `Order` record with `status: PENDING`. Stores `idempotencyKey` with a unique constraint. |
-| 6 | System | Read execution price | Reads the current `currentPrice` from the `MarketDataSnapshot` cache for the requested `ticker` via the Market Data `api/` interface. Sets this as `executionPrice`. |
-| 7 | System | Check funds | Calculates required cash = `quantity × executionPrice`. Reads the account's current `balance`. If `balance` < required cash, transitions order to `REJECTED`, sets `rejectionReason: "Insufficient funds"`, persists, and returns HTTP 200 with `status: REJECTED`. |
-| 8 | System | Write ledger entries | Calls `LedgerApi.recordStockBuy(accountId, ticker, quantity, executionPrice)` synchronously. This creates two entries atomically: (1) `DEBIT / CASH`: `amount = quantity × executionPrice`, `currency` = account base currency; (2) `CREDIT / STOCK_BUY`: `amount = quantity` (share quantity), `ticker` populated. Deducting cash from `Account.balance`. |
-| 9 | System | Transition order to FILLED | Updates `Order.status` to `FILLED`, sets `executionPrice`. Emits `OrderFilledEvent`. |
-| 10 | System | Return HTTP 200 | Response body: `{ orderId, status: "FILLED", ticker, quantity, executionPrice, totalCost, accountId, createdAt }`. `totalCost = quantity × executionPrice`. |
-| 11 | Guest Browser | Show fill confirmation | Replaces the buy panel content with a confirmation state: ticker, quantity, execution price per share, and total cost (`quantity × executionPrice`). Displays a green tick icon and message "Order filled". |
-| 12 | Guest Browser | Refresh account balance | Invalidates the TanStack Query cache for `GET /api/v1/accounts?userId={userId}&status=active` so the updated balance is re-fetched on next render. |
+| 3 | Guest Browser | Submit order | Calls `POST /api/v1/stock-orders` with body `{ accountId, ticker, quantity, orderType: "MARKET", priceSnapshot }` and header `Idempotency-Key: {idempotencyKey}`. |
+| 4 | System | Validate request | Checks: `quantity` > 0, `orderType` is `MARKET`, `ticker` exists in supported config, `accountId` resolves to an account belonging to the authenticated user with `status: active`. Returns the appropriate error code immediately if any check fails (HTTP 400 / 403 / 404). No order record is created on validation failure. |
+| 5 | System | Check idempotency key | Checks whether `idempotencyKey` already exists. If it does, returns HTTP 409 immediately. No order record is created. |
+| 6 | System | Persist order as PENDING | Creates the `Order` record with `status: PENDING` and saves it. |
+| 7 | System | Read execution price | Reads the current `currentPrice` from the `MarketDataSnapshot` cache for the requested `ticker` via the Market Data `api/` interface. Sets this as `executionPrice`. |
+| 8 | System | Check funds | Calculates required cash = `quantity × executionPrice`. Reads the account's current `balance`. **If `balance` < required cash:** transitions order to `REJECTED`, sets `rejectionReason: "Insufficient funds"`, saves. **No ledger entries are written.** Emits `OrderRejectedEvent`. Returns HTTP 200 with `status: REJECTED`. |
+| 9 | System | Write ledger entries | Reached **only** when funds are sufficient (step 8 passed). Calls `LedgerApi.recordTransaction(...)` twice within the same `@Transactional` scope: (1) `DEBIT / CASH`: `amount = quantity × executionPrice`, `currency` = account base currency, `ticker = null`, `description = "Buy {ticker} x{quantity}"`; (2) `CREDIT / STOCK_BUY`: `amount = quantity` (share quantity), `currency` = account base currency, `ticker = ticker`, `description = "Buy {ticker} x{quantity}"`. `Account.balance` is debited by `quantity × executionPrice`. |
+| 10 | System | Transition order to FILLED | Updates `Order.status` to `FILLED`, sets `executionPrice`, saves. Emits `OrderFilledEvent`. |
+| 11 | System | Return HTTP 200 | Response body: `{ orderId, status: "FILLED", ticker, quantity, executionPrice, totalCost, accountId, createdAt }`. `totalCost = quantity × executionPrice`. |
+| 12 | Guest Browser | Show fill confirmation | Replaces the buy panel content with a confirmation state: ticker, quantity, execution price per share, and total cost (`quantity × executionPrice`). Displays a green tick icon and message "Order filled". |
+| 13 | Guest Browser | Refresh account balance | Invalidates the TanStack Query cache for `GET /api/v1/accounts?userId={userId}&status=active` so the updated balance is re-fetched on next render. |
 
 ### Postconditions
 
@@ -118,13 +119,13 @@ The user submits the buy order. The backend validates, fills, and returns the re
 ### Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
-| Insufficient funds | `balance` < `quantity × executionPrice` | System returns HTTP 200 with `status: REJECTED`, `rejectionReason: "Insufficient funds"`. Panel shows rejection message with the shortfall. Order is persisted as `REJECTED`. No ledger entries written. |
-| Ticker not in supported list | `ticker` not in config | System returns HTTP 400. Panel shows generic error message. |
-| Account not found | `accountId` does not resolve | System returns HTTP 404. Panel shows generic error message. |
-| Account not owned by user | Resolved account's `userId` ≠ session user | System returns HTTP 403. Panel shows generic error message. |
-| Account not active | Account `status` is `suspended` or `closed` | System returns HTTP 403. Panel shows generic error message. |
-| Duplicate idempotency key | `Idempotency-Key` already exists in the database | System returns HTTP 409. Panel shows generic error message. A new `idempotencyKey` is generated client-side; user may retry. |
+|----------|-----------|--------|
+| Insufficient funds | `balance` < `quantity × executionPrice` | System returns HTTP 200 with `status: REJECTED`, `rejectionReason: "Insufficient funds"`. Panel shows rejection message. Order is persisted as `REJECTED`. **No ledger entries written. Ledger balance unchanged.** |
+| Ticker not in supported list | `ticker` not in config | System returns HTTP 400. Panel shows generic error message. No order created. |
+| Account not found | `accountId` does not resolve | System returns HTTP 404. Panel shows generic error message. No order created. |
+| Account not owned by user | Resolved account's `userId` ≠ session user | System returns HTTP 403. Panel shows generic error message. No order created. |
+| Account not active | Account `status` is `suspended` or `closed` | System returns HTTP 403. Panel shows generic error message. No order created. |
+| Duplicate idempotency key | `Idempotency-Key` already exists in the database | System returns HTTP 409. Panel shows generic error message. No order created. A new `idempotencyKey` is generated client-side; user may retry. |
 | Unauthenticated request | No valid session | System returns HTTP 401. Frontend redirects to `/login`. |
 | Server error | Any unhandled backend failure | System returns HTTP 500. Panel shows generic error message. |
 
@@ -160,15 +161,15 @@ The user cancels the buy panel without submitting.
 
 ## Events Emitted
 
-- **OrderFilledEvent**: Emitted at Flow C step 9. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `executionPrice`, `timestamp`.
-- **OrderRejectedEvent**: Emitted at Flow C step 7 (rejection path). Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `rejectionReason`, `timestamp`.
+- **OrderFilledEvent**: Emitted at Flow C step 10. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `executionPrice`, `timestamp`.
+- **OrderRejectedEvent**: Emitted at Flow C step 8 (rejection path). Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `rejectionReason`, `timestamp`.
 
 ---
 
 ## Domain Models Involved
 
-- **Order**: Created at Flow C step 5; updated at steps 7 and 9. All fields written.
-- **LedgerEntry**: Two rows written at Flow C step 8 via `LedgerApi`. `DEBIT / CASH` and `CREDIT / STOCK_BUY`.
-- **Account**: Read at Flow C step 7 for balance check (via `LedgerApi`). `balance` updated as part of the cash debit.
-- **MarketDataSnapshot**: Read at Flow C step 6 via Market Data `api/` interface to obtain `executionPrice`.
+- **Order**: Created at Flow C step 6; updated at steps 8 and 10. All fields written.
+- **LedgerEntry**: Two rows written at Flow C step 9 via `LedgerApi.recordTransaction` — **only on the FILLED path**. `DEBIT / CASH` and `CREDIT / STOCK_BUY`.
+- **Account**: Read at Flow C step 8 for balance check (via `LedgerApi` or account lookup). `balance` updated only when order is FILLED.
+- **MarketDataSnapshot**: Read at Flow C step 7 via Market Data `api/` interface to obtain `executionPrice`.
 - **Session**: Read throughout to resolve `userId` and the selected `accountId` from the `stocktrading` Zustand slice.
