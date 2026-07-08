@@ -165,12 +165,14 @@ vi.mock('../components/BuyPanel', () => ({
     companyName,
     priceSnapshot,
     accountId,
+    userId,
     onClose,
   }: {
     ticker: string
     companyName: string
     priceSnapshot: string
     accountId: string
+    userId: string
     onClose: () => void
   }) =>
     createElement(
@@ -180,6 +182,7 @@ vi.mock('../components/BuyPanel', () => ({
       createElement('span', { 'data-testid': 'buy-panel-company' }, companyName),
       createElement('span', { 'data-testid': 'buy-panel-price' }, priceSnapshot),
       createElement('span', { 'data-testid': 'buy-panel-account' }, accountId),
+      createElement('span', { 'data-testid': 'buy-panel-userid' }, userId),
       createElement('button', { onClick: onClose, 'data-testid': 'buy-panel-close' }, 'Close'),
     ),
 }))
@@ -308,7 +311,6 @@ describe('StockTradingPage', () => {
     vi.clearAllMocks()
     act(() => useSessionStore.getState().clearSession())
     act(() => useStockTradingStore.getState().clearSelectedAccountId())
-    // Default feed mock — overridden per-test where needed
     mockUseMarketDataFeed.mockReturnValue({ rows: [], feedStatus: 'connecting' })
   })
 
@@ -366,9 +368,7 @@ describe('StockTradingPage', () => {
     setupMocks({ removeMutate })
     renderPage()
 
-    // Select AAPL via SubscriptionList toggle
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
-    // Now click remove
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
 
     expect(removeMutate).toHaveBeenCalledWith(
@@ -387,7 +387,6 @@ describe('StockTradingPage', () => {
     setupMocks({ removeMutate })
     renderPage()
 
-    // Select AAPL
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
 
@@ -395,7 +394,6 @@ describe('StockTradingPage', () => {
     expect(screen.getByText('Ticker not found in subscriptions.')).toBeInTheDocument()
   })
 
-  // Account selector scenario tests (SCREEN-1)
   it('StockTradingPage - AccountSelector rendered - account selector is present on the page', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
@@ -459,14 +457,12 @@ describe('StockTradingPage', () => {
     expect(screen.getByTestId('account-selector-error')).toBeInTheDocument()
   })
 
-  // SCREEN-1: Buy flow wiring
-  it('StockTradingPage - account selected and onBuy triggered - BuyPanel renders with correct props', async () => {
+  it('StockTradingPage - account selected and onBuy triggered - BuyPanel renders with correct props including userId', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
     setupMocks({ activeAccounts: mockActiveAccounts })
     renderPage()
 
-    // MarketDataGrid mock renders a trigger button only when onBuy is provided
     const triggerBtn = screen.getByTestId('trigger-buy')
     fireEvent.click(triggerBtn)
 
@@ -477,6 +473,7 @@ describe('StockTradingPage', () => {
     expect(screen.getByTestId('buy-panel-company')).toHaveTextContent('Apple Inc.')
     expect(screen.getByTestId('buy-panel-price')).toHaveTextContent('180.000')
     expect(screen.getByTestId('buy-panel-account')).toHaveTextContent('acc-1')
+    expect(screen.getByTestId('buy-panel-userid')).toHaveTextContent('u1')
   })
 
   it('StockTradingPage - BuyPanel onClose - removes BuyPanel from DOM', async () => {
@@ -500,17 +497,13 @@ describe('StockTradingPage', () => {
 
   it('StockTradingPage - no account selected - MarketDataGrid does not receive onBuy', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
-    // Do not set any selectedAccountId — remains null
     setupMocks({ activeAccounts: [] })
     renderPage()
 
-    // MarketDataGrid mock only renders trigger-buy button when onBuy is provided
     expect(screen.queryByTestId('trigger-buy')).not.toBeInTheDocument()
   })
 
-  // Regression: bug #61 — live feed must not block sidebar navigation
   it('StockTradingPage - live feed connected with rows - MarketDataGrid remains mounted and receives deferred rows', () => {
-    // Simulate the connected+rows state that triggered bug #61
     mockUseMarketDataFeed.mockReturnValue({
       rows: [
         {
@@ -529,9 +522,7 @@ describe('StockTradingPage', () => {
     setupMocks({ activeAccounts: mockActiveAccounts })
     renderPage()
 
-    // Grid is present — not replaced by loading/error state
     expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
-    // onBuy is wired (account selected) so the trigger button is present
     expect(screen.getByTestId('trigger-buy')).toBeInTheDocument()
   })
 })

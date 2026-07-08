@@ -11,6 +11,7 @@ const mockPost = vi.mocked(axiosInstance.post)
 
 const sampleRequest: PlaceOrderRequest = {
   accountId: 'acc-1',
+  userId: 'user-1',
   ticker: 'AAPL',
   quantity: '2',
   orderType: 'MARKET',
@@ -62,6 +63,27 @@ describe('placeOrder', () => {
     expect(result.rejectionReason).toBe('Insufficient funds')
     expect(result.executionPrice).toBeNull()
     expect(result.totalCost).toBeNull()
+  })
+
+  it('placeOrder - request body includes userId', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: {
+        orderId: 'order-3',
+        status: 'FILLED',
+        ticker: 'AAPL',
+        quantity: '1',
+        executionPrice: '100.000',
+        totalCost: '100.000',
+        rejectionReason: null,
+        accountId: 'acc-1',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    })
+
+    await placeOrder('my-unique-key', sampleRequest)
+
+    const sentBody = mockPost.mock.calls[0][1] as PlaceOrderRequest
+    expect(sentBody.userId).toBe('user-1')
   })
 
   it('placeOrder - uses provided idempotency key as Idempotency-Key header', async () => {

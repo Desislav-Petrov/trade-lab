@@ -6,6 +6,7 @@ interface BuyPanelProps {
   companyName: string
   priceSnapshot: string
   accountId: string
+  userId: string
   onClose: () => void
 }
 
@@ -29,7 +30,7 @@ function validateQuantity(value: string): string | null {
   return null
 }
 
-export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, onClose }: BuyPanelProps) {
+export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId, onClose }: BuyPanelProps) {
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID())
   const [quantity, setQuantity] = useState<string>('')
   const [quantityError, setQuantityError] = useState<string | null>(null)
@@ -68,6 +69,7 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, onClos
       {
         idempotencyKey,
         accountId,
+        userId,
         ticker,
         quantity,
         orderType: 'MARKET',
