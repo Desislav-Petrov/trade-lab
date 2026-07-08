@@ -36,7 +36,7 @@
 
 ## Use Case Summary
 
-An authenticated user on `/trade` right-clicks a ticker row in the market data grid and selects "Buy". A buy panel opens, capturing the current grid price as an indicative `priceSnapshot`. The user enters a quantity (fractional or whole) and confirms. The frontend submits `POST /api/v1/orders` with an `Idempotency-Key` header. The backend validates the request, reads the live execution price from the `MarketDataSnapshot` cache (which may differ from `priceSnapshot`), checks the selected account has sufficient funds, and atomically persists the `Order` plus two `LedgerEntry` rows (cash DEBIT + stock CREDIT) in a single transaction. The order settles synchronously as `FILLED` or `REJECTED`. The frontend shows the fill confirmation with `executionPrice`-based total cost and invalidates the account balance cache. Both outcomes are persisted.
+An authenticated user on `/trade` right-clicks a ticker row in the market data grid and selects "Buy". A buy panel opens, capturing the current grid price as an indicative `priceSnapshot`. The user enters a quantity (fractional or whole) and confirms. The frontend submits `POST /api/v1/stock-orders` with an `Idempotency-Key` header. The backend validates the request, reads the live execution price from the `MarketDataSnapshot` cache (which may differ from `priceSnapshot`), and checks the selected account has sufficient funds. If funds are sufficient, two `LedgerEntry` rows (cash DEBIT + stock CREDIT) are written atomically and the order is marked `FILLED`. If funds are insufficient, the order is marked `REJECTED` and the ledger is left untouched. All within one `@Transactional` scope. The frontend shows the fill confirmation with `executionPrice`-based total cost and invalidates the account balance cache.
 
 **Models involved:** `Order` (new, stocktrading), `LedgerEntry` (ledger), `Account` (ledger), `MarketDataSnapshot` (marketdata), `Session` (frontend only).
 **Events emitted:** `OrderFilledEvent`, `OrderRejectedEvent` (both from `stocktrading.messaging`).
@@ -46,13 +46,16 @@ An authenticated user on `/trade` right-clicks a ticker row in the market data g
 
 ## Ambiguities and Gaps
 
-None — all clarified during intake:
+None — all clarified during intake and PR review:
 - `LedgerEntry.amount` for stock entries = share quantity (decision logged).
 - `executionPrice` is re-read from the cache at fill time (not client-supplied `priceSnapshot`).
 - Post-fill UI shows `executionPrice`-based cost, not `priceSnapshot`-based cost.
-- `REJECTED` orders are persisted.
+- `REJECTED` orders are persisted. Ledger is never touched on a rejection.
+- Ledger writes happen **after** the fund check passes and **only** on the FILLED path.
 - Duplicate idempotency key → HTTP 409, client handles retry.
 - Stock Trading calls Ledger synchronously within the same transaction (decision logged).
+- `LedgerApi` exposes a generic `recordTransaction` method — not a buy-specific one.
+- Endpoint is `POST /api/v1/stock-orders`.
 
 ---
 
@@ -63,7 +66,7 @@ None — all clarified during intake:
 **Layer:** Database
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/model/order.md` — all properties and business rules; `domain/flows/buy-stock.md` Flow C step 5 (persist PENDING), steps 7 and 9 (update to REJECTED/FILLED)
+**Implements:** `domain/model/order.md` — all properties and business rules; `domain/flows/buy-stock.md` Flow C step 6 (persist PENDING), steps 8 and 10 (update to REJECTED/FILLED)
 **Inputs:**
 - `domain/model/order.md` (full spec)
 - `standards/backend.md` (entity template, UUID PK, `Persistable<UUID>`, `BigDecimal` for decimals, `EnumType.STRING`)
@@ -101,7 +104,7 @@ None — all clarified during intake:
 **Layer:** Repository
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/model/order.md` — idempotency key unique constraint; `domain/flows/buy-stock.md` Flow C step 5 (persist order)
+**Implements:** `domain/model/order.md` — idempotency key unique constraint; `domain/flows/buy-stock.md` Flow C step 6 (persist order)
 **Inputs:**
 - `org.dpp.tradelab.stocktrading.model.Order` (from DB-1)
 - `standards/backend.md` (Spring Data JPA interface conventions)
@@ -150,7 +153,7 @@ None — all clarified during intake:
 **Layer:** Event
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/model/order.md` Events; `domain/flows/buy-stock.md` Flow C step 9 (`OrderFilledEvent`), step 7 rejection path (`OrderRejectedEvent`)
+**Implements:** `domain/model/order.md` Events; `domain/flows/buy-stock.md` Flow C step 10 (`OrderFilledEvent`), step 8 rejection path (`OrderRejectedEvent`)
 **Inputs:**
 - `domain/model/order.md` — event payloads
 - `standards/backend.md` — event naming `{Entity}{Action}Event`, data class, payload fields
@@ -173,51 +176,62 @@ None — all clarified during intake:
 **Layer:** Service
 **Domain:** ledger
 **Use case:** buy-stock
-**Implements:** `decisions/2026-07-08-stock-trading-ledger-sync-api.md`; `domain/flows/buy-stock.md` Flow C step 8 (write two ledger entries atomically)
+**Implements:** `decisions/2026-07-08-stock-trading-ledger-sync-api.md`; `domain/flows/buy-stock.md` Flow C step 9 (write ledger entries via generic transaction method)
 **Inputs:**
-- `domain/model/ledger-entry.md` — DEBIT/CASH and CREDIT/STOCK_BUY entry rules
-- `domain/model/account.md` — balance update on DEBIT
+- `domain/model/ledger-entry.md` — entry types, `assetType` enum, business rules
 - `standards/architecture.md` — cross-domain `api/` interface pattern
 - `standards/backend.md` — no imports from `{domain}.model` across boundaries
 **Outputs:**
-- `org.dpp.tradelab.ledger.api.LedgerApi` — Kotlin interface with one method:
-  `fun recordStockBuy(accountId: UUID, userId: UUID, ticker: String, quantity: BigDecimal, executionPrice: BigDecimal)`
+- `org.dpp.tradelab.ledger.api.LedgerApi` — Kotlin interface with one generic method:
+```kotlin
+fun recordTransaction(
+    accountId: UUID,
+    userId: UUID,
+    type: String,        // "DEBIT" | "CREDIT"
+    assetType: String,   // "CASH" | "STOCK_BUY" | "STOCK_SELL"
+    amount: BigDecimal,
+    currency: String,
+    ticker: String?,
+    description: String?
+)
+```
+> Note: `type` and `assetType` are passed as `String` to avoid exposing Ledger domain enums across the boundary. The Ledger implementation validates and maps to its internal `EntryType` / `AssetType` enums.
 **Acceptance criteria:**
 - [ ] Interface is in `org.dpp.tradelab.ledger.api` — not in `service`, `model`, or any other sub-package
-- [ ] Method signature matches the output spec exactly
-- [ ] Interface has no Spring annotations (it is a plain Kotlin interface)
-- [ ] No JPA entity types appear in the method signature — primitives and `UUID`/`BigDecimal` only
+- [ ] Method signature matches the output spec exactly — no Ledger domain model types in the signature
+- [ ] Interface has no Spring annotations
+- [ ] No JPA entity types appear in the method signature
 **Depends on:** none
 
 ---
 
-### SVC-2 — Implement `LedgerApi.recordStockBuy` in `LedgerService`
+### SVC-2 — Implement `LedgerApi.recordTransaction` in `LedgerService`
 
 **Layer:** Service
 **Domain:** ledger
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 8 — write `DEBIT/CASH` entry (`amount = quantity × executionPrice`) and `CREDIT/STOCK_BUY` entry (`amount = quantity`); deduct cash from `Account.balance`
+**Implements:** `domain/flows/buy-stock.md` Flow C step 9 — write `DEBIT/CASH` entry and `CREDIT/STOCK_BUY` entry; deduct cash from `Account.balance`. Called **only** after the fund check in SVC-5 has passed.
 **Inputs:**
 - `org.dpp.tradelab.ledger.api.LedgerApi` (from SVC-1)
-- `org.dpp.tradelab.ledger.model.LedgerEntry` (existing JPA entity — must add `STOCK_BUY` support if not already present)
+- `org.dpp.tradelab.ledger.model.LedgerEntry` (existing JPA entity)
 - `org.dpp.tradelab.ledger.model.Account` (existing JPA entity)
 - `org.dpp.tradelab.ledger.repository.LedgerEntryRepository` (existing)
 - `org.dpp.tradelab.ledger.repository.AccountRepository` (existing)
 - `domain/model/ledger-entry.md` — business rules for stock entries
-- `standards/backend.md` — `@Transactional` on write methods, no persistence in service (delegate to repo)
+- `standards/backend.md` — `@Transactional` on write methods
 **Outputs:**
-- `LedgerService` (existing class in `ledger.service`) implements `LedgerApi`; new `recordStockBuy` method added
+- `LedgerService` (existing class in `ledger.service`) implements `LedgerApi`; `recordTransaction` method added
 **Acceptance criteria:**
 - [ ] `LedgerService` implements `LedgerApi`
 - [ ] Method is `@Transactional`
+- [ ] Validates `type` maps to a known `EntryType` enum value; throws `IllegalArgumentException` on unknown value
+- [ ] Validates `assetType` maps to a known `AssetType` enum value; throws `IllegalArgumentException` on unknown value
 - [ ] Resolves account by `accountId`; throws `AccountNotFoundException` (existing ledger exception) if not found
-- [ ] Checks `account.balance >= quantity × executionPrice`; throws `InsufficientFundsException` (from `stocktrading.exception`) — **wait**: LedgerService must not import from `stocktrading.exception`. The fund check belongs in the Stock Trading service (SVC-3), not here. `LedgerApi.recordStockBuy` is called only after the fund check passes. This method only performs the writes — it may throw a generic `IllegalStateException` if the balance is somehow insufficient as a safety net.
-- [ ] Creates `LedgerEntry` with `type = DEBIT`, `assetType = CASH`, `amount = quantity × executionPrice` (BigDecimal multiplication, no rounding), `currency` = account base currency, `ticker = null`, `description = "Buy {ticker} x{quantity}"`
-- [ ] Creates `LedgerEntry` with `type = CREDIT`, `assetType = STOCK_BUY`, `amount = quantity`, `currency` = account base currency, `ticker = ticker`, `description = "Buy {ticker} x{quantity}"`
-- [ ] Deducts `quantity × executionPrice` from `account.balance` and saves the account
-- [ ] Both entries and the account update are saved within the same `@Transactional` scope
-- [ ] Unit tests cover: happy path (both entries saved, balance deducted), account not found throws exception
-**Depends on:** SVC-1, DB-1 (Order entity not needed here, but LedgerEntry `STOCK_BUY` assetType must be present in existing entity)
+- [ ] Creates a `LedgerEntry` with all provided fields and saves it
+- [ ] For `DEBIT / CASH` entries: deducts `amount` from `account.balance` and saves the account. If the deduction would take balance below zero, throws `IllegalStateException` as a safety net (the fund check in SVC-5 is the primary guard — this is a defensive check only)
+- [ ] All arithmetic uses `BigDecimal` — no `Double`
+- [ ] Unit tests cover: happy path (entry saved, balance deducted on DEBIT/CASH), account not found, unknown entry type, unknown asset type, balance-below-zero safety net
+**Depends on:** SVC-1
 
 ---
 
@@ -228,7 +242,7 @@ None — all clarified during intake:
 **Layer:** Service
 **Domain:** marketdata
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 6 — read current execution price from `MarketDataSnapshot` cache
+**Implements:** `domain/flows/buy-stock.md` Flow C step 7 — read current execution price from `MarketDataSnapshot` cache
 **Inputs:**
 - `domain/model/market-data-snapshot.md` — `currentPrice` field
 - `standards/architecture.md` — cross-domain `api/` interface pattern
@@ -237,7 +251,7 @@ None — all clarified during intake:
   `fun getCurrentPrice(ticker: String): BigDecimal`
 **Acceptance criteria:**
 - [ ] Interface is in `org.dpp.tradelab.marketdata.api`
-- [ ] Method throws (or returns null — document the contract) if the ticker has no cache entry. Given the flow guarantees the ticker is in the supported config and the cache is seeded at startup, a missing entry is a programming error. The method should throw `IllegalStateException` if the cache entry is absent.
+- [ ] Throws `IllegalStateException` if the ticker has no cache entry (missing entry is a programming error — cache is seeded at startup)
 - [ ] No Spring annotations on the interface
 - [ ] No JPA entity types in the signature
 **Depends on:** none
@@ -249,18 +263,18 @@ None — all clarified during intake:
 **Layer:** Service
 **Domain:** marketdata
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 6 — reads `MarketDataSnapshot.currentPrice` from in-memory cache for the requested ticker
+**Implements:** `domain/flows/buy-stock.md` Flow C step 7 — reads `MarketDataSnapshot.currentPrice` from in-memory cache
 **Inputs:**
 - `org.dpp.tradelab.marketdata.api.MarketDataApi` (from SVC-3)
-- Existing `MarketDataService` or equivalent service that owns the in-memory snapshot cache
+- Existing service that owns the in-memory snapshot cache
 - `domain/model/market-data-snapshot.md`
 **Outputs:**
-- Existing `MarketDataService` (in `marketdata.service`) implements `MarketDataApi`; new `getCurrentPrice` method added
+- Existing `MarketDataService` (in `marketdata.service`) implements `MarketDataApi`; `getCurrentPrice` method added
 **Acceptance criteria:**
-- [ ] `MarketDataService` (or the service that owns the snapshot cache) implements `MarketDataApi`
-- [ ] `getCurrentPrice(ticker)` reads from the in-memory cache and returns the `currentPrice` as `BigDecimal`
-- [ ] Throws `IllegalStateException` with a clear message if the ticker has no cache entry
-- [ ] Unit test: mock cache with a known ticker → correct price returned; unknown ticker → exception thrown
+- [ ] `MarketDataService` implements `MarketDataApi`
+- [ ] `getCurrentPrice(ticker)` reads from the in-memory cache and returns `currentPrice` as `BigDecimal`
+- [ ] Throws `IllegalStateException` with a clear message if ticker has no cache entry
+- [ ] Unit test: known ticker → correct price; unknown ticker → `IllegalStateException`
 **Depends on:** SVC-3
 
 ---
@@ -272,48 +286,39 @@ None — all clarified during intake:
 **Layer:** Service
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C steps 4–10 (full order lifecycle: validate → PENDING → read execution price → check funds → write ledger → FILLED or REJECTED → emit event)
+**Implements:** `domain/flows/buy-stock.md` Flow C steps 4–11 (full order lifecycle)
+
+**Explicit execution order within `placeOrder` (all within one `@Transactional` scope):**
+1. Validate `quantity > 0`, `orderType == MARKET`, ticker exists in supported config, account exists and belongs to `userId`, account is active — throw typed exception immediately on failure; **no Order record created**.
+2. Check idempotency key — throw `DuplicateIdempotencyKeyException` if already present; **no Order record created**.
+3. Create and save `Order` with `status = PENDING`.
+4. Read `executionPrice` from `marketDataApi.getCurrentPrice(ticker)`.
+5. **Fund check:** if `account.balance < quantity × executionPrice` → update Order to `REJECTED`, set `rejectionReason`, save, emit `OrderRejectedEvent`, return Order. **`ledgerApi.recordTransaction` is NOT called.**
+6. **Ledger writes (only reached when funds are sufficient):** call `ledgerApi.recordTransaction(...)` for the DEBIT/CASH entry, then call `ledgerApi.recordTransaction(...)` for the CREDIT/STOCK_BUY entry.
+7. Update Order to `FILLED`, set `executionPrice`, save, emit `OrderFilledEvent`, return Order.
+
 **Inputs:**
-- `org.dpp.tradelab.stocktrading.model.Order`, `OrderType`, `OrderStatus` (from DB-1)
-- `org.dpp.tradelab.stocktrading.repository.OrderRepository` (from REPO-1)
-- `org.dpp.tradelab.stocktrading.exception.*` (from EXCEPTION-1)
-- `org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent`, `OrderRejectedEvent` (from EVT-1)
-- `org.dpp.tradelab.ledger.api.LedgerApi` (from SVC-1) — injected via constructor, import interface only
-- `org.dpp.tradelab.marketdata.api.MarketDataApi` (from SVC-3) — injected via constructor, import interface only
-- `org.dpp.tradelab.marketdata.api.MarketDataSupportedTickersApi` or equivalent — to validate ticker exists in config (see note below)
-- `ApplicationEventPublisher` — injected via constructor
-- `standards/backend.md` — `@Transactional` on write, constructor injection, no cross-domain model imports
-- `domain/flows/buy-stock.md` — Flow C full step sequence
+- `org.dpp.tradelab.stocktrading.model.Order`, `OrderType`, `OrderStatus` (DB-1)
+- `org.dpp.tradelab.stocktrading.repository.OrderRepository` (REPO-1)
+- `org.dpp.tradelab.stocktrading.exception.*` (EXCEPTION-1)
+- `org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent`, `OrderRejectedEvent` (EVT-1)
+- `org.dpp.tradelab.ledger.api.LedgerApi` (SVC-1) — constructor injection, interface only
+- `org.dpp.tradelab.marketdata.api.MarketDataApi` (SVC-3) — constructor injection, interface only
+- A `MarketDataSupportedTickersApi` interface (one method: `fun isTickerSupported(ticker: String): Boolean`) — if not yet present in `marketdata.api`, create it following the same pattern as SVC-3/SVC-4
+- `ApplicationEventPublisher` — constructor injection
+- Account balance read — via `LedgerApi` or a dedicated `LedgerAccountApi` interface exposing `getBalance(accountId: UUID): BigDecimal`. If the account ownership/status checks require reading the Account entity, a separate `LedgerAccountApi` interface must be defined in `ledger.api` (one method: `fun getAccount(accountId: UUID, userId: UUID): AccountSummary` where `AccountSummary` is a simple data class in `ledger.api` with fields `id`, `userId`, `currency`, `balance`, `status` — no JPA entity crossing the boundary).
 
-> **Note on ticker validation:** The supported tickers config is owned by Market Data. Stock Trading must validate the ticker via the Market Data `api/` interface. If a `MarketDataSupportedTickersApi` or equivalent does not yet exist, it must be created as part of this task (one method: `fun isTickerSupported(ticker: String): Boolean`), following the same pattern as SVC-3/SVC-4.
-
-**Method signature:**
-```
-fun placeOrder(
-    idempotencyKey: UUID,
-    accountId: UUID,
-    userId: UUID,
-    ticker: String,
-    quantity: BigDecimal,
-    orderType: OrderType,
-    priceSnapshot: BigDecimal
-): Order
-```
 **Outputs:**
-- `org.dpp.tradelab.stocktrading.service.StockTradingService` — new `@Service` class with `placeOrder` method
-- Returns the persisted `Order` (either FILLED or REJECTED)
+- `org.dpp.tradelab.stocktrading.service.StockTradingService` — new `@Service` class
 
 **Acceptance criteria:**
-- [ ] `StockTradingService` is annotated `@Service`, uses constructor injection only
+- [ ] `StockTradingService` is `@Service`, constructor injection only
 - [ ] `placeOrder` is `@Transactional`
-- [ ] Step 4 — validates: `quantity > 0` (throws `IllegalArgumentException` → mapped to HTTP 400 by `GlobalExceptionHandler`), `orderType == MARKET`, ticker supported (throws `TickerNotFoundException` → HTTP 400), account exists and belongs to `userId` (throws `OrderAccountNotFoundException` → HTTP 404, `OrderAccountNotOwnedException` → HTTP 403), account is active (throws `OrderAccountNotActiveException` → HTTP 403)
-- [ ] Step 5 — checks `orderRepository.existsByIdempotencyKey(idempotencyKey)`; if true throws `DuplicateIdempotencyKeyException` → HTTP 409; otherwise creates and saves `Order` with `status = PENDING`
-- [ ] Step 6 — calls `marketDataApi.getCurrentPrice(ticker)` to obtain `executionPrice`
-- [ ] Step 7 — reads account balance via `LedgerApi` or an account lookup; if `balance < quantity × executionPrice`, updates order to `REJECTED`, sets `rejectionReason = "Insufficient funds"`, saves, emits `OrderRejectedEvent`, returns order (HTTP 200 with REJECTED body)
-- [ ] Step 8 — calls `ledgerApi.recordStockBuy(accountId, userId, ticker, quantity, executionPrice)` — only reached when funds are sufficient
-- [ ] Step 9 — updates order to `FILLED`, sets `executionPrice`, saves, emits `OrderFilledEvent`
-- [ ] All BigDecimal arithmetic uses `BigDecimal` multiplication (`multiply`) — no `Double` arithmetic
-- [ ] Unit tests cover: happy path (FILLED, both events checked), insufficient funds (REJECTED, no ledger call), duplicate idempotency key (409), ticker not found (400), account not found (404), account not active (403), account not owned (403)
+- [ ] Steps 1–7 above execute in the documented order
+- [ ] `ledgerApi.recordTransaction` is called exactly **twice** on FILLED path (once DEBIT/CASH, once CREDIT/STOCK_BUY) and **zero times** on REJECTED path
+- [ ] All `BigDecimal` arithmetic uses `.multiply()` — no `Double` intermediates
+- [ ] No imports from `ledger.model`, `ledger.service`, `ledger.repository`, `marketdata.model`, `marketdata.service` — only `*.api` interfaces
+- [ ] Unit tests: FILLED happy path (2 `recordTransaction` calls verified, `OrderFilledEvent` emitted), insufficient funds (0 `recordTransaction` calls, `OrderRejectedEvent` emitted), duplicate idempotency key (409, no Order saved), ticker not found (400), account not found (404), account not active (403), account not owned (403)
 **Depends on:** DB-1, REPO-1, EXCEPTION-1, EVT-1, SVC-1, SVC-2, SVC-3, SVC-4
 
 ---
@@ -325,22 +330,21 @@ fun placeOrder(
 **Layer:** Controller
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 3 (`POST /api/v1/orders`), steps 10 and 7 (HTTP 200 FILLED/REJECTED responses), all error case HTTP codes
+**Implements:** `domain/flows/buy-stock.md` Flow C step 3 (`POST /api/v1/stock-orders`), steps 11 and 8 (HTTP 200 FILLED/REJECTED responses), all error case HTTP codes
 **Inputs:**
 - Generated `StocktradingApiDelegate` (from API-CONTRACT-1 after code generation)
-- `org.dpp.tradelab.stocktrading.service.StockTradingService` (from SVC-5)
-- `standards/backend.md` — delegate pattern, `@Service` annotation on impl, generated DTOs only
+- `org.dpp.tradelab.stocktrading.service.StockTradingService` (SVC-5)
+- `standards/backend.md` — delegate pattern, `@Service` on impl, generated DTOs only
 **Outputs:**
 - `org.dpp.tradelab.stocktrading.controller.StocktradingApiDelegateImpl` — `@Service` implementing generated `StocktradingApiDelegate`
-- Implements `placeOrder(idempotencyKey: UUID, placeOrderRequest: PlaceOrderRequest): ResponseEntity<PlaceOrderResponse>`
 **Acceptance criteria:**
 - [ ] Class is `@Service`, implements `StocktradingApiDelegate`
-- [ ] Reads `Idempotency-Key` header from the request and passes it to `StockTradingService.placeOrder` as `idempotencyKey: UUID`
+- [ ] Reads `Idempotency-Key` header and passes as `UUID` to `StockTradingService.placeOrder`
 - [ ] Delegates entirely to `StockTradingService.placeOrder` — no business logic
 - [ ] Maps returned `Order` to generated `PlaceOrderResponse` DTO
-- [ ] FILLED response: HTTP 200, body includes `orderId`, `status = "FILLED"`, `ticker`, `quantity`, `executionPrice`, `totalCost` (`quantity × executionPrice`), `accountId`, `createdAt`
-- [ ] REJECTED response: HTTP 200, body includes `orderId`, `status = "REJECTED"`, `ticker`, `quantity`, `rejectionReason`, `accountId`, `createdAt`; `executionPrice` and `totalCost` are absent/null
-- [ ] `MockMvc` tests cover: FILLED (200 + body), REJECTED (200 + body), 400 invalid quantity, 400 bad ticker, 404 account not found, 403 account not owned, 403 account not active, 409 duplicate idempotency key, 401 unauthenticated
+- [ ] FILLED: HTTP 200, body includes `orderId`, `status = "FILLED"`, `ticker`, `quantity`, `executionPrice`, `totalCost` (`quantity × executionPrice`), `accountId`, `createdAt`
+- [ ] REJECTED: HTTP 200, body includes `orderId`, `status = "REJECTED"`, `ticker`, `quantity`, `rejectionReason`, `accountId`, `createdAt`; `executionPrice` and `totalCost` null
+- [ ] `MockMvc` tests: FILLED (200), REJECTED (200), 400 invalid quantity, 400 bad ticker, 404 account not found, 403 not owned, 403 not active, 409 duplicate key, 401 unauthenticated
 **Depends on:** SVC-5, API-CONTRACT-1
 
 ---
@@ -352,24 +356,24 @@ fun placeOrder(
 **Layer:** OpenAPI Contract
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 3 (`POST /api/v1/orders`), step 10 (FILLED response), step 7 rejection path (REJECTED response), all error cases
+**Implements:** `domain/flows/buy-stock.md` Flow C step 3 (`POST /api/v1/stock-orders`), step 11 (FILLED response), step 8 rejection path (REJECTED response), all error cases
 **Inputs:**
-- `domain/flows/buy-stock.md` — request body fields, response fields, all HTTP status codes
+- `domain/flows/buy-stock.md` — request/response fields, HTTP status codes
 - `domain/model/order.md` — field types, constraints
-- `standards/backend.md` — OpenAPI conventions: `info.title = "Trade Lab API — Stocktrading"`, `kotlin-spring` generator, `delegatePattern = true`, base path `/api/v1`, plural nouns, Bean Validation via `x-constraints`/pattern/minLength
+- `standards/backend.md` — OpenAPI conventions, `info.title = "Trade Lab API — Stocktrading"`, `delegatePattern = true`
 **Paths introduced:**
-- `POST /api/v1/orders`
+- `POST /api/v1/stock-orders`
 **Outputs:**
 - `services/contract/stocktrading-openapi.yaml` — new file
 
 **Contract spec:**
 
-`POST /api/v1/orders`
-- Request header: `Idempotency-Key` (string/UUID format, required)
+`POST /api/v1/stock-orders`
+- Request header: `Idempotency-Key` (string/uuid format, required)
 - Request body (`PlaceOrderRequest`):
   - `accountId` (string/uuid, required)
   - `ticker` (string, required, minLength 1, maxLength 10)
-  - `quantity` (number, required, exclusiveMinimum 0) — represented as string in YAML schema type `number` with `format: decimal`
+  - `quantity` (number, required, exclusiveMinimum 0)
   - `orderType` (string enum `["MARKET"]`, required)
   - `priceSnapshot` (number, required, exclusiveMinimum 0)
 - Response `200 OK` (`PlaceOrderResponse`):
@@ -377,24 +381,24 @@ fun placeOrder(
   - `status` (string enum `["FILLED", "REJECTED"]`)
   - `ticker` (string)
   - `quantity` (number)
-  - `executionPrice` (number, nullable — present only on FILLED)
-  - `totalCost` (number, nullable — present only on FILLED; `quantity × executionPrice`)
-  - `rejectionReason` (string, nullable — present only on REJECTED)
+  - `executionPrice` (number, nullable)
+  - `totalCost` (number, nullable)
+  - `rejectionReason` (string, nullable)
   - `accountId` (string/uuid)
   - `createdAt` (string/date-time)
-- Error responses: 400, 401, 403, 404, 409, 500 — all use the standard `ErrorResponse` schema (`status`, `error`, `details`)
+- Error responses: 400, 401, 403, 404, 409, 500 — all use `ErrorResponse` schema (`status`, `error`, `details`)
 
 **Acceptance criteria:**
-- [ ] File is valid OpenAPI 3.0.3
+- [ ] Valid OpenAPI 3.0.3
 - [ ] `info.title` is `"Trade Lab API — Stocktrading"`
-- [ ] `POST /api/v1/orders` path is present with the full request body, header, and response schemas as specified
-- [ ] `Idempotency-Key` header is declared as required on the operation
-- [ ] `quantity` and `priceSnapshot` have `exclusiveMinimum: 0` constraints
-- [ ] `orderType` is restricted to enum `["MARKET"]`
-- [ ] All error status codes (400, 401, 403, 404, 409, 500) are declared
-- [ ] `ErrorResponse` schema is defined inline or as a reusable component
-- [ ] Running `./gradlew openApiGenerate` (once configured) produces `StocktradingApiDelegate` and `StocktradingApiController` without errors
-**Depends on:** none (can be written before all other tasks; other tasks depend on it)
+- [ ] Path is `POST /api/v1/stock-orders`
+- [ ] `Idempotency-Key` header declared as required
+- [ ] `quantity` and `priceSnapshot` have `exclusiveMinimum: 0`
+- [ ] `orderType` restricted to enum `["MARKET"]`
+- [ ] All error status codes declared (400, 401, 403, 404, 409, 500)
+- [ ] `ErrorResponse` schema defined
+- [ ] `./gradlew openApiGenerate` produces `StocktradingApiDelegate` and `StocktradingApiController` without errors
+**Depends on:** none
 
 ---
 
@@ -405,22 +409,21 @@ fun placeOrder(
 **Layer:** API Client
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 3 — `POST /api/v1/orders`
+**Implements:** `domain/flows/buy-stock.md` Flow C step 3 — `POST /api/v1/stock-orders`
 **Inputs:**
-- `services/contract/stocktrading-openapi.yaml` (API-CONTRACT-1) — endpoint URL, request/response shapes
-- `standards/frontend.md` — shared Axios instance from `shared/api/`, typed request/response, function naming `verb + noun`
+- `services/contract/stocktrading-openapi.yaml` (API-CONTRACT-1)
+- `standards/frontend.md` — shared Axios instance, typed, `verb + noun` naming
 **Outputs:**
 - `services/front-end/src/domains/stocktrading/api/ordersApi.ts` — exports:
-  - `PlaceOrderRequest` interface: `{ accountId: string; ticker: string; quantity: string; orderType: 'MARKET'; priceSnapshot: string }`
-  - `PlaceOrderResponse` interface: `{ orderId: string; status: 'FILLED' | 'REJECTED'; ticker: string; quantity: string; executionPrice: string | null; totalCost: string | null; rejectionReason: string | null; accountId: string; createdAt: string }`
+  - `PlaceOrderRequest` interface
+  - `PlaceOrderResponse` interface
   - `ORDERS_QUERY_KEY` constant
-  - `placeOrder(idempotencyKey: string, request: PlaceOrderRequest): Promise<PlaceOrderResponse>` — uses shared Axios instance, sets `Idempotency-Key` header
+  - `placeOrder(idempotencyKey: string, request: PlaceOrderRequest): Promise<PlaceOrderResponse>` — POSTs to `/api/v1/stock-orders`, sets `Idempotency-Key` header
 **Acceptance criteria:**
-- [ ] `placeOrder` uses the shared Axios instance from `shared/api/` — no new Axios instance
-- [ ] `Idempotency-Key` header is set on every request
-- [ ] `quantity` and `priceSnapshot` are sent as strings (to preserve decimal precision) — or as numbers, matching the contract exactly
-- [ ] All types are explicit — no `any`
-- [ ] Unit test: `placeOrder` called → Axios POST to `/api/v1/orders` with correct body and header; mocked response correctly typed
+- [ ] Uses shared Axios instance — no new instance
+- [ ] `Idempotency-Key` header set on every call
+- [ ] All types explicit — no `any`
+- [ ] Unit test: verifies POST to `/api/v1/stock-orders` with correct body and header
 **Depends on:** API-CONTRACT-1
 
 ---
@@ -432,20 +435,19 @@ fun placeOrder(
 **Layer:** State
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow C step 2 (loading state), step 3 (submit), step 11 (show confirmation), step 12 (invalidate account cache), Flow D (decline — no API call)
+**Implements:** `domain/flows/buy-stock.md` Flow C step 2 (loading), step 3 (submit), step 12 (show confirmation), step 13 (invalidate account cache)
 **Inputs:**
 - `placeOrder` from CLI-1
 - TanStack Query `useMutation`
-- `standards/frontend.md` — TanStack Query owns all server state; on-success invalidates the account query key
-- Existing `ACCOUNTS_QUERY_KEY` from the ledger/account API module (import from `ledger/api/` — no cross-domain store access, only key reference)
+- `standards/frontend.md` — TanStack Query owns server state; invalidate on success
 **Outputs:**
-- `services/front-end/src/domains/stocktrading/hooks/usePlaceOrder.ts` — exports `usePlaceOrder()` hook returning `useMutation` result wrapping `placeOrder`; on success invalidates `ACCOUNTS_QUERY_KEY`
+- `services/front-end/src/domains/stocktrading/hooks/usePlaceOrder.ts` — `usePlaceOrder()` hook; on success invalidates `ACCOUNTS_QUERY_KEY`
 **Acceptance criteria:**
-- [ ] Hook uses `useMutation` from TanStack Query
-- [ ] On mutation success, calls `queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY })` (or equivalent scoped key) so the account balance refreshes
-- [ ] Mutation variables include `idempotencyKey: string` and `PlaceOrderRequest`
-- [ ] No Zustand store access — this is server state
-- [ ] Unit test (`renderHook`): mock `placeOrder` → on success, ACCOUNTS_QUERY_KEY invalidated; on error, error state accessible
+- [ ] Uses `useMutation` from TanStack Query
+- [ ] On success invalidates `ACCOUNTS_QUERY_KEY`
+- [ ] Mutation variables include `idempotencyKey` and `PlaceOrderRequest`
+- [ ] No Zustand store access
+- [ ] Unit test (`renderHook`): success → ACCOUNTS_QUERY_KEY invalidated; error → error state accessible
 **Depends on:** CLI-1
 
 ---
@@ -457,22 +459,21 @@ fun placeOrder(
 **Layer:** Component
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow A steps 1–3 — right-click row → show context menu with "Buy" → open buy panel
+**Implements:** `domain/flows/buy-stock.md` Flow A steps 1–3
 **Inputs:**
-- Existing `MarketDataGrid` component in `stocktrading/components/`
-- `domain/flows/buy-stock.md` Flow A
-- `standards/frontend.md` — functional components, explicit props interfaces, no API calls in components
+- Existing `MarketDataGrid` component
+- `standards/frontend.md` — functional components, explicit props, no API calls
 **Outputs:**
-- `MarketDataGrid` extended: right-click on any row calls an `onBuy(ticker: string, companyName: string, priceSnapshot: string)` prop with the row's data
-- Context menu rendered on right-click showing a single "Buy" option; clicking it invokes `onBuy`; clicking elsewhere dismisses the menu
+- `MarketDataGrid` extended with `onBuy(ticker: string, companyName: string, priceSnapshot: string)` prop
+- Context menu on right-click: single "Buy" option
 **Acceptance criteria:**
-- [ ] Right-clicking a row shows a context menu with exactly one item: "Buy"
-- [ ] Clicking "Buy" invokes `onBuy(ticker, companyName, priceSnapshot)` where `priceSnapshot` is the `currentPrice` from that row at the moment of right-click
-- [ ] Clicking anywhere outside the menu (or pressing Escape) dismisses it without invoking `onBuy`
-- [ ] `onBuy` prop is declared in `MarketDataGridProps`
-- [ ] No API calls inside this component
-- [ ] Unit tests: right-click renders menu; clicking "Buy" invokes `onBuy` with correct args; outside click dismisses menu
-**Depends on:** none (extends existing component)
+- [ ] Right-clicking a row shows context menu with exactly one item: "Buy"
+- [ ] Clicking "Buy" invokes `onBuy(ticker, companyName, priceSnapshot)` where `priceSnapshot` = `currentPrice` at right-click time
+- [ ] Outside click or Escape dismisses without invoking `onBuy`
+- [ ] `onBuy` declared in `MarketDataGridProps`
+- [ ] No API calls inside component
+- [ ] Unit tests: right-click shows menu; "Buy" click invokes `onBuy`; outside click dismisses
+**Depends on:** none
 
 ---
 
@@ -481,36 +482,26 @@ fun placeOrder(
 **Layer:** Component
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/flows/buy-stock.md` Flow A step 4, Flow B steps 1–3, Flow C steps 1–2 and 11, Flow D steps 1–2
+**Implements:** `domain/flows/buy-stock.md` Flow A step 4, Flow B steps 1–3, Flow C steps 1–2 and 12, Flow D steps 1–2
 **Inputs:**
-- `usePlaceOrder` hook from STATE-1
+- `usePlaceOrder` hook (STATE-1)
 - `domain/usecases/trade-stock-page.md` — Buy Panel Specification
-- `domain/flows/buy-stock.md` Flows A, B, C, D
-- `standards/frontend.md` — functional component, explicit props, no direct API calls
+- `standards/frontend.md` — functional component, explicit props
 **Outputs:**
 - `services/front-end/src/domains/stocktrading/components/BuyPanel.tsx`
-- `BuyPanelProps`:
-  ```
-  {
-    ticker: string
-    companyName: string
-    priceSnapshot: string   // captured at right-click time
-    accountId: string
-    onClose: () => void
-  }
-  ```
+- `BuyPanelProps`: `{ ticker, companyName, priceSnapshot, accountId, onClose }`
 **Acceptance criteria:**
-- [ ] On mount, generates a UUID `idempotencyKey` stored in component state (`useState`)
-- [ ] Displays: ticker symbol, company name, order type field (value "MARKET", read-only), quantity input, "Estimated cost" label showing `quantity × priceSnapshot` in real time
-- [ ] Quantity input: accepts positive decimals and positive whole numbers; shows inline error "Quantity must be greater than zero." if ≤ 0; shows inline error "Please enter a valid number." for non-numeric input; Confirm button disabled until input is valid
-- [ ] Confirm button shows a green tick icon; Decline button shows a red cross icon
-- [ ] On Confirm click: disables both buttons, shows loading indicator; calls `usePlaceOrder` mutation with `{ idempotencyKey, accountId, ticker, quantity, orderType: 'MARKET', priceSnapshot }`
-- [ ] On FILLED response: replaces panel content with fill confirmation showing ticker, quantity, `executionPrice`, `totalCost`, green tick, "Order filled"
-- [ ] On REJECTED response (HTTP 200, `status: 'REJECTED'`): shows rejection message "Order rejected: {rejectionReason}"
-- [ ] On error response (non-200): shows generic error message; re-enables buttons; generates a new `idempotencyKey` in state (so retry is safe)
-- [ ] On Decline click (at any stage): calls `onClose()` immediately; no API call is made
-- [ ] No direct Axios or query calls — only through `usePlaceOrder`
-- [ ] Unit tests: renders with correct initial state; estimated cost updates on quantity change; confirm calls mutation with correct args; fill confirmation shown on FILLED; rejection message shown on REJECTED; decline calls `onClose`
+- [ ] On mount generates UUID `idempotencyKey` in `useState`
+- [ ] Displays ticker, company name, order type ("MARKET", read-only), quantity input, "Estimated cost" = `quantity × priceSnapshot` in real time
+- [ ] Inline errors: "Quantity must be greater than zero." / "Please enter a valid number."; Confirm disabled until valid
+- [ ] Confirm = green tick icon; Decline = red cross icon
+- [ ] On Confirm: disables both buttons, shows loading; calls `usePlaceOrder` with `{ idempotencyKey, accountId, ticker, quantity, orderType: 'MARKET', priceSnapshot }`
+- [ ] On FILLED response: shows fill confirmation with `executionPrice`, `totalCost`, green tick, "Order filled"
+- [ ] On REJECTED response (HTTP 200, `status: 'REJECTED'`): shows "Order rejected: {rejectionReason}"
+- [ ] On error (non-200): shows generic error; re-enables buttons; generates new `idempotencyKey`
+- [ ] On Decline: calls `onClose()` immediately, no API call
+- [ ] No direct Axios/query calls — only through `usePlaceOrder`
+- [ ] Unit tests: initial render; estimated cost updates; confirm calls mutation; FILLED confirmation; REJECTED message; decline calls `onClose`
 **Depends on:** STATE-1
 
 ---
@@ -522,23 +513,22 @@ fun placeOrder(
 **Layer:** Screen
 **Domain:** stocktrading
 **Use case:** buy-stock
-**Implements:** `domain/usecases/trade-stock-page.md` happy path steps 10–13 (open buy panel, enter quantity, confirm, decline); failure scenarios: no active accounts → Confirm blocked; buy errors displayed in panel
+**Implements:** `domain/usecases/trade-stock-page.md` happy path steps 10–13; failure: no active accounts → Buy blocked
 **Inputs:**
-- `BuyPanel` component (COMP-2)
+- `BuyPanel` (COMP-2)
 - `MarketDataGrid` with `onBuy` prop (COMP-1)
-- Existing `TradeStockPage` in `stocktrading/pages/`
-- `domain/usecases/trade-stock-page.md` — Buy Panel Specification; failure scenarios for buy
-- `standards/frontend.md` — pages assemble components; no business logic in pages
+- Existing `TradeStockPage`
+- `standards/frontend.md` — pages assemble components; no business logic
 **Outputs:**
-- `TradeStockPage` updated: manages buy panel open/closed state and the selected ticker context; passes `onBuy` to `MarketDataGrid`; conditionally renders `BuyPanel` when open
+- `TradeStockPage` updated: `buyContext` state, `onBuy` passed to grid, `BuyPanel` rendered conditionally
 **Acceptance criteria:**
-- [ ] `TradeStockPage` holds `buyContext` state: `{ ticker: string; companyName: string; priceSnapshot: string } | null`
-- [ ] `MarketDataGrid` receives `onBuy` prop that sets `buyContext` and opens `BuyPanel`
-- [ ] `BuyPanel` is rendered as a modal/overlay when `buyContext` is non-null; receives `ticker`, `companyName`, `priceSnapshot`, `accountId` (from selected account in Zustand slice), and `onClose`
-- [ ] `onClose` clears `buyContext`, closing the panel
-- [ ] If no active account is selected (selector is empty), the "Buy" context menu item is disabled or absent — consistent with "No accounts available." state from the Account Selector Specification
-- [ ] No business logic in the page component — all order logic in `BuyPanel` and `usePlaceOrder`
-- [ ] Unit tests: right-click → onBuy → BuyPanel opens with correct props; onClose → panel closes; no active account → Buy option absent/disabled
+- [ ] `buyContext: { ticker, companyName, priceSnapshot } | null` in page state
+- [ ] `MarketDataGrid` receives `onBuy` that sets `buyContext`
+- [ ] `BuyPanel` rendered as modal/overlay when `buyContext` non-null; receives `ticker`, `companyName`, `priceSnapshot`, `accountId` (from Zustand slice), `onClose`
+- [ ] `onClose` clears `buyContext`
+- [ ] No active account → Buy context menu item absent/disabled
+- [ ] No business logic in page component
+- [ ] Unit tests: right-click → onBuy → BuyPanel opens; onClose → closes; no account → Buy absent
 **Depends on:** COMP-1, COMP-2
 
 ---
@@ -551,8 +541,8 @@ fun placeOrder(
 | REPO-1 | `OrderRepository` | DB-1 |
 | EXCEPTION-1 | Stocktrading exception classes | none |
 | EVT-1 | `OrderFilledEvent`, `OrderRejectedEvent` | none |
-| SVC-1 | `LedgerApi` interface | none |
-| SVC-2 | `LedgerService.recordStockBuy` implementation | SVC-1 |
+| SVC-1 | `LedgerApi` interface (generic `recordTransaction`) | none |
+| SVC-2 | `LedgerService.recordTransaction` implementation | SVC-1 |
 | SVC-3 | `MarketDataApi` interface | none |
 | SVC-4 | `MarketDataService.getCurrentPrice` implementation | SVC-3 |
 | SVC-5 | `StockTradingService.placeOrder` | DB-1, REPO-1, EXCEPTION-1, EVT-1, SVC-1, SVC-2, SVC-3, SVC-4 |
