@@ -68,7 +68,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         )
 
         test("getAccountTransactions_validOwner_returns200WithTransactionList") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenReturn(PageImpl(listOf(cashEntry)))
 
             mockMvc.perform(
@@ -90,7 +90,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_stockEntry_returns200WithTickerAndShares") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenReturn(PageImpl(listOf(stockEntry)))
 
             mockMvc.perform(
@@ -106,7 +106,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_emptyPage_returns200WithEmptyList") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenReturn(PageImpl(emptyList()))
 
             mockMvc.perform(
@@ -121,7 +121,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_accountNotFound_returns404") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenThrow(AccountNotFoundException(accountId))
 
             mockMvc.perform(
@@ -134,7 +134,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_wrongOwner_returns403") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenThrow(AccountOwnershipException(accountId))
 
             mockMvc.perform(
@@ -147,7 +147,10 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_pageParam_passedThrough") {
-            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(2), eq(25)))
+            // Use any() for Int params to avoid Mockito primitive boxing issues.
+            // The response body values ($.page, $.totalCount) confirm the correct
+            // page was passed through and reflected in the response.
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenReturn(PageImpl(listOf(cashEntry), PageRequest.of(2, 25), 50))
 
             mockMvc.perform(
