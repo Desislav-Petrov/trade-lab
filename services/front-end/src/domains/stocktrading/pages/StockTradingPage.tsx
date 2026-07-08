@@ -43,13 +43,6 @@ export function StockTradingPage() {
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
-  // Stabilise the tickers array so its reference only changes when
-  // subscriptionsData actually changes (i.e. a subscription is added/removed).
-  // Without useMemo, every WebSocket tick re-render creates a new array
-  // reference, which fires the useEffect([subscribedTickers]) inside
-  // useMarketDataFeed on every tick, calling setRows again and causing a
-  // tight render loop that saturates React's scheduler and makes sidebar
-  // navigation clicks unresponsive (bug #61).
   const subscribedTickers = useMemo(
     () => subscriptionsData?.map((s) => s.ticker) ?? [],
     [subscriptionsData],
@@ -196,6 +189,7 @@ export function StockTradingPage() {
             companyName={buyContext.companyName}
             priceSnapshot={buyContext.priceSnapshot}
             accountId={selectedAccountId}
+            userId={user.userId}
             onClose={() => setBuyContext(null)}
           />
         </div>

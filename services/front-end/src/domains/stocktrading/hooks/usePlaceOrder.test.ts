@@ -54,6 +54,7 @@ describe('usePlaceOrder', () => {
       result.current.mutate({
         idempotencyKey: 'idem-key-1',
         accountId: 'acc-1',
+        userId: 'user-1',
         ticker: 'AAPL',
         quantity: '2',
         orderType: 'MARKET',
@@ -82,6 +83,7 @@ describe('usePlaceOrder', () => {
       result.current.mutate({
         idempotencyKey: 'idem-key-err',
         accountId: 'acc-1',
+        userId: 'user-1',
         ticker: 'AAPL',
         quantity: '2',
         orderType: 'MARKET',
@@ -94,7 +96,7 @@ describe('usePlaceOrder', () => {
     expect(invalidateSpy).not.toHaveBeenCalled()
   })
 
-  it('usePlaceOrder - mutation variables include idempotencyKey and PlaceOrderRequest', async () => {
+  it('usePlaceOrder - mutation variables include idempotencyKey, userId, and PlaceOrderRequest', async () => {
     const filledResponse: PlaceOrderResponse = {
       orderId: 'order-2',
       status: 'FILLED',
@@ -115,6 +117,7 @@ describe('usePlaceOrder', () => {
       result.current.mutate({
         idempotencyKey: 'idem-key-2',
         accountId: 'acc-2',
+        userId: 'user-2',
         ticker: 'MSFT',
         quantity: '1',
         orderType: 'MARKET',
@@ -125,6 +128,7 @@ describe('usePlaceOrder', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mockPlaceOrder).toHaveBeenCalledWith('idem-key-2', {
       accountId: 'acc-2',
+      userId: 'user-2',
       ticker: 'MSFT',
       quantity: '1',
       orderType: 'MARKET',

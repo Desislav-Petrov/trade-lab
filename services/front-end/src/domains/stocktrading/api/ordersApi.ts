@@ -2,6 +2,7 @@ import axiosInstance from '../../../shared/api/axiosInstance'
 
 export interface PlaceOrderRequest {
   accountId: string
+  userId: string
   ticker: string
   quantity: string
   orderType: 'MARKET'

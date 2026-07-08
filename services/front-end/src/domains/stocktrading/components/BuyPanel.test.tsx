@@ -17,6 +17,7 @@ const defaultProps = {
   companyName: 'Apple Inc.',
   priceSnapshot: '180.000',
   accountId: 'acc-1',
+  userId: 'user-1',
   onClose: vi.fn(),
 }
 
@@ -71,7 +72,6 @@ describe('BuyPanel', () => {
 
     expect(screen.getByText('AAPL')).toBeInTheDocument()
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument()
-    // Order type must be a disabled select showing MARKET
     const orderTypeSelect = screen.getByRole('combobox', { name: 'Order Type' })
     expect(orderTypeSelect).toBeInTheDocument()
     expect(orderTypeSelect).toBeDisabled()
@@ -151,7 +151,7 @@ describe('BuyPanel', () => {
     expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeDisabled()
   })
 
-  it('BuyPanel - Confirm clicked with valid quantity - calls usePlaceOrder mutate with correct args', () => {
+  it('BuyPanel - Confirm clicked with valid quantity - calls usePlaceOrder mutate with userId and correct args', () => {
     const mutate = vi.fn()
     setupMockMutation({ mutate })
     renderBuyPanel()
@@ -162,6 +162,7 @@ describe('BuyPanel', () => {
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId: 'acc-1',
+        userId: 'user-1',
         ticker: 'AAPL',
         quantity: '3',
         orderType: 'MARKET',
@@ -254,7 +255,6 @@ describe('BuyPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument()
     })
-    // Buttons should be re-enabled (stage back to 'error' allows interaction)
     expect(screen.getByRole('button', { name: 'Confirm buy' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Decline buy' })).toBeEnabled()
   })
@@ -275,7 +275,6 @@ describe('BuyPanel', () => {
 
     const firstKey = mutate.mock.calls[0][0].idempotencyKey
 
-    // Retry: click confirm again
     fireEvent.click(screen.getByRole('button', { name: 'Confirm buy' }))
 
     await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2))
@@ -294,6 +293,7 @@ describe('BuyPanel', () => {
         companyName="Apple Inc."
         priceSnapshot="180.000"
         accountId="acc-1"
+        userId="user-1"
         onClose={onClose}
       />,
       { wrapper: createWrapper() },
