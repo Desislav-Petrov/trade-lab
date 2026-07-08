@@ -12,11 +12,13 @@
   --color-border-subtle: #1f1f1f;
 
   --color-text-primary: #e8e8e8;
+  --color-text-secondary: #9ca3af;
   --color-text-muted: #6b7280;
   --color-text-disabled: #3f3f46;
 
   --color-accent: #00ff88;
   --color-accent-dim: #00cc6e;
+  --color-success: #00ff88;
   --color-amber: #f59e0b;
   --color-danger: #ef4444;
   --color-danger-dim: #b91c1c;
