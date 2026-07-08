@@ -164,4 +164,38 @@ describe('useMarketDataFeed', () => {
     unmount()
     expect(mockCleanup).toHaveBeenCalledOnce()
   })
+
+  it('useMarketDataFeed - same subscribedTickers reference on rerender - does NOT re-run filter setRows', () => {
+    // Regression test for bug #61.
+    // StockTradingPage re-renders on every WebSocket tick. With useMemo, it
+    // passes the SAME subscribedTickers reference on every tick-driven rerender.
+    // This effect MUST NOT fire when the reference is unchanged, otherwise it
+    // calls setRows again → another render → another effect fire → tight loop
+    // that saturates React’s scheduler and makes sidebar navigation unresponsive.
+    const { result, rerender } = renderHook(
+      ({ tickers }: { tickers: string[] }) => useMarketDataFeed('user-8', tickers),
+      { initialProps: { tickers: AAPL_MSFT } },
+    )
+
+    act(() => {
+      capturedOnMessage({
+        type: 'SNAPSHOT',
+        data: [
+          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
+          { ticker: 'MSFT', companyName: 'Microsoft Corporation', currentPrice: 300.0, open: 298.0, dayLow: 295.0, fiftyTwoWeekHigh: 350.0 },
+        ],
+      })
+    })
+
+    expect(result.current.rows).toHaveLength(2)
+    const rowsBeforeRerender = result.current.rows
+
+    // Rerender with the EXACT SAME reference — simulates a tick-driven parent
+    // rerender where useMemo kept the subscribedTickers reference stable.
+    rerender({ tickers: AAPL_MSFT })
+
+    // The filter effect must not have fired: rows reference is unchanged.
+    expect(result.current.rows).toBe(rowsBeforeRerender)
+    expect(result.current.rows).toHaveLength(2)
+  })
 })
