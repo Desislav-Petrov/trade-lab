@@ -1,4 +1,4 @@
-import { useEffect, useState, useDeferredValue } from 'react'
+import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Navigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -43,12 +43,23 @@ export function StockTradingPage() {
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
-  const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
+  // Stabilise the tickers array with useMemo so its reference only changes when
+  // subscriptionsData actually changes (i.e. a subscription is added/removed).
+  // Without this, every WebSocket tick re-render of StockTradingPage would
+  // create a new array reference, causing the useEffect([subscribedTickers])
+  // inside useMarketDataFeed to fire on every tick and call setRows again,
+  // creating a tight render loop that saturates React's scheduler and makes
+  // sidebar navigation clicks unresponsive (bug #61).
+  const subscribedTickers = useMemo(
+    () => subscriptionsData?.map((s) => s.ticker) ?? [],
+    [subscriptionsData],
+  )
+
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
 
   // Defer feed row updates so rapid WebSocket ticks are treated as non-urgent.
   // React will yield to user-initiated events (e.g. sidebar navigation clicks)
-  // before committing deferred renders, keeping the UI responsive.
+  // before committing deferred renders.
   const deferredRows = useDeferredValue(rows)
 
   const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
