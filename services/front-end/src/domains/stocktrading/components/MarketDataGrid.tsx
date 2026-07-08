@@ -4,6 +4,15 @@ import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
 interface MarketDataGridProps {
   rows: MarketDataUpdate[]
   feedStatus: 'connecting' | 'connected' | 'error' | 'lost'
+  onBuy?: (ticker: string, companyName: string, priceSnapshot: string) => void
+}
+
+interface ContextMenuState {
+  x: number
+  y: number
+  ticker: string
+  companyName: string
+  priceSnapshot: string
 }
 
 type SortDirection = 'asc' | 'desc' | 'none'
@@ -74,16 +83,42 @@ function getPriceMovement(
   return currentPrice > previousPrice ? 'up' : 'down'
 }
 
-export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
+export function MarketDataGrid({ rows, feedStatus, onBuy }: MarketDataGridProps) {
   const [sortColumn, setSortColumn] = useState<keyof MarketDataUpdate | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const previousPricesRef = useRef<Map<string, number>>(new Map())
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
 
   const previousPrices = previousPricesRef.current
 
   useEffect(() => {
     previousPricesRef.current = new Map(rows.map((row) => [row.ticker, row.currentPrice]))
   }, [rows])
+
+  useEffect(() => {
+    if (!contextMenu) return
+
+    function handleClickOutside(event: MouseEvent) {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setContextMenu(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu])
 
   if (feedStatus === 'connecting') {
     return <p>Connecting…</p>
@@ -113,10 +148,32 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
     }
   }
 
+  function handleRowContextMenu(
+    event: React.MouseEvent<HTMLTableRowElement>,
+    row: MarketDataUpdate,
+  ) {
+    if (!onBuy) return
+    event.preventDefault()
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      ticker: row.ticker,
+      companyName: row.companyName,
+      priceSnapshot: row.currentPrice.toFixed(3),
+    })
+  }
+
+  function handleBuyClick() {
+    if (contextMenu && onBuy) {
+      onBuy(contextMenu.ticker, contextMenu.companyName, contextMenu.priceSnapshot)
+    }
+    setContextMenu(null)
+  }
+
   const sortedRows = sortRows(rows, sortColumn, sortDirection)
 
   return (
-    <div className="overflow-x-auto overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="relative overflow-x-auto overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface)]">
       <table className="min-w-full border-collapse text-left text-xs">
         <thead className="bg-[var(--color-surface-raised)]">
           <tr>
@@ -138,7 +195,11 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
             const tickerMovement = getPriceMovement(row.currentPrice, previousPrices.get(row.ticker))
 
             return (
-              <tr key={row.ticker} className="bg-[var(--color-bg)]">
+              <tr
+                key={row.ticker}
+                className="bg-[var(--color-bg)]"
+                onContextMenu={(e) => handleRowContextMenu(e, row)}
+              >
                 <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     <span>{row.ticker}</span>
@@ -174,6 +235,24 @@ export function MarketDataGrid({ rows, feedStatus }: MarketDataGridProps) {
           })}
         </tbody>
       </table>
+
+      {contextMenu && onBuy && (
+        <div
+          ref={contextMenuRef}
+          role="menu"
+          style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
+          className="z-50 rounded border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
+        >
+          <button
+            role="menuitem"
+            type="button"
+            onClick={handleBuyClick}
+            className="block w-full px-4 py-2 text-left text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-surface-raised)]"
+          >
+            Buy
+          </button>
+        </div>
+      )}
     </div>
   )
 }
