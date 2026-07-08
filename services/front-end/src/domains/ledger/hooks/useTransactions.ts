@@ -15,6 +15,7 @@ export function useTransactions(
   return useQuery({
     queryKey: TRANSACTION_KEYS.list(accountId, userId, page),
     queryFn: () => fetchTransactions(accountId, userId, page),
+    enabled: !!accountId && !!userId,
     staleTime: 0,
   })
 }
