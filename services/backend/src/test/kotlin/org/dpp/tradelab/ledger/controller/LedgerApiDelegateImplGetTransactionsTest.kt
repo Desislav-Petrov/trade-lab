@@ -148,10 +148,10 @@ class LedgerApiDelegateImplGetTransactionsTest(
 
         test("getAccountTransactions_pageParam_passedThrough") {
             // Use any() for Int params to avoid Mockito primitive boxing issues.
-            // The response body values ($.page, $.totalCount) confirm the correct
-            // page was passed through and reflected in the response.
+            // totalElements=75 is strictly greater than offset+content (50+1=51)
+            // so PageImpl does not silently inflate the value.
             whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
-                .thenReturn(PageImpl(listOf(cashEntry), PageRequest.of(2, 25), 50))
+                .thenReturn(PageImpl(listOf(cashEntry), PageRequest.of(2, 25), 75))
 
             mockMvc.perform(
                 get("/api/v1/accounts/$accountId/transactions")
@@ -160,7 +160,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
             )
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.page").value(2))
-                .andExpect(jsonPath("$.totalCount").value(50))
+                .andExpect(jsonPath("$.totalCount").value(75))
         }
     }
 }
