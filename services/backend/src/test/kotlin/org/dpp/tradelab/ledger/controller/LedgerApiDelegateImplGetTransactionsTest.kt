@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -36,9 +37,9 @@ class LedgerApiDelegateImplGetTransactionsTest(
     override fun extensions() = listOf(SpringExtension)
 
     init {
-        val userId    = UUID.randomUUID()
-        val accountId = UUID.randomUUID()
-        val entryId   = UUID.randomUUID()
+        val userId    = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        val accountId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        val entryId   = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc")
 
         val cashEntry = LedgerEntry(
             entryId     = entryId,
@@ -54,7 +55,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
         )
 
         val stockEntry = LedgerEntry(
-            entryId     = UUID.randomUUID(),
+            entryId     = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd"),
             accountId   = accountId,
             type        = EntryType.DEBIT,
             assetType   = AssetType.STOCK_BUY,
@@ -67,9 +68,8 @@ class LedgerApiDelegateImplGetTransactionsTest(
         )
 
         test("getAccountTransactions_validOwner_returns200WithTransactionList") {
-            val page = PageImpl(listOf(cashEntry))
             whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
-                .thenReturn(page)
+                .thenReturn(PageImpl(listOf(cashEntry)))
 
             mockMvc.perform(
                 get("/api/v1/accounts/$accountId/transactions")
@@ -90,9 +90,8 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_stockEntry_returns200WithTickerAndShares") {
-            val page = PageImpl(listOf(stockEntry))
-            whenever(ledgerService.getTransactions(any(), eq(userId), eq(0), eq(25)))
-                .thenReturn(page)
+            whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(0), eq(25)))
+                .thenReturn(PageImpl(listOf(stockEntry)))
 
             mockMvc.perform(
                 get("/api/v1/accounts/$accountId/transactions")
@@ -148,13 +147,8 @@ class LedgerApiDelegateImplGetTransactionsTest(
         }
 
         test("getAccountTransactions_pageParam_passedThrough") {
-            val page2 = PageImpl(
-                listOf(cashEntry),
-                org.springframework.data.domain.PageRequest.of(2, 25),
-                50,
-            )
             whenever(ledgerService.getTransactions(eq(accountId), eq(userId), eq(2), eq(25)))
-                .thenReturn(page2)
+                .thenReturn(PageImpl(listOf(cashEntry), PageRequest.of(2, 25), 50))
 
             mockMvc.perform(
                 get("/api/v1/accounts/$accountId/transactions")

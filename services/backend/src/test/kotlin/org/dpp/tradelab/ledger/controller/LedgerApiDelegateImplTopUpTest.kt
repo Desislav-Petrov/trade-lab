@@ -74,16 +74,16 @@ class LedgerApiDelegateImplTopUpTest(
                 .thenReturn(Pair(savedAccount, savedEntry))
 
             mockMvc.perform(
-                post("/api/v1/accounts/\$accountId/top-up")
+                post("/api/v1/accounts/$accountId/top-up")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(validRequestBody)
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("\$.accountId").value(accountId.toString()))
-                .andExpect(jsonPath("\$.newBalance").value(1100.0))
-                .andExpect(jsonPath("\$.currency").value("USD"))
-                .andExpect(jsonPath("\$.ledgerEntryId").value(entryId.toString()))
-                .andExpect(jsonPath("\$.timestamp").isNotEmpty)
+                .andExpect(jsonPath("$.accountId").value(accountId.toString()))
+                .andExpect(jsonPath("$.newBalance").value(1100.0))
+                .andExpect(jsonPath("$.currency").value("USD"))
+                .andExpect(jsonPath("$.ledgerEntryId").value(entryId.toString()))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty)
         }
 
         test("topUpAccount_accountNotFound_returns404") {
@@ -91,12 +91,12 @@ class LedgerApiDelegateImplTopUpTest(
                 .thenThrow(AccountNotFoundException(accountId))
 
             mockMvc.perform(
-                post("/api/v1/accounts/\$accountId/top-up")
+                post("/api/v1/accounts/$accountId/top-up")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(validRequestBody)
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("\$.status").value(404))
+                .andExpect(jsonPath("$.status").value(404))
         }
 
         test("topUpAccount_accountNotActive_returns403") {
@@ -104,12 +104,12 @@ class LedgerApiDelegateImplTopUpTest(
                 .thenThrow(AccountNotActiveException(accountId))
 
             mockMvc.perform(
-                post("/api/v1/accounts/\$accountId/top-up")
+                post("/api/v1/accounts/$accountId/top-up")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(validRequestBody)
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("\$.status").value(403))
+                .andExpect(jsonPath("$.status").value(403))
         }
 
         test("topUpAccount_illegalArgument_returns400") {
@@ -117,12 +117,12 @@ class LedgerApiDelegateImplTopUpTest(
                 .thenThrow(IllegalArgumentException("amount must be greater than zero"))
 
             mockMvc.perform(
-                post("/api/v1/accounts/\$accountId/top-up")
+                post("/api/v1/accounts/$accountId/top-up")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(validRequestBody)
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("\$.status").value(400))
+                .andExpect(jsonPath("$.status").value(400))
         }
     }
 }
