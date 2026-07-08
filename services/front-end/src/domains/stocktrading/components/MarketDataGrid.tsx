@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
 
 interface MarketDataGridProps {
@@ -83,7 +83,11 @@ function getPriceMovement(
   return currentPrice > previousPrice ? 'up' : 'down'
 }
 
-export function MarketDataGrid({ rows, feedStatus, onBuy }: MarketDataGridProps) {
+// Wrapped in React.memo so the grid only re-renders when its props actually
+// change. Combined with useDeferredValue in StockTradingPage this prevents
+// rapid WebSocket tick updates from scheduling synchronous re-renders that
+// could block user-initiated events such as sidebar navigation clicks.
+export const MarketDataGrid = memo(function MarketDataGrid({ rows, feedStatus, onBuy }: MarketDataGridProps) {
   const [sortColumn, setSortColumn] = useState<keyof MarketDataUpdate | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -255,4 +259,4 @@ export function MarketDataGrid({ rows, feedStatus, onBuy }: MarketDataGridProps)
       )}
     </div>
   )
-}
+})
