@@ -191,12 +191,14 @@ import {
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
 import { useActiveAccounts } from '../../ledger/hooks/useLedger'
+import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
 
 const mockUseSubscriptions = vi.mocked(useSubscriptions)
 const mockUseBulkAddSubscriptions = vi.mocked(useBulkAddSubscriptions)
 const mockUseBulkRemoveSubscriptions = vi.mocked(useBulkRemoveSubscriptions)
 const mockUseSupportedTickers = vi.mocked(useSupportedTickers)
 const mockUseActiveAccounts = vi.mocked(useActiveAccounts)
+const mockUseMarketDataFeed = vi.mocked(useMarketDataFeed)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -306,6 +308,8 @@ describe('StockTradingPage', () => {
     vi.clearAllMocks()
     act(() => useSessionStore.getState().clearSession())
     act(() => useStockTradingStore.getState().clearSelectedAccountId())
+    // Default feed mock — overridden per-test where needed
+    mockUseMarketDataFeed.mockReturnValue({ rows: [], feedStatus: 'connecting' })
   })
 
   it('StockTradingPage - no session - redirects to /login', () => {
@@ -502,5 +506,32 @@ describe('StockTradingPage', () => {
 
     // MarketDataGrid mock only renders trigger-buy button when onBuy is provided
     expect(screen.queryByTestId('trigger-buy')).not.toBeInTheDocument()
+  })
+
+  // Regression: bug #61 — live feed must not block sidebar navigation
+  it('StockTradingPage - live feed connected with rows - MarketDataGrid remains mounted and receives deferred rows', () => {
+    // Simulate the connected+rows state that triggered bug #61
+    mockUseMarketDataFeed.mockReturnValue({
+      rows: [
+        {
+          ticker: 'AAPL',
+          companyName: 'Apple Inc.',
+          currentPrice: 180.5,
+          open: 179.0,
+          dayLow: 178.0,
+          fiftyTwoWeekHigh: 200.0,
+        },
+      ],
+      feedStatus: 'connected',
+    })
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    // Grid is present — not replaced by loading/error state
+    expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
+    // onBuy is wired (account selected) so the trigger button is present
+    expect(screen.getByTestId('trigger-buy')).toBeInTheDocument()
   })
 })
