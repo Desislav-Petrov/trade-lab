@@ -7,9 +7,10 @@ import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.TransactionAssetType
+import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.marketdata.api.MarketDataApi
-import org.dpp.tradelab.marketdata.api.MarketDataSupportedTickersApi
 import org.dpp.tradelab.stocktrading.exception.DuplicateIdempotencyKeyException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotActiveException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotFoundException
@@ -38,7 +39,6 @@ class StockTradingServiceTest : FunSpec({
     val ledgerApi = mock<LedgerApi>()
     val ledgerAccountApi = mock<LedgerAccountApi>()
     val marketDataApi = mock<MarketDataApi>()
-    val marketDataSupportedTickersApi = mock<MarketDataSupportedTickersApi>()
     val eventPublisher = mock<ApplicationEventPublisher>()
 
     val service = StockTradingService(
@@ -46,7 +46,6 @@ class StockTradingServiceTest : FunSpec({
         ledgerApi,
         ledgerAccountApi,
         marketDataApi,
-        marketDataSupportedTickersApi,
         eventPublisher
     )
 
@@ -69,7 +68,7 @@ class StockTradingServiceTest : FunSpec({
     beforeEach {
         org.mockito.kotlin.reset(
             orderRepository, ledgerApi, ledgerAccountApi,
-            marketDataApi, marketDataSupportedTickersApi, eventPublisher
+            marketDataApi, eventPublisher
         )
         whenever(orderRepository.save(any())).thenAnswer { it.arguments[0] }
     }
@@ -77,7 +76,7 @@ class StockTradingServiceTest : FunSpec({
     // ── FILLED happy path ────────────────────────────────────────────────────
 
     test("placeOrder_filledHappyPath_returnsFilledOrder") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -98,7 +97,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_filledHappyPath_callsLedgerApiTwice") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -117,7 +116,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_filledHappyPath_firstLedgerCallIsDebitCash") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -132,8 +131,8 @@ class StockTradingServiceTest : FunSpec({
             priceSnapshot = priceSnapshot
         )
 
-        val typeCaptor = argumentCaptor<String>()
-        val assetTypeCaptor = argumentCaptor<String>()
+        val typeCaptor = argumentCaptor<TransactionType>()
+        val assetTypeCaptor = argumentCaptor<TransactionAssetType>()
         val amountCaptor = argumentCaptor<BigDecimal>()
         verify(ledgerApi, times(2)).recordTransaction(
             any(), any(),
@@ -143,17 +142,17 @@ class StockTradingServiceTest : FunSpec({
             any(), anyOrNull(), anyOrNull()
         )
 
-        typeCaptor.firstValue shouldBe "DEBIT"
-        assetTypeCaptor.firstValue shouldBe "CASH"
+        typeCaptor.firstValue shouldBe TransactionType.DEBIT
+        assetTypeCaptor.firstValue shouldBe TransactionAssetType.CASH
         amountCaptor.firstValue shouldBe quantity.multiply(executionPrice)
 
-        typeCaptor.secondValue shouldBe "CREDIT"
-        assetTypeCaptor.secondValue shouldBe "STOCK_BUY"
+        typeCaptor.secondValue shouldBe TransactionType.CREDIT
+        assetTypeCaptor.secondValue shouldBe TransactionAssetType.STOCK_BUY
         amountCaptor.secondValue shouldBe quantity
     }
 
     test("placeOrder_filledHappyPath_emitsOrderFilledEvent") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -181,7 +180,7 @@ class StockTradingServiceTest : FunSpec({
     // ── REJECTED — insufficient funds ────────────────────────────────────────
 
     test("placeOrder_insufficientFunds_returnsRejectedOrder") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -201,7 +200,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_insufficientFunds_doesNotCallLedgerApi") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -220,7 +219,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_insufficientFunds_emitsOrderRejectedEvent") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
@@ -259,7 +258,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_tickerNotSupported_throwsTickerNotFoundException") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(false)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(false)
 
         shouldThrow<TickerNotFoundException> {
             service.placeOrder(
@@ -276,7 +275,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_accountNotFound_throwsOrderAccountNotFoundException") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenThrow(AccountNotFoundException(accountId))
 
         shouldThrow<OrderAccountNotFoundException> {
@@ -295,7 +294,7 @@ class StockTradingServiceTest : FunSpec({
 
     test("placeOrder_accountNotOwned_throwsOrderAccountNotOwnedException") {
         val differentUserId = UUID.randomUUID()
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(
             AccountSummary(
                 id = accountId,
@@ -321,7 +320,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_accountNotActive_throwsOrderAccountNotActiveException") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(
             AccountSummary(
                 id = accountId,
@@ -347,7 +346,7 @@ class StockTradingServiceTest : FunSpec({
     }
 
     test("placeOrder_duplicateIdempotencyKey_throwsDuplicateIdempotencyKeyException") {
-        whenever(marketDataSupportedTickersApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(true)
 

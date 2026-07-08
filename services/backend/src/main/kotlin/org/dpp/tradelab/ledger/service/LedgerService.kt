@@ -3,6 +3,8 @@ package org.dpp.tradelab.ledger.service
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.TransactionAssetType
+import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.ledger.model.AssetType
@@ -43,18 +45,23 @@ class LedgerService(
     override fun recordTransaction(
         accountId: UUID,
         userId: UUID,
-        type: String,
-        assetType: String,
+        type: TransactionType,
+        assetType: TransactionAssetType,
         amount: BigDecimal,
         currency: String,
         ticker: String?,
         description: String?
     ) {
-        val entryType = runCatching { EntryType.valueOf(type) }
-            .getOrElse { throw IllegalArgumentException("Unknown entry type: $type. Must be one of ${EntryType.entries.joinToString()}") }
+        val entryType = when (type) {
+            TransactionType.CREDIT -> EntryType.CREDIT
+            TransactionType.DEBIT -> EntryType.DEBIT
+        }
 
-        val entryAssetType = runCatching { AssetType.valueOf(assetType) }
-            .getOrElse { throw IllegalArgumentException("Unknown asset type: $assetType. Must be one of ${AssetType.entries.joinToString()}") }
+        val entryAssetType = when (assetType) {
+            TransactionAssetType.CASH -> AssetType.CASH
+            TransactionAssetType.STOCK_BUY -> AssetType.STOCK_BUY
+            TransactionAssetType.STOCK_SELL -> AssetType.STOCK_SELL
+        }
 
         val account = accountRepository.findById(accountId)
             .orElseThrow { AccountNotFoundException(accountId) }

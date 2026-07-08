@@ -2,7 +2,6 @@ package org.dpp.tradelab.marketdata.service
 
 import jakarta.annotation.PostConstruct
 import org.dpp.tradelab.marketdata.api.MarketDataApi
-import org.dpp.tradelab.marketdata.api.MarketDataSupportedTickersApi
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
@@ -35,7 +34,7 @@ class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
     private val supportedTickerConfig: SupportedTickerConfig
-) : MarketDataApi, MarketDataSupportedTickersApi {
+) : MarketDataApi {
 
     // ── Internal state ──────────────────────────────────────────────────
 
@@ -129,8 +128,7 @@ class MarketDataFeedService(
         return snapshot.currentPrice
     }
 
-    // ── MarketDataSupportedTickersApi implementation ───────────────────────
-
+    // ── MarketDataApi.isTickerSupported implementation ────────────────────
     override fun isTickerSupported(ticker: String): Boolean =
         supportedTickerConfig.resolve(ticker) != null
 

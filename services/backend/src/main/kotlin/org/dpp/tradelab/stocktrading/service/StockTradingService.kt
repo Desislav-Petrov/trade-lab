@@ -2,8 +2,9 @@ package org.dpp.tradelab.stocktrading.service
 
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.TransactionAssetType
+import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.marketdata.api.MarketDataApi
-import org.dpp.tradelab.marketdata.api.MarketDataSupportedTickersApi
 import org.dpp.tradelab.stocktrading.exception.DuplicateIdempotencyKeyException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotActiveException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotFoundException
@@ -28,7 +29,6 @@ class StockTradingService(
     private val ledgerApi: LedgerApi,
     private val ledgerAccountApi: LedgerAccountApi,
     private val marketDataApi: MarketDataApi,
-    private val marketDataSupportedTickersApi: MarketDataSupportedTickersApi,
     private val eventPublisher: ApplicationEventPublisher
 ) {
 
@@ -49,7 +49,7 @@ class StockTradingService(
         require(orderType == OrderType.MARKET) { "orderType must be MARKET" }
 
         // Step 3: Check ticker is supported
-        if (!marketDataSupportedTickersApi.isTickerSupported(ticker)) {
+        if (!marketDataApi.isTickerSupported(ticker)) {
             throw TickerNotFoundException(ticker)
         }
 
@@ -118,8 +118,8 @@ class StockTradingService(
         ledgerApi.recordTransaction(
             accountId = accountId,
             userId = userId,
-            type = "DEBIT",
-            assetType = "CASH",
+            type = TransactionType.DEBIT,
+            assetType = TransactionAssetType.CASH,
             amount = requiredCash,
             currency = accountSummary.currency,
             ticker = null,
@@ -130,8 +130,8 @@ class StockTradingService(
         ledgerApi.recordTransaction(
             accountId = accountId,
             userId = userId,
-            type = "CREDIT",
-            assetType = "STOCK_BUY",
+            type = TransactionType.CREDIT,
+            assetType = TransactionAssetType.STOCK_BUY,
             amount = quantity,
             currency = accountSummary.currency,
             ticker = ticker,
