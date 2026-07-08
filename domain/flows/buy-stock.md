@@ -68,7 +68,7 @@ The user enters a share quantity and reviews the real-time cost estimate.
 ### Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
+|----------|-----------|--------|
 | Quantity is zero or negative | `quantity` ≤ 0 | Inline field error: "Quantity must be greater than zero." Confirm button disabled. |
 | Quantity is not a number | Non-numeric input | Inline field error: "Please enter a valid number." Confirm button disabled. |
 
@@ -118,7 +118,7 @@ The user submits the buy order. The backend validates, fills, and returns the re
 ### Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
+|----------|-----------|--------|
 | Insufficient funds | `balance` < `quantity × executionPrice` | System returns HTTP 200 with `status: REJECTED`, `rejectionReason: "Insufficient funds"`. Panel shows rejection message with the shortfall. Order is persisted as `REJECTED`. No ledger entries written. |
 | Ticker not in supported list | `ticker` not in config | System returns HTTP 400. Panel shows generic error message. |
 | Account not found | `accountId` does not resolve | System returns HTTP 404. Panel shows generic error message. |
