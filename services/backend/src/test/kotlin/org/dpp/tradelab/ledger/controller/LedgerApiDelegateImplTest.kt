@@ -9,6 +9,7 @@ import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.service.AccountService
+import org.dpp.tradelab.ledger.service.LedgerService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
@@ -31,7 +32,8 @@ import java.util.UUID
 @AutoConfigureMockMvc
 class LedgerApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
-    @MockitoBean val accountService: AccountService
+    @MockitoBean val accountService: AccountService,
+    @MockitoBean val ledgerService: LedgerService,
 ) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
@@ -65,12 +67,12 @@ class LedgerApiDelegateImplTest(
                     )))
             )
                 .andExpect(status().isCreated)
-                .andExpect(jsonPath("$.id").value(accountId.toString()))
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
-                .andExpect(jsonPath("$.name").value("My Account"))
-                .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.balance").value(0))
+                .andExpect(jsonPath("\$.id").value(accountId.toString()))
+                .andExpect(jsonPath("\$.userId").value(userId.toString()))
+                .andExpect(jsonPath("\$.name").value("My Account"))
+                .andExpect(jsonPath("\$.currency").value("USD"))
+                .andExpect(jsonPath("\$.status").value("ACTIVE"))
+                .andExpect(jsonPath("\$.balance").value(0))
         }
 
         test("openAccount_missingUserId_returns400") {
@@ -104,7 +106,7 @@ class LedgerApiDelegateImplTest(
                     )))
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("openAccount_invalidCurrency_returns400") {
@@ -120,7 +122,7 @@ class LedgerApiDelegateImplTest(
                     )))
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("\$.status").value(400))
         }
 
         test("listAccounts_existingUserId_returns200WithAccountList") {
@@ -132,9 +134,9 @@ class LedgerApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.accounts[0].id").value(accountId.toString()))
-                .andExpect(jsonPath("$.accounts[0].userId").value(userId.toString()))
-                .andExpect(jsonPath("$.accounts[0].currency").value("USD"))
+                .andExpect(jsonPath("\$.accounts[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("\$.accounts[0].userId").value(userId.toString()))
+                .andExpect(jsonPath("\$.accounts[0].currency").value("USD"))
         }
 
         test("listAccounts_noAccounts_returns200WithEmptyList") {
@@ -146,8 +148,8 @@ class LedgerApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.accounts").isArray)
-                .andExpect(jsonPath("$.accounts").isEmpty)
+                .andExpect(jsonPath("\$.accounts").isArray)
+                .andExpect(jsonPath("\$.accounts").isEmpty)
         }
 
         test("listAccounts_statusActive_returns200WithActiveAccountsOnly") {
@@ -160,8 +162,8 @@ class LedgerApiDelegateImplTest(
                     .param("status", "ACTIVE")
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.accounts[0].id").value(accountId.toString()))
-                .andExpect(jsonPath("$.accounts[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("\$.accounts[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("\$.accounts[0].status").value("ACTIVE"))
         }
 
         test("listAccounts_statusInvalid_returns400WithErrorResponse") {
@@ -171,7 +173,7 @@ class LedgerApiDelegateImplTest(
                     .param("status", "INVALID")
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("\$.status").value(400))
         }
     }
 }
