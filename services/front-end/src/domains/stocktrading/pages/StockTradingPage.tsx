@@ -1,4 +1,4 @@
-import { useEffect, useState, useDeferredValue } from 'react'
+import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Navigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -43,12 +43,19 @@ export function StockTradingPage() {
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
-  const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
-  const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
+  // Stabilise the tickers array so its reference only changes when
+  // subscriptionsData actually changes (i.e. a subscription is added/removed).
+  // Without useMemo, every WebSocket tick re-render creates a new array
+  // reference, which fires the useEffect([subscribedTickers]) inside
+  // useMarketDataFeed on every tick, calling setRows again and causing a
+  // tight render loop that saturates React's scheduler and makes sidebar
+  // navigation clicks unresponsive (bug #61).
+  const subscribedTickers = useMemo(
+    () => subscriptionsData?.map((s) => s.ticker) ?? [],
+    [subscriptionsData],
+  )
 
-  // Defer feed row updates so rapid WebSocket ticks are treated as non-urgent.
-  // React will yield to user-initiated events (e.g. sidebar navigation clicks)
-  // before committing deferred renders, keeping the UI responsive.
+  const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
   const deferredRows = useDeferredValue(rows)
 
   const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
@@ -172,12 +179,12 @@ export function StockTradingPage() {
       />
 
       <MarketDataGrid
-          rows={deferredRows}
-          feedStatus={feedStatus}
-          onBuy={selectedAccountId
-            ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
-            : undefined}
-        />
+        rows={deferredRows}
+        feedStatus={feedStatus}
+        onBuy={selectedAccountId
+          ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
+          : undefined}
+      />
 
       {buyContext && selectedAccountId && (
         <div
