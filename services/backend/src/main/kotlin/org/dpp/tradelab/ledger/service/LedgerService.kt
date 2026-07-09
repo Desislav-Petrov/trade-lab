@@ -1,5 +1,6 @@
 package org.dpp.tradelab.ledger.service
 
+import org.dpp.tradelab.ledger.api.AccountBalanceResult
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
@@ -102,6 +103,17 @@ class LedgerService(
             currency = account.currency.name,
             balance = account.balance,
             status = account.status.name.lowercase()
+        )
+    }
+
+    @Transactional(readOnly = true)
+    override fun getBalance(accountId: UUID): AccountBalanceResult {
+        val account = accountRepository.findById(accountId)
+            .orElseThrow { AccountNotFoundException(accountId) }
+
+        return AccountBalanceResult(
+            balance = account.balance,
+            currency = account.currency.name
         )
     }
 }
