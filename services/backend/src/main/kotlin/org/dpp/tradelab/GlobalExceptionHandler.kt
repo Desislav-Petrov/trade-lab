@@ -131,4 +131,26 @@ class GlobalExceptionHandler {
     fun handleOrderAccountNotActive(ex: OrderAccountNotActiveException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "Account not active", listOf(ex.message ?: "Account is not active.")))
+
+    // ── Portfolio exceptions ──────────────────────────────────────────────────
+
+    @ExceptionHandler(PortfolioAccountNotFoundException::class)
+    fun handlePortfolioAccountNotFound(ex: PortfolioAccountNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "Account not found", listOf(ex.message ?: "Account not found.")))
+
+    @ExceptionHandler(PortfolioAccountAccessDeniedException::class)
+    fun handlePortfolioAccountAccessDenied(ex: PortfolioAccountAccessDeniedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Account access denied", listOf(ex.message ?: "You do not have access to this account.")))
+
+    @ExceptionHandler(PortfolioPriceUnavailableException::class)
+    fun handlePortfolioPriceUnavailable(ex: PortfolioPriceUnavailableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ErrorResponse(502, "Price data unavailable", listOf(ex.message ?: "Unable to retrieve price data.")))
+
+    @ExceptionHandler(PortfolioBalanceUnavailableException::class)
+    fun handlePortfolioBalanceUnavailable(ex: PortfolioBalanceUnavailableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ErrorResponse(502, "Balance data unavailable", listOf(ex.message ?: "Unable to retrieve balance data.")))
 }
