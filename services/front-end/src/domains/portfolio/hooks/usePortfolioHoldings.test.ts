@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { usePortfolioHoldings } from './usePortfolioHoldings'
@@ -95,17 +95,12 @@ describe('usePortfolioHoldings', () => {
   it('usePortfolioHoldings - accountId switches from null to value - query fires', async () => {
     mockFetchPortfolioHoldings.mockResolvedValue(mockHoldingsResponse)
 
-    let accountId: string | null = null
     const { result, rerender } = renderHook(
       ({ id }: { id: string | null }) => usePortfolioHoldings(id, 'u1'),
-      { wrapper: createWrapper(), initialProps: { id: null } }
+      { wrapper: createWrapper(), initialProps: { id: null as string | null } }
     )
 
     expect(result.current.fetchStatus).toBe('idle')
-
-    act(() => {
-      accountId = 'acc-1'
-    })
 
     rerender({ id: 'acc-1' })
 
