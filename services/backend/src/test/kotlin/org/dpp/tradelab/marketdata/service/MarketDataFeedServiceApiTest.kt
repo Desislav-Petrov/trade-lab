@@ -78,4 +78,54 @@ class MarketDataFeedServiceApiTest : FunSpec({
 
         service.isTickerSupported("UNKNOWN") shouldBe false
     }
+
+    // ── getPrices tests ───────────────────────────────────────────────────────
+
+    test("getPrices_allTickersPresentInCache_returnsCorrectPrices") {
+        val service = buildService()
+        service.snapshotCache["AAPL"] = aaplSnapshot
+        val msftSnapshot = MarketDataSnapshot(
+            ticker = "MSFT",
+            companyName = "Microsoft Corporation",
+            currentPrice = BigDecimal("340.750"),
+            open = BigDecimal("338.000"),
+            dayLow = BigDecimal("337.000"),
+            fiftyTwoWeekHigh = BigDecimal("350.000"),
+            updatedAt = Instant.now()
+        )
+        service.snapshotCache["MSFT"] = msftSnapshot
+
+        val result = service.getPrices(listOf("AAPL", "MSFT"))
+
+        result shouldBe mapOf(
+            "AAPL" to BigDecimal("182.500"),
+            "MSFT" to BigDecimal("340.750")
+        )
+    }
+
+    test("getPrices_someTickersMissingFromCache_onlyPresentTickersReturned") {
+        val service = buildService()
+        service.snapshotCache["AAPL"] = aaplSnapshot
+
+        val result = service.getPrices(listOf("AAPL", "UNKNOWN", "MISSING"))
+
+        result shouldBe mapOf("AAPL" to BigDecimal("182.500"))
+    }
+
+    test("getPrices_emptyTickerList_returnsEmptyMap") {
+        val service = buildService()
+
+        val result = service.getPrices(emptyList())
+
+        result shouldBe emptyMap()
+    }
+
+    test("getPrices_lowercaseTickers_normalizesToUppercase") {
+        val service = buildService()
+        service.snapshotCache["AAPL"] = aaplSnapshot
+
+        val result = service.getPrices(listOf("aapl"))
+
+        result shouldBe mapOf("AAPL" to BigDecimal("182.500"))
+    }
 })
