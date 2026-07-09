@@ -130,7 +130,7 @@ Before starting any task, confirm:
 
 **Depends on:** none
 
-### DB-2 — Create PortfolioProcessedEvent JPA entity (idempotency log)
+### DB-2 — Create ProcessedIdempotencyKey JPA entity
 
 **Layer:** Database
 **Domain:** portfolio
@@ -142,14 +142,18 @@ Before starting any task, confirm:
 - Backend standards entity template
 
 **Outputs:**
-- `org.dpp.tradelab.portfolio.model.PortfolioProcessedEvent` JPA entity class
+- `org.dpp.tradelab.portfolio.model.ProcessedIdempotencyKey` JPA entity class
+
+> **Rationale:** This is a lean idempotency-guard table. It stores only the keys of events the Portfolio domain has already processed — no event payload data. Before any position update the service checks this table; if the key is present the event is discarded; if absent the key is inserted and the position update proceeds, both within the same transaction. This is intentionally minimal: the only columns are `id` (surrogate PK) and `idempotencyKey` (the deduplification key itself) and `processedAt` (for operational visibility). No event data is stored here.
 
 **Acceptance criteria:**
-- [ ] `PortfolioProcessedEvent` is annotated `@Entity`, plain `class`, implements `Persistable<UUID>`
+- [ ] `ProcessedIdempotencyKey` is annotated `@Entity`, plain `class`, implements `Persistable<UUID>`
 - [ ] Fields: `id: UUID`, `idempotencyKey: UUID` (unique constraint), `processedAt: Instant`
 - [ ] `@Column(nullable=false, unique=true)` on `idempotencyKey`
+- [ ] `@Column(nullable=false, updatable=false)` on `processedAt`
 - [ ] `equals` and `hashCode` based on `id` only; `toString` implemented
 - [ ] `_isNew` flag and `isNew()` per backend standards
+- [ ] No event payload fields on this entity — it records only the key, nothing else
 
 **Depends on:** none
 
@@ -170,31 +174,33 @@ Before starting any task, confirm:
 - `org.dpp.tradelab.portfolio.repository.PositionRepository` Spring Data JPA interface
 
 **Acceptance criteria:**
+- [ ] Annotated `@Repository`
 - [ ] Extends `JpaRepository<Position, UUID>`
 - [ ] Custom method: `findByUserIdAndAccountIdAndTicker(userId: UUID, accountId: UUID, ticker: String): Optional<Position>`
-- [ ] Custom method: `findAllByAccountIdAndQuantityGreaterThan(accountId: UUID, minQuantity: BigDecimal): List<Position>`
+- [ ] Custom method: `findAllByAccountIdAndQuantityGreaterThan(accountId: UUID, minQuantity: BigDecimal): List<Position>` — used by `SVC-2` to retrieve only active holdings (`quantity > 0`), correctly excluding any zero-quantity rows retained for audit after a future full sell-out
 - [ ] No business logic in the interface
 - [ ] Repository test for both custom query methods using embedded H2
 
 **Depends on:** DB-1
 
-### REPO-2 — Create PortfolioProcessedEventRepository
+### REPO-2 — Create ProcessedIdempotencyKeyRepository
 
 **Layer:** Repository
 **Domain:** portfolio
 **Use case:** view-portfolio
 **Implements:** aggregate-stock-position flow A steps 3, 4
 **Inputs:**
-- `PortfolioProcessedEvent` entity (DB-2)
+- `ProcessedIdempotencyKey` entity (DB-2)
 
 **Outputs:**
-- `org.dpp.tradelab.portfolio.repository.PortfolioProcessedEventRepository` Spring Data JPA interface
+- `org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository` Spring Data JPA interface
 
 **Acceptance criteria:**
-- [ ] Extends `JpaRepository<PortfolioProcessedEvent, UUID>`
+- [ ] Annotated `@Repository`
+- [ ] Extends `JpaRepository<ProcessedIdempotencyKey, UUID>`
 - [ ] Custom method: `existsByIdempotencyKey(idempotencyKey: UUID): Boolean`
 - [ ] No business logic in the interface
-- [ ] Repository test: `existsByIdempotencyKey` returns true when key is present, false when absent
+- [ ] Repository test: `existsByIdempotencyKey` returns `true` when key is present, `false` when absent
 
 **Depends on:** DB-2
 
@@ -241,15 +247,15 @@ Before starting any task, confirm:
 **Inputs:**
 - `OrderFilledEvent` (extended: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `executionPrice`, `idempotencyKey`, `side`, `timestamp`) — EVT-1
 - `PositionRepository` (REPO-1)
-- `PortfolioProcessedEventRepository` (REPO-2)
+- `ProcessedIdempotencyKeyRepository` (REPO-2)
 
 **Outputs:**
 - `org.dpp.tradelab.portfolio.service.PortfolioPositionService` with method `handleOrderFilled(event: OrderFilledEvent)`
 
 **Acceptance criteria:**
 - [ ] Method is `@Transactional`
-- [ ] Checks `existsByIdempotencyKey(event.idempotencyKey)` — if true, returns immediately (no-op, no writes)
-- [ ] Inserts a new `PortfolioProcessedEvent` row within the same transaction as the position update
+- [ ] Checks `existsByIdempotencyKey(event.idempotencyKey)` — if `true`, returns immediately (no-op, no writes)
+- [ ] Inserts a new `ProcessedIdempotencyKey` row (with `idempotencyKey` and `processedAt = Instant.now()`) within the same transaction as the position update
 - [ ] Queries for existing `Position` by `userId + accountId + ticker`
 - [ ] New position (no row exists): creates `Position` with `quantity = event.quantity`, `totalCost = event.quantity × event.executionPrice`, `avgPrice = event.executionPrice`, `minPrice = event.executionPrice`, `maxPrice = event.executionPrice`, `lastUpdated = event.timestamp`; `id` pre-assigned via `UUID.randomUUID()`
 - [ ] Existing position: increments `quantity`; increments `totalCost`; recalculates `avgPrice = totalCost / quantity`; updates `minPrice = min(minPrice, executionPrice)`; updates `maxPrice = max(maxPrice, executionPrice)`; sets `lastUpdated`
@@ -257,7 +263,7 @@ Before starting any task, confirm:
 - [ ] Unit test: duplicate `idempotencyKey` — no position write, returns immediately
 - [ ] Unit test: new position (BUY, no existing row) — position created with all fields correct
 - [ ] Unit test: existing position (BUY, row exists) — quantity, totalCost, avgPrice, minPrice, maxPrice all updated correctly
-- [ ] Unit test: transaction rollback — if position save fails, processed-event insert also rolls back
+- [ ] Unit test: transaction rollback — if position save fails, `ProcessedIdempotencyKey` insert also rolls back
 
 **Depends on:** DB-1, DB-2, REPO-1, REPO-2, EVT-1
 
@@ -280,7 +286,7 @@ Before starting any task, confirm:
 **Acceptance criteria:**
 - [ ] Method is `@Transactional(readOnly = true)`
 - [ ] Validates account ownership using `LedgerApi.getBalance` — throws `PortfolioAccountNotFoundException` if account not found; throws `PortfolioAccountAccessDeniedException` if `userId` does not match
-- [ ] Queries positions with `quantity > 0` for the account
+- [ ] Queries positions with `quantity > 0` for the account via `PositionRepository.findAllByAccountIdAndQuantityGreaterThan`
 - [ ] If positions are non-empty, calls `MarketDataApi.getPrices(tickers)` — wraps any exception in `PortfolioPriceUnavailableException`
 - [ ] Calls `LedgerApi.getBalance(accountId)` — wraps any exception in `PortfolioBalanceUnavailableException`
 - [ ] Computes `currentValue = quantity × currentPrice` per stock; `totalValue = sum(currentValue) + cash balance`; `portfolioPercent = currentValue / totalValue × 100` (returns `null` when `totalValue = 0`); `unrealisedPnL = (currentPrice − avgPrice) × quantity`
@@ -597,9 +603,9 @@ Before starting any task, confirm:
 | API-LEDGER-1 | Add getBalance to LedgerApi | none |
 | API-MARKETDATA-1 | Add getPrices to MarketDataApi | none |
 | DB-1 | Create Position JPA entity | none |
-| DB-2 | Create PortfolioProcessedEvent JPA entity | none |
+| DB-2 | Create ProcessedIdempotencyKey JPA entity | none |
 | REPO-1 | Create PositionRepository | DB-1 |
-| REPO-2 | Create PortfolioProcessedEventRepository | DB-2 |
+| REPO-2 | Create ProcessedIdempotencyKeyRepository | DB-2 |
 | EXCEPTION-1 | Create Portfolio domain exceptions | none |
 | SVC-1 | PortfolioPositionService: handleOrderFilled | DB-1, DB-2, REPO-1, REPO-2, EVT-1 |
 | SVC-2 | PortfolioQueryService: getHoldings | REPO-1, EXCEPTION-1, API-LEDGER-1, API-MARKETDATA-1 |
