@@ -27,6 +27,11 @@ export function Sidebar() {
           </NavLink>
         )}
         {user && (
+          <NavLink to="/portfolio" className={navLinkClass}>
+            Portfolio
+          </NavLink>
+        )}
+        {user && (
           <NavLink to="/trade" className={navLinkClass}>
             Stock Trading
           </NavLink>
