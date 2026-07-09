@@ -21,4 +21,13 @@ interface LedgerApi {
         ticker: String?,
         description: String?
     )
+
+    /**
+     * Get the balance and currency for a specific account.
+     *
+     * @param accountId The unique identifier of the account
+     * @return AccountBalanceResult containing balance and currency
+     * @throws AccountNotFoundException if the account does not exist
+     */
+    fun getBalance(accountId: UUID): AccountBalanceResult
 }
