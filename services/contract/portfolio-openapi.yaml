@@ -1,0 +1,176 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API — Portfolio
+  version: 1.0.0
+  description: Portfolio holdings endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Portfolio
+    description: Portfolio holdings
+
+paths:
+
+  /portfolio/holdings:
+    get:
+      tags:
+        - Portfolio
+      summary: Get portfolio holdings for an account
+      operationId: getHoldings
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Portfolio holdings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioHoldingsResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied — account does not belong to requesting user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 403
+                error: Access denied
+                details:
+                  - "Account does not belong to the requesting user"
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: Account not found
+                details:
+                  - "Account not found: 550e8400-e29b-41d4-a716-446655440000"
+        '502':
+          description: Upstream data unavailable — price or balance data could not be fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 502
+                error: Price data unavailable
+                details:
+                  - "Could not load portfolio. Price data unavailable."
+
+components:
+  schemas:
+
+    PortfolioHoldingsResponse:
+      type: object
+      required:
+        - holdings
+        - cash
+      properties:
+        holdings:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockHolding'
+        cash:
+          $ref: '#/components/schemas/CashHolding'
+
+    StockHolding:
+      type: object
+      required:
+        - ticker
+        - quantity
+        - currentPrice
+        - currentValue
+        - minPrice
+        - maxPrice
+        - avgPrice
+        - unrealisedPnL
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        quantity:
+          type: number
+          example: 10.0
+        currentPrice:
+          type: number
+          example: 182.50
+        currentValue:
+          type: number
+          example: 1825.00
+        minPrice:
+          type: number
+          example: 150.00
+        maxPrice:
+          type: number
+          example: 200.00
+        avgPrice:
+          type: number
+          example: 160.00
+        portfolioPercent:
+          type: number
+          nullable: true
+          example: 45.25
+        unrealisedPnL:
+          type: number
+          example: 225.00
+
+    CashHolding:
+      type: object
+      required:
+        - balance
+        - currency
+      properties:
+        balance:
+          type: number
+          example: 5000.00
+        currency:
+          type: string
+          example: USD
+        portfolioPercent:
+          type: number
+          nullable: true
+          example: 54.75
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "accountId is required"

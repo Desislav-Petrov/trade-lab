@@ -96,6 +96,22 @@ val generateStocktradingApi = tasks.register<GenerateTask>("generateStocktrading
     ))
 }
 
+val generatePortfolioApi = tasks.register<GenerateTask>("generatePortfolioApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/portfolio-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/portfolio")
+    apiPackage.set("org.dpp.tradelab.portfolio.generated.api")
+    modelPackage.set("org.dpp.tradelab.portfolio.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 // Wire generated sources into the compile classpath
 // Exclude the org.openapitools scaffolding that the generator always emits
 sourceSets {
@@ -105,13 +121,14 @@ sourceSets {
             srcDir("${layout.buildDirectory.get()}/generated/ledger/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/stocktrading/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/portfolio/src/main/kotlin")
             exclude("org/openapitools/**")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi)
+    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────────────
