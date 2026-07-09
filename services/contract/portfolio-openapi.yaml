@@ -1,0 +1,192 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API — Portfolio
+  version: 1.0.0
+  description: Portfolio holdings and position tracking endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Portfolio
+    description: Portfolio holdings and position tracking
+
+paths:
+
+  /portfolio/holdings:
+    get:
+      tags:
+        - Portfolio
+      summary: Get portfolio holdings for an account
+      operationId: getHoldings
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The account ID to retrieve holdings for
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The user ID who owns the account
+      responses:
+        '200':
+          description: Portfolio holdings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioHoldingsResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not owned by the requesting user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 403
+                error: Access denied
+                details:
+                  - "Account does not belong to the specified user"
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: Account not found
+                details:
+                  - "No account found with the specified accountId"
+        '502':
+          description: Upstream service unavailable — price data or balance data unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 502
+                error: Upstream service unavailable
+                details:
+                  - "Price data unavailable"
+
+components:
+  schemas:
+
+    PortfolioHoldingsResponse:
+      type: object
+      required:
+        - holdings
+        - cash
+      properties:
+        holdings:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockHolding'
+          description: List of stock holdings in the portfolio
+        cash:
+          $ref: '#/components/schemas/CashHolding'
+
+    StockHolding:
+      type: object
+      required:
+        - ticker
+        - quantity
+        - currentPrice
+        - currentValue
+        - minPrice
+        - maxPrice
+        - avgPrice
+        - unrealisedPnL
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+          description: Stock ticker symbol
+        quantity:
+          type: number
+          example: 10.5
+          description: Number of shares held
+        currentPrice:
+          type: number
+          example: 182.50
+          description: Current market price per share
+        currentValue:
+          type: number
+          example: 1916.25
+          description: Current total value of the holding (quantity × currentPrice)
+        minPrice:
+          type: number
+          example: 175.00
+          description: Minimum price paid per share across all purchases
+        maxPrice:
+          type: number
+          example: 185.00
+          description: Maximum price paid per share across all purchases
+        avgPrice:
+          type: number
+          example: 180.00
+          description: Average price paid per share
+        portfolioPercent:
+          type: number
+          nullable: true
+          example: 15.5
+          description: Percentage of total portfolio value (null when total value is zero)
+        unrealisedPnL:
+          type: number
+          example: 26.25
+          description: Unrealised profit/loss ((currentPrice − avgPrice) × quantity)
+
+    CashHolding:
+      type: object
+      required:
+        - balance
+        - currency
+      properties:
+        balance:
+          type: number
+          example: 5000.00
+          description: Cash balance in the account
+        currency:
+          type: string
+          enum: [USD, GBP, EUR]
+          example: USD
+          description: Account base currency
+        portfolioPercent:
+          type: number
+          nullable: true
+          example: 84.5
+          description: Percentage of total portfolio value (null when total value is zero)
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "accountId is required"
