@@ -42,6 +42,7 @@ services/front-end/
       ledger/         # same structure
       marketdata/     # same structure
       stocktrading/   # same structure
+      portfolio/      # same structure 
     shared/
       api/            # Axios instance, base config, interceptors
       components/     # Shared UI components

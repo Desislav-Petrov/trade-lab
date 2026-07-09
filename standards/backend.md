@@ -37,6 +37,7 @@ src/
         ledger/         # same structure
         marketdata/     # same structure
         stocktrading/   # same structure
+        portfolio/      # same structure
         config/                     # Global Spring configuration
         GlobalExceptionHandler.kt   # Root level — handles all domains
         TradingLabApplication.kt
@@ -49,6 +50,7 @@ src/
         ledger/
         marketdata/
         stocktrading/
+        portfolio/
 ```
 
 One production class per file. One test class per production class.
