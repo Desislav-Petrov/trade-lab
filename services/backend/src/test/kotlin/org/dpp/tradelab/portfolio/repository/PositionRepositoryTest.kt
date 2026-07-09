@@ -27,7 +27,7 @@ class PositionRepositoryTest(
         ticker: String,
         quantity: BigDecimal = BigDecimal("10.0000")
     ) = Position(
-        id = UUID.randomUUID(),
+        positionId = UUID.randomUUID(),
         userId = userId,
         accountId = accountId,
         ticker = ticker,

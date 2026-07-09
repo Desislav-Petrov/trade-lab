@@ -25,8 +25,8 @@ import java.util.UUID
 )
 class Position(
     @Id
-    @Column(nullable = false, updatable = false)
-    val id: UUID,
+    @Column(name = "id", nullable = false, updatable = false)
+    val positionId: UUID,
 
     @Column(name = "user_id", nullable = false, updatable = false)
     val userId: UUID,
@@ -63,20 +63,20 @@ class Position(
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
 
-    override fun getId(): UUID = id
+    override fun getId(): UUID = positionId
 
     override fun isNew(): Boolean = _isNew
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Position) return false
-        return id == other.id
+        return positionId == other.positionId
     }
 
-    override fun hashCode(): Int = id.hashCode()
+    override fun hashCode(): Int = positionId.hashCode()
 
     override fun toString(): String =
-        "Position(id=$id, userId=$userId, accountId=$accountId, ticker=$ticker, " +
+        "Position(positionId=$positionId, userId=$userId, accountId=$accountId, ticker=$ticker, " +
             "assetType=$assetType, quantity=$quantity, totalCost=$totalCost, " +
             "avgPrice=$avgPrice, minPrice=$minPrice, maxPrice=$maxPrice, lastUpdated=$lastUpdated)"
 }

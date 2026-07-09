@@ -103,7 +103,7 @@ class PortfolioPositionServiceTest : FunSpec({
         val existingMax = BigDecimal("145.0000")
 
         val existingPosition = Position(
-            id = UUID.randomUUID(),
+            positionId = UUID.randomUUID(),
             userId = userId,
             accountId = accountId,
             ticker = ticker,
@@ -140,7 +140,7 @@ class PortfolioPositionServiceTest : FunSpec({
 
     test("handleOrderFilled_existingPosition_updatesMinPriceWhenNewPriceIsLower") {
         val existingPosition = Position(
-            id = UUID.randomUUID(),
+            positionId = UUID.randomUUID(),
             userId = userId,
             accountId = accountId,
             ticker = ticker,

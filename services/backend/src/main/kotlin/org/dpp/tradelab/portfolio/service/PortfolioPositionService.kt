@@ -26,7 +26,7 @@ class PortfolioPositionService(
 
         // Step 2: Record idempotency key in same transaction
         val idempotencyRecord = ProcessedIdempotencyKey(
-            id = UUID.randomUUID(),
+            keyId = UUID.randomUUID(),
             idempotencyKey = event.idempotencyKey,
             processedAt = Instant.now()
         )
@@ -51,7 +51,7 @@ class PortfolioPositionService(
             // Step 4b: Create new position
             val fillCost = event.quantity.multiply(event.executionPrice)
             val newPosition = Position(
-                id = UUID.randomUUID(),
+                positionId = UUID.randomUUID(),
                 userId = event.userId,
                 accountId = event.accountId,
                 ticker = event.ticker,

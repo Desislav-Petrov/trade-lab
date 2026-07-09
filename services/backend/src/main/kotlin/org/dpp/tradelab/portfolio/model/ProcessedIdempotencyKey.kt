@@ -13,8 +13,8 @@ import java.util.UUID
 @Table(name = "portfolio_processed_events")
 class ProcessedIdempotencyKey(
     @Id
-    @Column(nullable = false, updatable = false)
-    val id: UUID,
+    @Column(name = "id", nullable = false, updatable = false)
+    val keyId: UUID,
 
     @Column(nullable = false, unique = true, updatable = false)
     val idempotencyKey: UUID,
@@ -26,18 +26,18 @@ class ProcessedIdempotencyKey(
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
 
-    override fun getId(): UUID = id
+    override fun getId(): UUID = keyId
 
     override fun isNew(): Boolean = _isNew
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ProcessedIdempotencyKey) return false
-        return id == other.id
+        return keyId == other.keyId
     }
 
-    override fun hashCode(): Int = id.hashCode()
+    override fun hashCode(): Int = keyId.hashCode()
 
     override fun toString(): String =
-        "ProcessedIdempotencyKey(id=$id, idempotencyKey=$idempotencyKey, processedAt=$processedAt)"
+        "ProcessedIdempotencyKey(keyId=$keyId, idempotencyKey=$idempotencyKey, processedAt=$processedAt)"
 }

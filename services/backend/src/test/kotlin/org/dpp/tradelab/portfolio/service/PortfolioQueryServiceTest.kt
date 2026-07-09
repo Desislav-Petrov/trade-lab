@@ -47,7 +47,7 @@ class PortfolioQueryServiceTest : FunSpec({
     )
 
     fun buildPosition(ticker: String, quantity: BigDecimal, avgPrice: BigDecimal) = Position(
-        id = UUID.randomUUID(),
+        positionId = UUID.randomUUID(),
         userId = userId,
         accountId = accountId,
         ticker = ticker,

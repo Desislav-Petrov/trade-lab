@@ -22,7 +22,7 @@ class ProcessedIdempotencyKeyRepositoryTest(
         it("existsByIdempotencyKey_keyIsPresent_returnsTrue") {
             val idempotencyKey = UUID.randomUUID()
             val record = ProcessedIdempotencyKey(
-                id = UUID.randomUUID(),
+                keyId = UUID.randomUUID(),
                 idempotencyKey = idempotencyKey,
                 processedAt = Instant.now()
             )
@@ -46,7 +46,7 @@ class ProcessedIdempotencyKeyRepositoryTest(
             val queriedKey = UUID.randomUUID()
 
             val record = ProcessedIdempotencyKey(
-                id = UUID.randomUUID(),
+                keyId = UUID.randomUUID(),
                 idempotencyKey = storedKey,
                 processedAt = Instant.now()
             )
