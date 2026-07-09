@@ -18,6 +18,7 @@ import org.dpp.tradelab.stocktrading.exception.OrderAccountNotOwnedException
 import org.dpp.tradelab.stocktrading.exception.TickerNotFoundException
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
 import org.dpp.tradelab.stocktrading.messaging.OrderRejectedEvent
+import org.dpp.tradelab.stocktrading.messaging.OrderSide
 import org.dpp.tradelab.stocktrading.model.OrderStatus
 import org.dpp.tradelab.stocktrading.model.OrderType
 import org.dpp.tradelab.stocktrading.repository.OrderRepository
@@ -175,6 +176,8 @@ class StockTradingServiceTest : FunSpec({
         captor.firstValue.ticker shouldBe ticker
         captor.firstValue.quantity shouldBe quantity
         captor.firstValue.executionPrice shouldBe executionPrice
+        captor.firstValue.idempotencyKey shouldBe idempotencyKey
+        captor.firstValue.side shouldBe OrderSide.BUY
     }
 
     // ── REJECTED — insufficient funds ────────────────────────────────────────
