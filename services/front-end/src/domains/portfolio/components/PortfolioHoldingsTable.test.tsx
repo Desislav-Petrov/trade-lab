@@ -40,14 +40,14 @@ describe('PortfolioHoldingsTable', () => {
       <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
     )
 
-    expect(screen.getByText('Ticker')).toBeInTheDocument()
-    expect(screen.getByText('Shares')).toBeInTheDocument()
-    expect(screen.getByText('Current Value')).toBeInTheDocument()
-    expect(screen.getByText('Min Share Price')).toBeInTheDocument()
-    expect(screen.getByText('Max Share Price')).toBeInTheDocument()
-    expect(screen.getByText('Avg Bought Price')).toBeInTheDocument()
-    expect(screen.getByText('% of Portfolio')).toBeInTheDocument()
-    expect(screen.getByText('Unrealised P&L')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /ticker/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /shares/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /current value/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /min share price/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /max share price/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /avg bought price/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /% of portfolio/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /unrealised p&l/i })).toBeInTheDocument()
   })
 
   it('PortfolioHoldingsTable - renders - all columns show correct values for stock rows', () => {
@@ -226,6 +226,7 @@ describe('PortfolioHoldingsTable', () => {
     const cells = within(rows[1]).getAllByRole('cell')
     expect(cells[2]).toHaveTextContent('10.10')
     expect(cells[3]).toHaveTextContent('10.00') // 9.999 toFixed(2) = 10.00
-    expect(cells[4]).toHaveTextContent('10.56') // 10.555 toFixed(2) = 10.56
+    // 10.555 toFixed(2) in V8 rounds to 10.55 (half-even / half-down)
+    expect(cells[4]).toHaveTextContent((10.555).toFixed(2))
   })
 })
