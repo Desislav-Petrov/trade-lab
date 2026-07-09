@@ -1,0 +1,170 @@
+openapi: 3.0.3
+
+info:
+  title: "Trade Lab API — Portfolio"
+  version: 1.0.0
+  description: Portfolio holdings and position endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Portfolio
+    description: Portfolio position retrieval
+
+paths:
+
+  /portfolio/{userId}/positions:
+    get:
+      tags:
+        - Portfolio
+      summary: Retrieve all positions for a user, priced at current market value
+      operationId: getPositions
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user whose portfolio is being retrieved
+      responses:
+        '200':
+          description: Portfolio positions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — requesting user does not match userId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    PortfolioResponse:
+      type: object
+      required:
+        - userId
+        - totalValue
+        - positions
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        totalValue:
+          type: number
+          description: Total portfolio value in the account's base currency (cash + all stock positions at current price)
+          example: 15230.50
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PositionResponse'
+
+    PositionResponse:
+      type: object
+      required:
+        - tickerId
+        - assetType
+        - quantity
+        - totalCost
+        - avgPrice
+        - minPrice
+        - maxPrice
+        - currentValue
+        - portfolioPercent
+        - unrealisedPnl
+        - lastUpdated
+      properties:
+        tickerId:
+          type: string
+          description: Ticker symbol for stocks (e.g. AAPL) or currency code for cash (e.g. USD)
+          example: AAPL
+        assetType:
+          type: string
+          enum: [STOCK, CASH]
+          example: STOCK
+        quantity:
+          type: number
+          description: Number of shares held (STOCK) or cash amount (CASH)
+          example: 10.5
+        totalCost:
+          type: number
+          description: Sum of all buy costs for this position (STOCK only; equals quantity for CASH)
+          example: 1850.25
+        avgPrice:
+          type: number
+          description: Average purchase price per share — totalCost / quantity (STOCK only)
+          example: 176.214
+        minPrice:
+          type: number
+          description: Minimum price paid per share across all buys (STOCK only)
+          example: 170.000
+        maxPrice:
+          type: number
+          description: Maximum price paid per share across all buys (STOCK only)
+          example: 182.500
+        currentPrice:
+          type: number
+          nullable: true
+          description: Latest market price per share (STOCK only; null for CASH)
+          example: 195.000
+        currentValue:
+          type: number
+          description: Current market value — currentPrice * quantity for STOCK, or quantity for CASH
+          example: 2047.50
+        portfolioPercent:
+          type: number
+          description: Percentage of total portfolio value this position represents
+          example: 13.44
+        unrealisedPnl:
+          type: number
+          description: Unrealised profit/loss — (currentPrice - avgPrice) * quantity for STOCK; 0 for CASH
+          example: 197.25
+        lastUpdated:
+          type: string
+          format: date-time
+          example: "2026-07-09T10:30:00Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "userId must be a valid UUID"

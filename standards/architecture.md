@@ -23,6 +23,7 @@ vertical may depend on them.
 | User        | User identity, registration, login, and lifecycle               |
 | Ledger      | Account holdings — money, stocks, and any other assets          |
 | Market Data | Sourcing and serving market data per product type               |
+| Portfolio   | Manages the asset holdings for a given user                     |
 
 ### Verticals
 
@@ -59,6 +60,7 @@ org/dpp/tradelab/
   ledger/         # same structure
   marketdata/     # same structure
   stocktrading/   # same structure
+  portfolio/      # same structure 
   config/                     # Global Spring configuration
   GlobalExceptionHandler.kt   # Root level — handles all domains consistently
   TradingLabApplication.kt
@@ -144,6 +146,7 @@ services/front-end/
       ledger/         # Account balances, holdings
       marketdata/     # Price feeds, instrument search
       stocktrading/   # Order placement, portfolio view
+      portfolio/      # Portoflio management
     shared/           # Shared components, API client, utilities
     app/              # Root configuration, routing, layout
 ```
