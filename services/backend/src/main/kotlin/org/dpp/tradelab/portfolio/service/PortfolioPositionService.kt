@@ -46,7 +46,7 @@ class PortfolioPositionService(
             position.minPrice = position.minPrice.min(event.executionPrice)
             position.maxPrice = position.maxPrice.max(event.executionPrice)
             position.lastUpdated = event.timestamp
-            positionRepository.save(position)
+            // entity is already managed — dirty changes are flushed automatically on transaction commit
         } else {
             // Step 4b: Create new position
             val fillCost = event.quantity.multiply(event.executionPrice)
