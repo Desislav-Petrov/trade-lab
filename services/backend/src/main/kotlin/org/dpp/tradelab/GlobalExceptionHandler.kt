@@ -15,6 +15,10 @@ import org.dpp.tradelab.stocktrading.exception.OrderAccountNotActiveException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotFoundException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotOwnedException
 import org.dpp.tradelab.stocktrading.exception.TickerNotFoundException
+import org.dpp.tradelab.portfolio.exception.PortfolioAccountAccessDeniedException
+import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
+import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
+import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
@@ -131,4 +135,26 @@ class GlobalExceptionHandler {
     fun handleOrderAccountNotActive(ex: OrderAccountNotActiveException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "Account not active", listOf(ex.message ?: "Account is not active.")))
+
+    // ── Portfolio exceptions ──────────────────────────────────────────────────
+
+    @ExceptionHandler(PortfolioAccountNotFoundException::class)
+    fun handlePortfolioAccountNotFound(ex: PortfolioAccountNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "Account not found", listOf(ex.message ?: "Account not found.")))
+
+    @ExceptionHandler(PortfolioAccountAccessDeniedException::class)
+    fun handlePortfolioAccountAccessDenied(ex: PortfolioAccountAccessDeniedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, "Access denied", listOf(ex.message ?: "Access to this account is denied.")))
+
+    @ExceptionHandler(PortfolioPriceUnavailableException::class)
+    fun handlePortfolioPriceUnavailable(ex: PortfolioPriceUnavailableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ErrorResponse(502, "Price data unavailable", listOf(ex.message ?: "Could not load portfolio. Price data unavailable.")))
+
+    @ExceptionHandler(PortfolioBalanceUnavailableException::class)
+    fun handlePortfolioBalanceUnavailable(ex: PortfolioBalanceUnavailableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ErrorResponse(502, "Balance data unavailable", listOf(ex.message ?: "Could not load portfolio. Balance data unavailable.")))
 }

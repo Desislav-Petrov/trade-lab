@@ -132,6 +132,17 @@ class MarketDataFeedService(
     override fun isTickerSupported(ticker: String): Boolean =
         supportedTickerConfig.resolve(ticker) != null
 
+    // ── MarketDataApi.getPrices implementation ────────────────────────────────
+    override fun getPrices(tickers: List<String>): Map<String, BigDecimal> {
+        if (tickers.isEmpty()) {
+            return emptyMap()
+        }
+        return tickers.mapNotNull { ticker ->
+            val snapshot = snapshotCache[ticker.uppercase()]
+            snapshot?.let { ticker.uppercase() to it.currentPrice }
+        }.toMap()
+    }
+
     // ── WebSocket message senders ──────────────────────────────────────────────
 
     fun sendTick(session: WebSocketSession, snapshot: MarketDataSnapshot) {

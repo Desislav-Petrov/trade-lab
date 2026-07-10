@@ -12,6 +12,7 @@ import org.dpp.tradelab.stocktrading.exception.OrderAccountNotOwnedException
 import org.dpp.tradelab.stocktrading.exception.TickerNotFoundException
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
 import org.dpp.tradelab.stocktrading.messaging.OrderRejectedEvent
+import org.dpp.tradelab.stocktrading.messaging.OrderType as OrderSideType
 import org.dpp.tradelab.stocktrading.model.Order
 import org.dpp.tradelab.stocktrading.model.OrderStatus
 import org.dpp.tradelab.stocktrading.model.OrderType
@@ -151,6 +152,8 @@ class StockTradingService(
                 ticker = ticker,
                 quantity = quantity,
                 executionPrice = executionPrice,
+                idempotencyKey = order.idempotencyKey,
+                side = OrderSideType.BUY,
                 timestamp = Instant.now()
             )
         )
