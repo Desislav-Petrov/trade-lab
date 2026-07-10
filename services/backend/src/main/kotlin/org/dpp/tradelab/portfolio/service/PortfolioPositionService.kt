@@ -7,6 +7,7 @@ import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
@@ -17,7 +18,7 @@ class PortfolioPositionService(
     private val processedIdempotencyKeyRepository: ProcessedIdempotencyKeyRepository
 ) {
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun handleOrderFilled(event: OrderFilledEvent) {
         // Step 1: Check idempotency — if already processed, discard silently
         if (processedIdempotencyKeyRepository.existsByIdempotencyKey(event.idempotencyKey)) {
