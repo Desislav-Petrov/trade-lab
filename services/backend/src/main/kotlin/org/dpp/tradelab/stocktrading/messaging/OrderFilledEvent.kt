@@ -12,6 +12,6 @@ data class OrderFilledEvent(
     val quantity: BigDecimal,
     val executionPrice: BigDecimal,
     val idempotencyKey: UUID,
-    val side: OrderSide,
+    val side: OrderType,
     val timestamp: Instant
 )

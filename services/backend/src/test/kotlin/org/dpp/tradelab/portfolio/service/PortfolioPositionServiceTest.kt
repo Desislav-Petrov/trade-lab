@@ -7,7 +7,7 @@ import org.dpp.tradelab.portfolio.model.Position
 import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
-import org.dpp.tradelab.stocktrading.messaging.OrderSide
+import org.dpp.tradelab.stocktrading.messaging.OrderType
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
@@ -46,7 +46,7 @@ class PortfolioPositionServiceTest : FunSpec({
         quantity = qty,
         executionPrice = price,
         idempotencyKey = ik,
-        side = OrderSide.BUY,
+        side = OrderType.BUY,
         timestamp = timestamp
     )
 

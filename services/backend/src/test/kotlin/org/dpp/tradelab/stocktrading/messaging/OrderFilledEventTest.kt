@@ -26,7 +26,7 @@ class OrderFilledEventTest : FunSpec({
             quantity = quantity,
             executionPrice = executionPrice,
             idempotencyKey = idempotencyKey,
-            side = OrderSide.BUY,
+            side = OrderType.BUY,
             timestamp = timestamp
         )
 
@@ -37,7 +37,7 @@ class OrderFilledEventTest : FunSpec({
         event.quantity shouldBe quantity
         event.executionPrice shouldBe executionPrice
         event.idempotencyKey shouldBe idempotencyKey
-        event.side shouldBe OrderSide.BUY
+        event.side shouldBe OrderType.BUY
         event.timestamp shouldBe timestamp
     }
 
@@ -50,10 +50,10 @@ class OrderFilledEventTest : FunSpec({
             quantity = BigDecimal("1.0000"),
             executionPrice = BigDecimal("300.0000"),
             idempotencyKey = UUID.randomUUID(),
-            side = OrderSide.SELL,
+            side = OrderType.SELL,
             timestamp = Instant.now()
         )
 
-        event.side shouldBe OrderSide.SELL
+        event.side shouldBe OrderType.SELL
     }
 })

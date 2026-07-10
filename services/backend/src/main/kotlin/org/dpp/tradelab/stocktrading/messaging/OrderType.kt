@@ -1,6 +1,6 @@
 package org.dpp.tradelab.stocktrading.messaging
 
-enum class OrderSide {
+enum class OrderType {
     BUY,
     SELL
 }
