@@ -6,6 +6,7 @@ import { ProfilePage } from '../domains/user/pages/ProfilePage'
 import { AccountsPage } from '../domains/ledger/pages/AccountsPage'
 import { TransactionListPage } from '../domains/ledger/pages/TransactionListPage'
 import { StockTradingPage } from '../domains/stocktrading/pages/StockTradingPage'
+import { PortfolioPage } from '../domains/portfolio/pages/PortfolioPage'
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: '/accounts', element: <AccountsPage /> },
       { path: '/accounts/:accountId/transactions', element: <TransactionListPage /> },
       { path: '/trade', element: <StockTradingPage /> },
+      { path: '/portfolio', element: <PortfolioPage /> },
     ],
   },
 ])
