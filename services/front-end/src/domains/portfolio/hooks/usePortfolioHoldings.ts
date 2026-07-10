@@ -7,5 +7,6 @@ export function usePortfolioHoldings(accountId: string | null, userId: string) {
     queryKey: [PORTFOLIO_HOLDINGS_KEY, accountId, userId],
     queryFn: () => fetchPortfolioHoldings(accountId!, userId),
     enabled: accountId !== null,
+    staleTime: 0,
   })
 }
