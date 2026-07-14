@@ -60,6 +60,31 @@ class PositionRepositoryTest(
             result.get().accountId shouldBe accountId
         }
 
+        describe("PositionRepository.findByAccountIdAndTicker") {
+
+            it("findByAccountIdAndTicker_matchingRow_returnsPosition") {
+                val userId = UUID.randomUUID()
+                val accountId = UUID.randomUUID()
+                val ticker = "AAPL"
+
+                repository.save(buildPosition(userId, accountId, ticker))
+                em.flush()
+                em.clear()
+
+                val result = repository.findByAccountIdAndTicker(accountId, ticker)
+
+                result.isPresent shouldBe true
+                result.get().accountId shouldBe accountId
+                result.get().ticker shouldBe ticker
+            }
+
+            it("findByAccountIdAndTicker_missingRow_returnsEmpty") {
+                val result = repository.findByAccountIdAndTicker(UUID.randomUUID(), "AAPL")
+
+                result.isPresent shouldBe false
+            }
+        }
+
         it("findByUserIdAndAccountIdAndTicker_noMatchingRow_returnsEmpty") {
             val userId = UUID.randomUUID()
             val accountId = UUID.randomUUID()

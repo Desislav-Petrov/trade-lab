@@ -15,6 +15,53 @@ tags:
 
 paths:
 
+  /stock-orders/indicative-price:
+    get:
+      tags:
+        - Stocktrading
+      summary: Get the current indicative market price for a ticker
+      operationId: getIndicativePrice
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          description: Stock ticker to price
+      responses:
+        '200':
+          description: Indicative price found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndicativePriceResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unsupported ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /stock-orders:
     post:
       tags:
@@ -99,6 +146,7 @@ components:
         - userId
         - ticker
         - quantity
+        - side
         - orderType
         - priceSnapshot
       properties:
@@ -119,6 +167,10 @@ components:
           type: number
           exclusiveMinimum: 0
           example: 2.5
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
         orderType:
           type: string
           enum: [MARKET]
@@ -135,6 +187,7 @@ components:
         - status
         - ticker
         - quantity
+        - side
         - accountId
         - createdAt
       properties:
@@ -152,11 +205,19 @@ components:
         quantity:
           type: number
           example: 2.5
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
         executionPrice:
           type: number
           nullable: true
           example: 182.500
         totalCost:
+          type: number
+          nullable: true
+          example: 456.250
+        totalProceeds:
           type: number
           nullable: true
           example: 456.250
@@ -172,6 +233,19 @@ components:
           type: string
           format: date-time
           example: "2026-07-08T12:00:00Z"
+
+    IndicativePriceResponse:
+      type: object
+      required:
+        - ticker
+        - indicativePrice
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        indicativePrice:
+          type: number
+          example: 182.500
 
     ErrorResponse:
       type: object

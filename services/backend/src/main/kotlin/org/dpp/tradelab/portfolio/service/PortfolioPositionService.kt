@@ -6,9 +6,11 @@ import org.dpp.tradelab.portfolio.model.ProcessedIdempotencyKey
 import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -37,34 +39,66 @@ class PortfolioPositionService(
         val existingPosition = positionRepository
             .findByUserIdAndAccountIdAndTicker(event.userId, event.accountId, event.ticker)
 
-        if (existingPosition.isPresent) {
-            // Step 4a: Update existing position
-            val position = existingPosition.get()
-            val fillCost = event.quantity.multiply(event.executionPrice)
-            position.quantity = position.quantity.add(event.quantity)
-            position.totalCost = position.totalCost.add(fillCost)
-            position.avgPrice = position.totalCost.divide(position.quantity, 4, java.math.RoundingMode.HALF_UP)
-            position.minPrice = position.minPrice.min(event.executionPrice)
-            position.maxPrice = position.maxPrice.max(event.executionPrice)
-            position.lastUpdated = event.timestamp
-            // entity is already managed — dirty changes are flushed automatically on transaction commit
-        } else {
-            // Step 4b: Create new position
-            val fillCost = event.quantity.multiply(event.executionPrice)
-            val newPosition = Position(
-                positionId = UUID.randomUUID(),
-                userId = event.userId,
-                accountId = event.accountId,
-                ticker = event.ticker,
-                assetType = AssetType.STOCK,
-                quantity = event.quantity,
-                totalCost = fillCost,
-                avgPrice = event.executionPrice,
-                minPrice = event.executionPrice,
-                maxPrice = event.executionPrice,
-                lastUpdated = event.timestamp
-            )
-            positionRepository.save(newPosition)
+        when (event.side) {
+            OrderSide.BUY -> handleBuy(event, existingPosition.orElse(null))
+            OrderSide.SELL -> handleSell(event, existingPosition.orElse(null))
         }
+    }
+
+    private fun handleBuy(event: OrderFilledEvent, existingPosition: Position?) {
+        if (existingPosition != null) {
+            val fillCost = event.quantity.multiply(event.executionPrice)
+            existingPosition.quantity = existingPosition.quantity.add(event.quantity)
+            existingPosition.totalCost = existingPosition.totalCost.add(fillCost)
+            existingPosition.avgPrice = existingPosition.totalCost.divide(
+                existingPosition.quantity,
+                4,
+                java.math.RoundingMode.HALF_UP
+            )
+            existingPosition.minPrice = existingPosition.minPrice.min(event.executionPrice)
+            existingPosition.maxPrice = existingPosition.maxPrice.max(event.executionPrice)
+            existingPosition.lastUpdated = event.timestamp
+            return
+        }
+
+        val fillCost = event.quantity.multiply(event.executionPrice)
+        val newPosition = Position(
+            positionId = UUID.randomUUID(),
+            userId = event.userId,
+            accountId = event.accountId,
+            ticker = event.ticker,
+            assetType = AssetType.STOCK,
+            quantity = event.quantity,
+            totalCost = fillCost,
+            avgPrice = event.executionPrice,
+            minPrice = event.executionPrice,
+            maxPrice = event.executionPrice,
+            lastUpdated = event.timestamp
+        )
+        positionRepository.save(newPosition)
+    }
+
+    private fun handleSell(event: OrderFilledEvent, existingPosition: Position?) {
+        val position = requireNotNull(existingPosition) {
+            "No existing position found for sell event ${event.orderId}"
+        }
+        val previousQuantity = position.quantity
+        val remainingQuantity = previousQuantity.subtract(event.quantity)
+        val remainingTotalCost = if (remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            BigDecimal.ZERO
+        } else {
+            position.totalCost.multiply(remainingQuantity).divide(previousQuantity)
+        }
+
+        position.quantity = remainingQuantity
+        position.totalCost = remainingTotalCost
+        position.avgPrice = if (remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            null
+        } else {
+            remainingTotalCost.divide(remainingQuantity)
+        }
+        position.minPrice = position.minPrice.min(event.executionPrice)
+        position.maxPrice = position.maxPrice.max(event.executionPrice)
+        position.lastUpdated = event.timestamp
     }
 }
