@@ -81,6 +81,26 @@ describe('SellPanel', () => {
     expect(screen.getByRole('button', { name: /confirm sell/i })).not.toBeDisabled()
   })
 
+  it('SellPanel - confirm button shows ✓ icon when not submitting', () => {
+    mockUseSellPanel.mockReturnValue(
+      buildHookState({ quantity: '5', validationError: null, isSubmitting: false })
+    )
+
+    render(<SellPanel {...defaultProps} />)
+
+    const confirmBtn = screen.getByRole('button', { name: /confirm sell/i })
+    expect(confirmBtn).toHaveTextContent('✓')
+  })
+
+  it('SellPanel - decline button shows ✗ icon', () => {
+    mockUseSellPanel.mockReturnValue(buildHookState())
+
+    render(<SellPanel {...defaultProps} />)
+
+    const declineBtn = screen.getByRole('button', { name: /decline sell/i })
+    expect(declineBtn).toHaveTextContent('✗')
+  })
+
   it('SellPanel - decline button calls closeSellPanel', () => {
     const closeSellPanel = vi.fn()
     mockUseSellPanel.mockReturnValue(buildHookState({ closeSellPanel }))
