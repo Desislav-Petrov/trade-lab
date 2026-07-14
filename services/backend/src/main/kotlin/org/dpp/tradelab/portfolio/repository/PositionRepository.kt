@@ -16,6 +16,11 @@ interface PositionRepository : JpaRepository<Position, UUID> {
         ticker: String
     ): Optional<Position>
 
+    fun findByAccountIdAndTicker(
+        accountId: UUID,
+        ticker: String
+    ): Optional<Position>
+
     fun findAllByAccountIdAndQuantityGreaterThan(
         accountId: UUID,
         minQuantity: BigDecimal

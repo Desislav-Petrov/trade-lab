@@ -47,8 +47,8 @@ class Position(
     @Column(nullable = false, precision = 19, scale = 4)
     var totalCost: BigDecimal,
 
-    @Column(nullable = false, precision = 19, scale = 4)
-    var avgPrice: BigDecimal,
+    @Column(precision = 19, scale = 4)
+    var avgPrice: BigDecimal?,
 
     @Column(nullable = false, precision = 19, scale = 4)
     var minPrice: BigDecimal,

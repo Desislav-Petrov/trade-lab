@@ -7,11 +7,12 @@ import org.dpp.tradelab.portfolio.model.Position
 import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
-import org.dpp.tradelab.stocktrading.messaging.OrderType
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -35,6 +36,7 @@ class PortfolioPositionServiceTest : FunSpec({
     val timestamp = Instant.now()
 
     fun buildEvent(
+        side: OrderSide = OrderSide.BUY,
         ik: UUID = idempotencyKey,
         qty: BigDecimal = quantity,
         price: BigDecimal = executionPrice
@@ -45,18 +47,36 @@ class PortfolioPositionServiceTest : FunSpec({
         ticker = ticker,
         quantity = qty,
         executionPrice = price,
+        side = side,
         idempotencyKey = ik,
-        side = OrderType.BUY,
         timestamp = timestamp
     )
 
+    fun buildPosition(
+        quantity: BigDecimal,
+        totalCost: BigDecimal,
+        avgPrice: BigDecimal? = totalCost.divide(quantity),
+        minPrice: BigDecimal = BigDecimal("140.0000"),
+        maxPrice: BigDecimal = BigDecimal("160.0000")
+    ) = Position(
+        positionId = UUID.randomUUID(),
+        userId = userId,
+        accountId = accountId,
+        ticker = ticker,
+        assetType = AssetType.STOCK,
+        quantity = quantity,
+        totalCost = totalCost,
+        avgPrice = avgPrice,
+        minPrice = minPrice,
+        maxPrice = maxPrice,
+        lastUpdated = Instant.now().minusSeconds(60)
+    )
+
     beforeEach {
-        org.mockito.kotlin.reset(positionRepository, processedIdempotencyKeyRepository)
+        reset(positionRepository, processedIdempotencyKeyRepository)
         whenever(processedIdempotencyKeyRepository.save(any())).thenAnswer { it.arguments[0] }
         whenever(positionRepository.save(any())).thenAnswer { it.arguments[0] }
     }
-
-    // ── Duplicate idempotency key ────────────────────────────────────────────
 
     test("handleOrderFilled_duplicateIdempotencyKey_returnsImmediatelyWithoutWriting") {
         whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(true)
@@ -68,9 +88,76 @@ class PortfolioPositionServiceTest : FunSpec({
         verify(positionRepository, never()).save(any())
     }
 
-    // ── New position (no existing row) ───────────────────────────────────────
+    test("handleOrderFilled_buyPathExistingPosition_remainsUnchangedBehaviour") {
+        val existingPosition = buildPosition(
+            quantity = BigDecimal("3.0000"),
+            totalCost = BigDecimal("420.0000"),
+            avgPrice = BigDecimal("140.0000"),
+            minPrice = BigDecimal("135.0000"),
+            maxPrice = BigDecimal("145.0000")
+        )
 
-    test("handleOrderFilled_newPosition_createsPositionWithCorrectFields") {
+        whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
+            .thenReturn(Optional.of(existingPosition))
+
+        service.handleOrderFilled(buildEvent(side = OrderSide.BUY, qty = BigDecimal("2.0000"), price = BigDecimal("150.0000")))
+
+        existingPosition.quantity.compareTo(BigDecimal("5.0000")) shouldBe 0
+        existingPosition.totalCost.compareTo(BigDecimal("720.0000")) shouldBe 0
+        existingPosition.avgPrice?.compareTo(BigDecimal("144.0000")) shouldBe 0
+        existingPosition.minPrice shouldBe BigDecimal("135.0000")
+        existingPosition.maxPrice shouldBe BigDecimal("150.0000")
+        existingPosition.lastUpdated shouldBe timestamp
+    }
+
+    test("handleOrderFilled_sellPartial_decrementsQuantityAndCostProportionally") {
+        val existingPosition = buildPosition(
+            quantity = BigDecimal("10.0000"),
+            totalCost = BigDecimal("1000.0000"),
+            avgPrice = BigDecimal("100.0000"),
+            minPrice = BigDecimal("90.0000"),
+            maxPrice = BigDecimal("110.0000")
+        )
+
+        whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
+            .thenReturn(Optional.of(existingPosition))
+
+        service.handleOrderFilled(buildEvent(side = OrderSide.SELL, qty = BigDecimal("4.0000"), price = BigDecimal("120.0000")))
+
+        existingPosition.quantity.compareTo(BigDecimal("6.0000")) shouldBe 0
+        existingPosition.totalCost.compareTo(BigDecimal("600.0000")) shouldBe 0
+        existingPosition.avgPrice?.compareTo(BigDecimal("100.0000")) shouldBe 0
+        existingPosition.minPrice shouldBe BigDecimal("90.0000")
+        existingPosition.maxPrice shouldBe BigDecimal("120.0000")
+        existingPosition.lastUpdated shouldBe timestamp
+    }
+
+    test("handleOrderFilled_sellFullSellOut_retainsZeroQuantityRow") {
+        val existingPosition = buildPosition(
+            quantity = BigDecimal("4.0000"),
+            totalCost = BigDecimal("400.0000"),
+            avgPrice = BigDecimal("100.0000"),
+            minPrice = BigDecimal("85.0000"),
+            maxPrice = BigDecimal("105.0000")
+        )
+
+        whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
+            .thenReturn(Optional.of(existingPosition))
+
+        service.handleOrderFilled(buildEvent(side = OrderSide.SELL, qty = BigDecimal("4.0000"), price = BigDecimal("80.0000")))
+
+        existingPosition.quantity.compareTo(BigDecimal.ZERO) shouldBe 0
+        existingPosition.totalCost.compareTo(BigDecimal.ZERO) shouldBe 0
+        existingPosition.avgPrice shouldBe null
+        existingPosition.minPrice shouldBe BigDecimal("80.0000")
+        existingPosition.maxPrice shouldBe BigDecimal("105.0000")
+        existingPosition.lastUpdated shouldBe timestamp
+    }
+
+    test("handleOrderFilled_newBuyPosition_createsPositionWithCorrectFields") {
         whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
             .thenReturn(Optional.empty())
@@ -93,79 +180,6 @@ class PortfolioPositionServiceTest : FunSpec({
         saved.lastUpdated shouldBe timestamp
     }
 
-    // ── Existing position (row exists) ───────────────────────────────────────
-
-    test("handleOrderFilled_existingPosition_updatesQuantityTotalCostAvgPriceMinMaxLastUpdated") {
-        val existingQuantity = BigDecimal("3.0000")
-        val existingAvgPrice = BigDecimal("140.0000")
-        val existingTotalCost = existingQuantity.multiply(existingAvgPrice)
-        val existingMin = BigDecimal("135.0000")
-        val existingMax = BigDecimal("145.0000")
-
-        val existingPosition = Position(
-            positionId = UUID.randomUUID(),
-            userId = userId,
-            accountId = accountId,
-            ticker = ticker,
-            assetType = AssetType.STOCK,
-            quantity = existingQuantity,
-            totalCost = existingTotalCost,
-            avgPrice = existingAvgPrice,
-            minPrice = existingMin,
-            maxPrice = existingMax,
-            lastUpdated = Instant.now().minusSeconds(60)
-        )
-
-        whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
-        whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
-            .thenReturn(Optional.of(existingPosition))
-
-        val newPrice = BigDecimal("150.0000")
-        val newQty = BigDecimal("2.0000")
-        service.handleOrderFilled(buildEvent(price = newPrice, qty = newQty))
-
-        val expectedNewQuantity = existingQuantity.add(newQty) // 5.0000
-        val expectedNewTotalCost = existingTotalCost.add(newQty.multiply(newPrice)) // 420 + 300 = 720
-        val expectedNewAvgPrice = expectedNewTotalCost.divide(expectedNewQuantity, 4, java.math.RoundingMode.HALF_UP) // 144.0000
-
-        existingPosition.quantity shouldBe expectedNewQuantity
-        existingPosition.totalCost shouldBe expectedNewTotalCost
-        existingPosition.avgPrice shouldBe expectedNewAvgPrice
-        // new price 150 > existingMax 145 → maxPrice updated
-        existingPosition.maxPrice shouldBe newPrice
-        // new price 150 > existingMin 135 → minPrice not changed
-        existingPosition.minPrice shouldBe existingMin
-        existingPosition.lastUpdated shouldBe timestamp
-    }
-
-    test("handleOrderFilled_existingPosition_updatesMinPriceWhenNewPriceIsLower") {
-        val existingPosition = Position(
-            positionId = UUID.randomUUID(),
-            userId = userId,
-            accountId = accountId,
-            ticker = ticker,
-            assetType = AssetType.STOCK,
-            quantity = BigDecimal("3.0000"),
-            totalCost = BigDecimal("450.0000"),
-            avgPrice = BigDecimal("150.0000"),
-            minPrice = BigDecimal("140.0000"),
-            maxPrice = BigDecimal("160.0000"),
-            lastUpdated = Instant.now().minusSeconds(60)
-        )
-
-        whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
-        whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
-            .thenReturn(Optional.of(existingPosition))
-
-        val lowerPrice = BigDecimal("130.0000")
-        service.handleOrderFilled(buildEvent(price = lowerPrice))
-
-        existingPosition.minPrice shouldBe lowerPrice
-        existingPosition.maxPrice shouldBe BigDecimal("160.0000") // unchanged
-    }
-
-    // ── Idempotency key recorded ────────────────────────────────────────────
-
     test("handleOrderFilled_newEvent_savesIdempotencyKeyRecord") {
         whenever(processedIdempotencyKeyRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(positionRepository.findByUserIdAndAccountIdAndTicker(userId, accountId, ticker))
@@ -175,7 +189,6 @@ class PortfolioPositionServiceTest : FunSpec({
 
         val captor = argumentCaptor<org.dpp.tradelab.portfolio.model.ProcessedIdempotencyKey>()
         verify(processedIdempotencyKeyRepository).save(captor.capture())
-
         captor.firstValue.idempotencyKey shouldBe idempotencyKey
     }
 })

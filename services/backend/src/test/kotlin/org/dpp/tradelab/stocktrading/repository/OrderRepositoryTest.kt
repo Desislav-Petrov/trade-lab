@@ -5,6 +5,7 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.stocktrading.model.Order
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.dpp.tradelab.stocktrading.model.OrderStatus
 import org.dpp.tradelab.stocktrading.model.OrderType
 import org.springframework.boot.jpa.test.autoconfigure.AutoConfigureTestEntityManager
@@ -31,6 +32,7 @@ class OrderRepositoryTest(
         userId = UUID.randomUUID(),
         ticker = "AAPL",
         quantity = BigDecimal("2.0000"),
+        side = OrderSide.BUY,
         orderType = OrderType.MARKET,
         status = OrderStatus.PENDING,
         priceSnapshot = BigDecimal("182.500")

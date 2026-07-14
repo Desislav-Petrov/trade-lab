@@ -19,7 +19,7 @@ paths:
     get:
       tags:
         - Stocktrading
-      summary: Get indicative price for a ticker
+      summary: Get the current indicative market price for a ticker
       operationId: getIndicativePrice
       parameters:
         - name: ticker
@@ -29,16 +29,16 @@ paths:
             type: string
             minLength: 1
             maxLength: 10
-          description: The stock ticker symbol
+          description: Stock ticker to price
       responses:
         '200':
-          description: Indicative price for the given ticker
+          description: Indicative price found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/IndicativePriceResponse'
         '400':
-          description: Invalid ticker
+          description: Validation failure
           content:
             application/json:
               schema:
@@ -49,8 +49,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '503':
-          description: Market data unavailable
+        '404':
+          description: Unsupported ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -140,9 +146,9 @@ components:
         - userId
         - ticker
         - quantity
+        - side
         - orderType
         - priceSnapshot
-        - side
       properties:
         accountId:
           type: string
@@ -161,6 +167,10 @@ components:
           type: number
           exclusiveMinimum: 0
           example: 2.5
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
         orderType:
           type: string
           enum: [MARKET]
@@ -169,10 +179,6 @@ components:
           type: number
           exclusiveMinimum: 0
           example: 182.500
-        side:
-          type: string
-          enum: [BUY, SELL]
-          example: BUY
 
     PlaceOrderResponse:
       type: object
@@ -239,7 +245,6 @@ components:
           example: AAPL
         indicativePrice:
           type: number
-          exclusiveMinimum: 0
           example: 182.500
 
     ErrorResponse:

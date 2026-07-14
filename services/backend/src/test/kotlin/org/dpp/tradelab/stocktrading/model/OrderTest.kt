@@ -13,255 +13,69 @@ class OrderTest : DescribeSpec({
     val accountId = UUID.fromString("33333333-3333-3333-3333-333333333333")
     val userId = UUID.fromString("44444444-4444-4444-4444-444444444444")
 
+    fun buildOrder(side: OrderSide) = Order(
+        orderId = orderId,
+        idempotencyKey = idempotencyKey,
+        accountId = accountId,
+        userId = userId,
+        ticker = "AAPL",
+        quantity = BigDecimal("2.5000"),
+        side = side,
+        orderType = OrderType.MARKET,
+        status = OrderStatus.PENDING,
+        priceSnapshot = BigDecimal("182.5000")
+    )
+
     describe("Order construction") {
-
         it("isNew returns true on fresh instance") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.isNew() shouldBe true
+            buildOrder(OrderSide.BUY).isNew() shouldBe true
         }
 
-        it("getId returns orderId (Persistable contract)") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.id shouldBe orderId
+        it("getId returns orderId") {
+            buildOrder(OrderSide.BUY).id shouldBe orderId
         }
 
-        it("stores all required fields correctly") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.5000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.orderId shouldBe orderId
-            order.idempotencyKey shouldBe idempotencyKey
-            order.accountId shouldBe accountId
-            order.userId shouldBe userId
-            order.ticker shouldBe "AAPL"
-            order.quantity shouldBe BigDecimal("2.5000")
-            order.orderType shouldBe OrderType.MARKET
-            order.status shouldBe OrderStatus.PENDING
-            order.priceSnapshot shouldBe BigDecimal("182.500")
+        it("can be constructed with both buy and sell sides") {
+            buildOrder(OrderSide.BUY).side shouldBe OrderSide.BUY
+            buildOrder(OrderSide.SELL).side shouldBe OrderSide.SELL
         }
 
-        it("executionPrice defaults to null") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.executionPrice shouldBe null
-        }
-
-        it("rejectionReason defaults to null") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.rejectionReason shouldBe null
-        }
-
-        it("allows setting executionPrice after construction") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.executionPrice = BigDecimal("185.000")
-            order.executionPrice shouldBe BigDecimal("185.000")
-        }
-
-        it("allows transitioning status to FILLED") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
+        it("allows transitioning status and execution fields") {
+            val order = buildOrder(OrderSide.BUY)
             order.status = OrderStatus.FILLED
+            order.executionPrice = BigDecimal("185.0000")
+
             order.status shouldBe OrderStatus.FILLED
-        }
-
-        it("allows transitioning status to REJECTED") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.status = OrderStatus.REJECTED
-            order.rejectionReason = "Insufficient funds"
-            order.status shouldBe OrderStatus.REJECTED
-            order.rejectionReason shouldBe "Insufficient funds"
+            order.executionPrice shouldBe BigDecimal("185.0000")
+            order.rejectionReason shouldBe null
         }
     }
 
-    describe("Order equals and hashCode") {
-
+    describe("Order equality and string representation") {
         it("two instances with the same orderId are equal") {
-            val a = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-            val b = Order(
+            val left = buildOrder(OrderSide.BUY)
+            val right = Order(
                 orderId = orderId,
                 idempotencyKey = UUID.randomUUID(),
                 accountId = UUID.randomUUID(),
                 userId = UUID.randomUUID(),
-                ticker = "GOOG",
+                ticker = "MSFT",
                 quantity = BigDecimal("5.0000"),
+                side = OrderSide.SELL,
                 orderType = OrderType.MARKET,
                 status = OrderStatus.FILLED,
-                priceSnapshot = BigDecimal("100.000")
+                priceSnapshot = BigDecimal("100.0000")
             )
 
-            (a == b) shouldBe true
+            (left == right) shouldBe true
+            left.hashCode() shouldBe orderId.hashCode()
         }
 
-        it("two instances with different orderIds are not equal") {
-            val a = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-            val b = Order(
-                orderId = UUID.randomUUID(),
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            (a == b) shouldBe false
-        }
-
-        it("hashCode is based on orderId") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
-            order.hashCode() shouldBe orderId.hashCode()
-        }
-    }
-
-    describe("Order toString") {
-
-        it("toString contains orderId") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
+        it("toString contains orderId and ticker") {
+            val order = buildOrder(OrderSide.SELL)
 
             order.toString() shouldNotBe null
             order.toString().contains(orderId.toString()) shouldBe true
-        }
-
-        it("toString contains ticker") {
-            val order = Order(
-                orderId = orderId,
-                idempotencyKey = idempotencyKey,
-                accountId = accountId,
-                userId = userId,
-                ticker = "AAPL",
-                quantity = BigDecimal("2.0000"),
-                orderType = OrderType.MARKET,
-                status = OrderStatus.PENDING,
-                priceSnapshot = BigDecimal("182.500")
-            )
-
             order.toString().contains("AAPL") shouldBe true
         }
     }

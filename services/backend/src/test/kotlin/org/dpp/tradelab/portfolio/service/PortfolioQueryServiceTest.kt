@@ -24,6 +24,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.Optional
 import java.util.UUID
 
 class PortfolioQueryServiceTest : FunSpec({
@@ -188,5 +189,19 @@ class PortfolioQueryServiceTest : FunSpec({
 
         result.holdings[0].portfolioPercent shouldBe null
         result.cash.portfolioPercent shouldBe null
+    }
+
+    test("getPositionQuantity_positionExists_returnsQuantity") {
+        whenever(positionRepository.findByAccountIdAndTicker(accountId, "AAPL"))
+            .thenReturn(Optional.of(buildPosition("AAPL", BigDecimal("2.0000"), BigDecimal("100.0000"))))
+
+        service.getPositionQuantity(accountId, "AAPL") shouldBe BigDecimal("2.0000")
+    }
+
+    test("getPositionQuantity_noPosition_returnsZero") {
+        whenever(positionRepository.findByAccountIdAndTicker(accountId, "AAPL"))
+            .thenReturn(Optional.empty())
+
+        service.getPositionQuantity(accountId, "AAPL") shouldBe BigDecimal.ZERO
     }
 })

@@ -49,6 +49,10 @@ class Order(
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)
+    val side: OrderSide,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
     val orderType: OrderType,
 
     @Enumerated(EnumType.STRING)
@@ -90,7 +94,7 @@ class Order(
 
     override fun toString(): String =
         "Order(orderId=$orderId, accountId=$accountId, userId=$userId, ticker=$ticker, " +
-            "quantity=$quantity, orderType=$orderType, status=$status, " +
+            "quantity=$quantity, side=$side, orderType=$orderType, status=$status, " +
             "priceSnapshot=$priceSnapshot, executionPrice=$executionPrice, " +
             "rejectionReason=$rejectionReason, createdAt=$createdAt)"
 }
