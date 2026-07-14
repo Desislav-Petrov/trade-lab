@@ -26,7 +26,6 @@ interface SellPanelActions {
   openSellPanel: (ticker: string, maxQuantity: number) => Promise<void>
   closeSellPanel: () => void
   setQuantity: (value: string) => void
-  _patch: (patch: Partial<SellPanelState>) => void
 }
 
 const initialState: SellPanelState = {
@@ -85,8 +84,6 @@ const useSellPanelStore = create<SellPanelState & SellPanelActions>((set, get) =
 
     set({ quantity: value, validationError })
   },
-
-  _patch: (patch: Partial<SellPanelState>) => set(patch),
 }))
 
 export function useSellPanel() {
@@ -100,7 +97,7 @@ export function useSellPanel() {
 
     if (!ticker || !idempotencyKey || priceSnapshot === null || !accountId || !user) return
 
-    useSellPanelStore.getState()._patch({ isSubmitting: true, submitError: null })
+    useSellPanelStore.setState({ isSubmitting: true, submitError: null })
 
     try {
       const response = await placeOrder(idempotencyKey, {
@@ -118,17 +115,17 @@ export function useSellPanel() {
         void queryClient.invalidateQueries({ queryKey: [ACCOUNTS_QUERY_KEY] })
       }
 
-      useSellPanelStore.getState()._patch({ result: response, isSubmitting: false })
+      useSellPanelStore.setState({ result: response, isSubmitting: false })
     } catch (err) {
       const axiosError = err as { response?: { status: number } }
       if (axiosError?.response?.status === 409) {
-        useSellPanelStore.getState()._patch({
+        useSellPanelStore.setState({
           idempotencyKey: crypto.randomUUID(),
           submitError: 'Duplicate order detected. Please try again.',
           isSubmitting: false,
         })
       } else {
-        useSellPanelStore.getState()._patch({
+        useSellPanelStore.setState({
           submitError: 'Something went wrong. Please try again.',
           isSubmitting: false,
         })
