@@ -6,9 +6,12 @@ import org.dpp.tradelab.portfolio.model.ProcessedIdempotencyKey
 import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.dpp.tradelab.portfolio.repository.ProcessedIdempotencyKeyRepository
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.util.UUID
 
@@ -33,23 +36,31 @@ class PortfolioPositionService(
         )
         processedIdempotencyKeyRepository.save(idempotencyRecord)
 
-        // Step 3: Look up existing position
+        if (event.side == OrderSide.BUY) {
+            handleBuyFilled(event)
+        } else {
+            handleSellFilled(event)
+        }
+    }
+
+    private fun handleBuyFilled(event: OrderFilledEvent) {
+        // Look up existing position
         val existingPosition = positionRepository
             .findByUserIdAndAccountIdAndTicker(event.userId, event.accountId, event.ticker)
 
         if (existingPosition.isPresent) {
-            // Step 4a: Update existing position
+            // Update existing position
             val position = existingPosition.get()
             val fillCost = event.quantity.multiply(event.executionPrice)
             position.quantity = position.quantity.add(event.quantity)
             position.totalCost = position.totalCost.add(fillCost)
-            position.avgPrice = position.totalCost.divide(position.quantity, 4, java.math.RoundingMode.HALF_UP)
+            position.avgPrice = position.totalCost.divide(position.quantity, 4, RoundingMode.HALF_UP)
             position.minPrice = position.minPrice.min(event.executionPrice)
             position.maxPrice = position.maxPrice.max(event.executionPrice)
             position.lastUpdated = event.timestamp
             // entity is already managed — dirty changes are flushed automatically on transaction commit
         } else {
-            // Step 4b: Create new position
+            // Create new position
             val fillCost = event.quantity.multiply(event.executionPrice)
             val newPosition = Position(
                 positionId = UUID.randomUUID(),
@@ -66,5 +77,38 @@ class PortfolioPositionService(
             )
             positionRepository.save(newPosition)
         }
+    }
+
+    private fun handleSellFilled(event: OrderFilledEvent) {
+        // Look up existing position by accountId and ticker
+        val existingPosition = positionRepository
+            .findByUserIdAndAccountIdAndTicker(event.userId, event.accountId, event.ticker)
+
+        if (existingPosition.isPresent) {
+            val position = existingPosition.get()
+            val previousQuantity = position.quantity
+            val remainingQuantity = if (previousQuantity.subtract(event.quantity).compareTo(BigDecimal.ZERO) == 0) {
+                BigDecimal.ZERO
+            } else {
+                previousQuantity.subtract(event.quantity)
+            }
+
+            position.totalCost = if (remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+                BigDecimal.ZERO
+            } else {
+                position.totalCost.multiply(remainingQuantity).divide(previousQuantity, 4, RoundingMode.HALF_UP)
+            }
+            position.quantity = remainingQuantity
+            position.avgPrice = if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                position.totalCost.divide(remainingQuantity, 4, RoundingMode.HALF_UP)
+            } else {
+                null
+            }
+            position.minPrice = position.minPrice.min(event.executionPrice)
+            position.maxPrice = position.maxPrice.max(event.executionPrice)
+            position.lastUpdated = event.timestamp
+            // entity is already managed — dirty changes are flushed automatically on transaction commit
+        }
+        // If no position found, nothing to do (shouldn't happen if validation was correct)
     }
 }

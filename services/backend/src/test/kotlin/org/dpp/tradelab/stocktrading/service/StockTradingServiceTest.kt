@@ -11,6 +11,7 @@ import org.dpp.tradelab.ledger.api.TransactionAssetType
 import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.marketdata.api.MarketDataApi
+import org.dpp.tradelab.portfolio.api.PortfolioApi
 import org.dpp.tradelab.stocktrading.exception.DuplicateIdempotencyKeyException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotActiveException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotFoundException
@@ -18,6 +19,7 @@ import org.dpp.tradelab.stocktrading.exception.OrderAccountNotOwnedException
 import org.dpp.tradelab.stocktrading.exception.TickerNotFoundException
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
 import org.dpp.tradelab.stocktrading.messaging.OrderRejectedEvent
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.dpp.tradelab.stocktrading.model.OrderStatus
 import org.dpp.tradelab.stocktrading.model.OrderType
 import org.dpp.tradelab.stocktrading.repository.OrderRepository
@@ -39,6 +41,7 @@ class StockTradingServiceTest : FunSpec({
     val ledgerApi = mock<LedgerApi>()
     val ledgerAccountApi = mock<LedgerAccountApi>()
     val marketDataApi = mock<MarketDataApi>()
+    val portfolioApi = mock<PortfolioApi>()
     val eventPublisher = mock<ApplicationEventPublisher>()
 
     val service = StockTradingService(
@@ -46,6 +49,7 @@ class StockTradingServiceTest : FunSpec({
         ledgerApi,
         ledgerAccountApi,
         marketDataApi,
+        portfolioApi,
         eventPublisher
     )
 
@@ -68,12 +72,12 @@ class StockTradingServiceTest : FunSpec({
     beforeEach {
         org.mockito.kotlin.reset(
             orderRepository, ledgerApi, ledgerAccountApi,
-            marketDataApi, eventPublisher
+            marketDataApi, portfolioApi, eventPublisher
         )
         whenever(orderRepository.save(any())).thenAnswer { it.arguments[0] }
     }
 
-    // ── FILLED happy path ────────────────────────────────────────────────────
+    // ── BUY FILLED happy path ─────────────────────────────────────────────────
 
     test("placeOrder_filledHappyPath_returnsFilledOrder") {
         whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
@@ -88,7 +92,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         order.status shouldBe OrderStatus.FILLED
@@ -109,7 +114,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         verify(ledgerApi, times(2)).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
@@ -128,7 +134,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         val typeCaptor = argumentCaptor<TransactionType>()
@@ -164,7 +171,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         val captor = argumentCaptor<OrderFilledEvent>()
@@ -175,9 +183,10 @@ class StockTradingServiceTest : FunSpec({
         captor.firstValue.ticker shouldBe ticker
         captor.firstValue.quantity shouldBe quantity
         captor.firstValue.executionPrice shouldBe executionPrice
+        captor.firstValue.side shouldBe OrderSide.BUY
     }
 
-    // ── REJECTED — insufficient funds ────────────────────────────────────────
+    // ── BUY REJECTED — insufficient funds ────────────────────────────────────
 
     test("placeOrder_insufficientFunds_returnsRejectedOrder") {
         whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
@@ -192,7 +201,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         order.status shouldBe OrderStatus.REJECTED
@@ -212,7 +222,8 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         verify(ledgerApi, never()).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
@@ -231,13 +242,150 @@ class StockTradingServiceTest : FunSpec({
             ticker = ticker,
             quantity = quantity,
             orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
         )
 
         val captor = argumentCaptor<OrderRejectedEvent>()
         verify(eventPublisher).publishEvent(captor.capture())
         captor.firstValue.accountId shouldBe accountId
         captor.firstValue.rejectionReason shouldBe "Insufficient funds"
+        captor.firstValue.side shouldBe OrderSide.BUY
+    }
+
+    // ── SELL FILLED happy path ────────────────────────────────────────────────
+
+    test("placeOrder_sell_filledHappyPath_returnsFilledOrder") {
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(portfolioApi.getPositionQuantity(accountId, ticker)).thenReturn(BigDecimal("10.0000"))
+
+        val order = service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.SELL
+        )
+
+        order.status shouldBe OrderStatus.FILLED
+        order.executionPrice shouldBe executionPrice
+        order.side shouldBe OrderSide.SELL
+    }
+
+    test("placeOrder_sell_filledHappyPath_callsLedgerApiTwiceWithStockSellAndCash") {
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(portfolioApi.getPositionQuantity(accountId, ticker)).thenReturn(BigDecimal("10.0000"))
+
+        service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.SELL
+        )
+
+        val typeCaptor = argumentCaptor<TransactionType>()
+        val assetTypeCaptor = argumentCaptor<TransactionAssetType>()
+        val amountCaptor = argumentCaptor<BigDecimal>()
+        verify(ledgerApi, times(2)).recordTransaction(
+            any(), any(),
+            typeCaptor.capture(),
+            assetTypeCaptor.capture(),
+            amountCaptor.capture(),
+            any(), anyOrNull(), anyOrNull()
+        )
+
+        typeCaptor.firstValue shouldBe TransactionType.DEBIT
+        assetTypeCaptor.firstValue shouldBe TransactionAssetType.STOCK_SELL
+        amountCaptor.firstValue shouldBe quantity
+
+        typeCaptor.secondValue shouldBe TransactionType.CREDIT
+        assetTypeCaptor.secondValue shouldBe TransactionAssetType.CASH
+        amountCaptor.secondValue shouldBe quantity.multiply(executionPrice)
+    }
+
+    test("placeOrder_sell_filledHappyPath_emitsOrderFilledEventWithSellSide") {
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(portfolioApi.getPositionQuantity(accountId, ticker)).thenReturn(BigDecimal("10.0000"))
+
+        service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.SELL
+        )
+
+        val captor = argumentCaptor<OrderFilledEvent>()
+        verify(eventPublisher).publishEvent(captor.capture())
+        captor.firstValue.side shouldBe OrderSide.SELL
+        captor.firstValue.idempotencyKey shouldBe idempotencyKey
+    }
+
+    // ── SELL REJECTED — quantity exceeds holding ──────────────────────────────
+
+    test("placeOrder_sell_insufficientHolding_returnsRejectedOrder") {
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(portfolioApi.getPositionQuantity(accountId, ticker)).thenReturn(BigDecimal("1.0000"))
+
+        val order = service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity, // 2.0000 > 1.0000
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.SELL
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.rejectionReason shouldBe "Quantity exceeds holding"
+    }
+
+    test("placeOrder_sell_insufficientHolding_emitsOrderRejectedEventWithSellSide") {
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(portfolioApi.getPositionQuantity(accountId, ticker)).thenReturn(BigDecimal("1.0000"))
+
+        service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.SELL
+        )
+
+        val captor = argumentCaptor<OrderRejectedEvent>()
+        verify(eventPublisher).publishEvent(captor.capture())
+        captor.firstValue.side shouldBe OrderSide.SELL
+        captor.firstValue.rejectionReason shouldBe "Quantity exceeds holding"
     }
 
     // ── Validation errors (no Order saved) ──────────────────────────────────
@@ -251,7 +399,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = BigDecimal.ZERO,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())
@@ -268,7 +417,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = quantity,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())
@@ -286,7 +436,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = quantity,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())
@@ -313,7 +464,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = quantity,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())
@@ -339,7 +491,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = quantity,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())
@@ -358,7 +511,8 @@ class StockTradingServiceTest : FunSpec({
                 ticker = ticker,
                 quantity = quantity,
                 orderType = OrderType.MARKET,
-                priceSnapshot = priceSnapshot
+                priceSnapshot = priceSnapshot,
+                side = OrderSide.BUY
             )
         }
         verify(orderRepository, never()).save(any())

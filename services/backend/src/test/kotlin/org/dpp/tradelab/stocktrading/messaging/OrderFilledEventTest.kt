@@ -2,6 +2,7 @@ package org.dpp.tradelab.stocktrading.messaging
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -26,7 +27,7 @@ class OrderFilledEventTest : FunSpec({
             quantity = quantity,
             executionPrice = executionPrice,
             idempotencyKey = idempotencyKey,
-            side = OrderType.BUY,
+            side = OrderSide.BUY,
             timestamp = timestamp
         )
 
@@ -37,7 +38,7 @@ class OrderFilledEventTest : FunSpec({
         event.quantity shouldBe quantity
         event.executionPrice shouldBe executionPrice
         event.idempotencyKey shouldBe idempotencyKey
-        event.side shouldBe OrderType.BUY
+        event.side shouldBe OrderSide.BUY
         event.timestamp shouldBe timestamp
     }
 
@@ -50,10 +51,10 @@ class OrderFilledEventTest : FunSpec({
             quantity = BigDecimal("1.0000"),
             executionPrice = BigDecimal("300.0000"),
             idempotencyKey = UUID.randomUUID(),
-            side = OrderType.SELL,
+            side = OrderSide.SELL,
             timestamp = Instant.now()
         )
 
-        event.side shouldBe OrderType.SELL
+        event.side shouldBe OrderSide.SELL
     }
 })

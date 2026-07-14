@@ -7,6 +7,7 @@ import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
+import org.dpp.tradelab.marketdata.exception.UnsupportedTickerException
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
@@ -141,6 +142,15 @@ class MarketDataFeedService(
             val snapshot = snapshotCache[ticker.uppercase()]
             snapshot?.let { ticker.uppercase() to it.currentPrice }
         }.toMap()
+    }
+
+    // ── getPrice — validated price lookup for REST endpoint ───────────────────
+    fun getPrice(ticker: String): BigDecimal {
+        if (supportedTickerConfig.resolve(ticker) == null) {
+            throw UnsupportedTickerException("Ticker '$ticker' is not in the supported tickers list.")
+        }
+        return snapshotCache[ticker.uppercase()]?.currentPrice
+            ?: throw UnsupportedTickerException("Ticker '$ticker' is not in the supported tickers list.")
     }
 
     // ── WebSocket message senders ──────────────────────────────────────────────

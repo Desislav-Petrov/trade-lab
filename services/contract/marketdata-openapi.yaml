@@ -213,6 +213,53 @@ paths:
                 details:
                   - "An unexpected error occurred. Please try again later."
 
+  /market-data/price:
+    get:
+      tags:
+        - Market Data
+      summary: Get the current indicative price for a ticker
+      operationId: getPrice
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          description: Stock ticker symbol
+      responses:
+        '200':
+          description: Current indicative price
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceResponse'
+        '400':
+          description: Invalid ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ticker not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
 
@@ -329,3 +376,17 @@ components:
           type: number
           multipleOf: 0.001
           example: 200.000
+
+    PriceResponse:
+      type: object
+      required:
+        - ticker
+        - indicativePrice
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        indicativePrice:
+          type: number
+          exclusiveMinimum: 0
+          example: 182.500

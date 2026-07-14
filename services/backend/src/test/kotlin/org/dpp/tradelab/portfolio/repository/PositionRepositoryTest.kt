@@ -86,6 +86,34 @@ class PositionRepositoryTest(
         }
     }
 
+    describe("PositionRepository.findByAccountIdAndTicker") {
+
+        it("findByAccountIdAndTicker_matchingRow_returnsPosition") {
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            val ticker = "AAPL"
+
+            val position = buildPosition(userId, accountId, ticker)
+            repository.save(position)
+            em.flush()
+            em.clear()
+
+            val result = repository.findByAccountIdAndTicker(accountId, ticker)
+
+            result.isPresent shouldBe true
+            result.get().ticker shouldBe ticker
+            result.get().accountId shouldBe accountId
+        }
+
+        it("findByAccountIdAndTicker_noMatchingRow_returnsEmpty") {
+            val accountId = UUID.randomUUID()
+
+            val result = repository.findByAccountIdAndTicker(accountId, "UNKNOWN")
+
+            result.isPresent shouldBe false
+        }
+    }
+
     describe("PositionRepository.findAllByAccountIdAndQuantityGreaterThan") {
 
         it("findAllByAccountIdAndQuantityGreaterThan_withPositiveQuantity_returnsMatchingPositions") {

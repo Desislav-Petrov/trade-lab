@@ -9,6 +9,7 @@ import org.dpp.tradelab.marketdata.exception.TickerAlreadySubscribedException
 import org.dpp.tradelab.marketdata.exception.UnsupportedTickerException
 import org.dpp.tradelab.marketdata.model.AssetSubscription
 import org.dpp.tradelab.marketdata.service.AssetSubscriptionService
+import org.dpp.tradelab.marketdata.service.MarketDataFeedService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
@@ -29,7 +30,8 @@ import java.util.UUID
 @AutoConfigureMockMvc
 class MarketDataApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
-    @MockitoBean val assetSubscriptionService: AssetSubscriptionService
+    @MockitoBean val assetSubscriptionService: AssetSubscriptionService,
+    @MockitoBean val marketDataFeedService: MarketDataFeedService
 ) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
@@ -188,6 +190,25 @@ class MarketDataApiDelegateImplTest(
             )
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.status").value(404))
+        }
+
+        // ── GET /api/v1/market-data/price ─────────────────────────────────────
+
+        test("getPrice_supportedTicker_returns200WithPrice") {
+            whenever(marketDataFeedService.getPrice("AAPL")).thenReturn(java.math.BigDecimal("182.500"))
+
+            mockMvc.perform(get("/api/v1/market-data/price").param("ticker", "AAPL"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.ticker").value("AAPL"))
+                .andExpect(jsonPath("$.indicativePrice").value(182.5))
+        }
+
+        test("getPrice_unsupportedTicker_returns404") {
+            whenever(marketDataFeedService.getPrice("UNKNOWN"))
+                .thenThrow(UnsupportedTickerException("Ticker 'UNKNOWN' is not in the supported tickers list."))
+
+            mockMvc.perform(get("/api/v1/market-data/price").param("ticker", "UNKNOWN"))
+                .andExpect(status().isNotFound)
         }
     }
 }

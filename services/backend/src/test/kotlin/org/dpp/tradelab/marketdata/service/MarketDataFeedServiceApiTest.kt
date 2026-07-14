@@ -128,4 +128,25 @@ class MarketDataFeedServiceApiTest : FunSpec({
 
         result shouldBe mapOf("AAPL" to BigDecimal("182.500"))
     }
+
+    // ── getPrice tests ────────────────────────────────────────────────────────
+
+    test("getPrice_supportedTickerInCache_returnsCurrentPrice") {
+        val service = buildService()
+        service.snapshotCache["AAPL"] = aaplSnapshot
+        whenever(supportedTickerConfig.resolve("AAPL")).thenReturn("Apple Inc.")
+
+        val price = service.getPrice("AAPL")
+
+        price shouldBe BigDecimal("182.500")
+    }
+
+    test("getPrice_unsupportedTicker_throwsUnsupportedTickerException") {
+        val service = buildService()
+        whenever(supportedTickerConfig.resolve("UNKNOWN")).thenReturn(null)
+
+        shouldThrow<org.dpp.tradelab.marketdata.exception.UnsupportedTickerException> {
+            service.getPrice("UNKNOWN")
+        }
+    }
 })

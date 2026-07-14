@@ -3,7 +3,7 @@ package org.dpp.tradelab.portfolio.messaging
 import io.kotest.core.spec.style.FunSpec
 import org.dpp.tradelab.portfolio.service.PortfolioPositionService
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
-import org.dpp.tradelab.stocktrading.messaging.OrderType
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import java.math.BigDecimal
@@ -24,7 +24,7 @@ class StockTradingEventListenerTest : FunSpec({
             quantity = BigDecimal("5.0000"),
             executionPrice = BigDecimal("180.0000"),
             idempotencyKey = UUID.randomUUID(),
-            side = OrderType.BUY,
+            side = OrderSide.BUY,
             timestamp = Instant.now()
         )
 
