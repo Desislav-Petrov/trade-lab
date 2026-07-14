@@ -7,6 +7,8 @@ import { usePortfolioStore } from '../hooks/usePortfolioStore'
 import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings'
 import { PortfolioAccountSelector } from '../components/PortfolioAccountSelector'
 import { PortfolioHoldingsTable } from '../components/PortfolioHoldingsTable'
+import { useSellPanel } from '../../stocktrading/hooks/useSellPanel'
+import { SellPanel } from '../../stocktrading/components/SellPanel'
 
 function getHoldings502ErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ error?: string }>
@@ -24,6 +26,8 @@ export function PortfolioPage() {
   const user = useSessionStore((s) => s.user)
   const selectedAccountId = usePortfolioStore((s) => s.selectedAccountId)
   const setSelectedAccountId = usePortfolioStore((s) => s.setSelectedAccountId)
+
+  const { isOpen, ticker, maxQuantity, openSellPanel } = useSellPanel()
 
   const {
     data: accountsData,
@@ -110,6 +114,7 @@ export function PortfolioPage() {
           holdings={holdingsData.holdings}
           cash={holdingsData.cash}
           currency={holdingsData.cash.currency}
+          onSell={openSellPanel}
         />
       )
     }
@@ -127,6 +132,16 @@ export function PortfolioPage() {
       <div className="mb-4">{renderAccountSelector()}</div>
 
       {renderHoldingsSection()}
+
+      {isOpen && ticker !== null && maxQuantity !== null && (
+        <SellPanel
+          ticker={ticker}
+          companyName={
+            holdingsData?.holdings.find((h) => h.ticker === ticker)?.ticker ?? ticker
+          }
+          maxQuantity={maxQuantity}
+        />
+      )}
     </div>
   )
 }

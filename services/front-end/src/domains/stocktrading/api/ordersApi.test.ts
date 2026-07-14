@@ -14,6 +14,7 @@ const sampleRequest: PlaceOrderRequest = {
   userId: 'user-1',
   ticker: 'AAPL',
   quantity: '2',
+  side: 'BUY',
   orderType: 'MARKET',
   priceSnapshot: '180.000',
 }
@@ -129,5 +130,37 @@ describe('placeOrder', () => {
     await expect(placeOrder('idem-key-dup', sampleRequest)).rejects.toMatchObject({
       response: { status: 409 },
     })
+  })
+
+  it('placeOrder - side SELL - POSTs with side SELL in request body', async () => {
+    const sellRequest: PlaceOrderRequest = {
+      accountId: 'acc-1',
+      userId: 'user-1',
+      ticker: 'AAPL',
+      quantity: '2',
+      side: 'SELL',
+      orderType: 'MARKET',
+      priceSnapshot: '180.000',
+    }
+    mockPost.mockResolvedValueOnce({
+      data: {
+        orderId: 'order-sell-1',
+        status: 'FILLED',
+        ticker: 'AAPL',
+        quantity: '2',
+        side: 'SELL',
+        executionPrice: '181.000',
+        totalCost: null,
+        totalProceeds: 362.0,
+        rejectionReason: null,
+        accountId: 'acc-1',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    })
+
+    await placeOrder('idem-sell-1', sellRequest)
+
+    const sentBody = mockPost.mock.calls[0][1] as PlaceOrderRequest
+    expect(sentBody.side).toBe('SELL')
   })
 })

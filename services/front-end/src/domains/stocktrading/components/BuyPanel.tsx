@@ -72,6 +72,7 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId
         userId,
         ticker,
         quantity,
+        side: 'BUY',
         orderType: 'MARKET',
         priceSnapshot,
       },

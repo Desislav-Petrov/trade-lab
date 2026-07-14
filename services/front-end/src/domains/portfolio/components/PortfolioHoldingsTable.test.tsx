@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
 import type { StockHolding, CashHolding } from '../types/portfolio.types'
@@ -228,5 +228,101 @@ describe('PortfolioHoldingsTable', () => {
     expect(cells[3]).toHaveTextContent('10.00') // 9.999 toFixed(2) = 10.00
     // 10.555 toFixed(2) in V8 rounds to 10.55 (half-even / half-down)
     expect(cells[4]).toHaveTextContent((10.555).toFixed(2))
+  })
+
+  it('PortfolioHoldingsTable - right-click stock row - shows role="menu" with role="menuitem" Sell', () => {
+    const onSell = vi.fn()
+    render(
+      <PortfolioHoldingsTable
+        holdings={[mockHoldings[0]]}
+        cash={mockCash}
+        currency="USD"
+        onSell={onSell}
+      />
+    )
+
+    const rows = screen.getAllByRole('row')
+    // rows[0]=header, rows[1]=MSFT stock row
+    fireEvent.contextMenu(rows[1])
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /sell/i })).toBeInTheDocument()
+  })
+
+  it('PortfolioHoldingsTable - clicking Sell in menu - calls onSell with correct ticker and quantity', () => {
+    const onSell = vi.fn()
+    render(
+      <PortfolioHoldingsTable
+        holdings={[mockHoldings[0]]}
+        cash={mockCash}
+        currency="USD"
+        onSell={onSell}
+      />
+    )
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /sell/i }))
+
+    expect(onSell).toHaveBeenCalledWith('MSFT', 5)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('PortfolioHoldingsTable - right-click cash row - shows no context menu', () => {
+    const onSell = vi.fn()
+    render(
+      <PortfolioHoldingsTable
+        holdings={[mockHoldings[0]]}
+        cash={mockCash}
+        currency="USD"
+        onSell={onSell}
+      />
+    )
+
+    const cashRow = screen.getByTestId('cash-row')
+    fireEvent.contextMenu(cashRow)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('PortfolioHoldingsTable - Escape key - dismisses context menu', () => {
+    const onSell = vi.fn()
+    render(
+      <PortfolioHoldingsTable
+        holdings={[mockHoldings[0]]}
+        cash={mockCash}
+        currency="USD"
+        onSell={onSell}
+      />
+    )
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('PortfolioHoldingsTable - mousedown outside menu - dismisses context menu', () => {
+    const onSell = vi.fn()
+    const { container } = render(
+      <PortfolioHoldingsTable
+        holdings={[mockHoldings[0]]}
+        cash={mockCash}
+        currency="USD"
+        onSell={onSell}
+      />
+    )
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.mouseDown(container)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })
