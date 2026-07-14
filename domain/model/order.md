@@ -2,7 +2,7 @@
 
 ## Overview
 
-Represents a single stock purchase instruction submitted by an authenticated user from the Stock Trading page. An `Order` is created in `PENDING` status and transitions immediately to either `FILLED` (funds were sufficient and ledger entries were written) or `REJECTED` (insufficient funds). Both outcomes are persisted. The `Order` entity lives in the Stock Trading domain.
+Represents a single stock trade instruction submitted by an authenticated user. An `Order` is created in `PENDING` status and transitions immediately to either `FILLED` (the trade was executed and ledger entries were written) or `REJECTED` (insufficient funds for a buy; quantity exceeds holding for a sell). Both outcomes are persisted. The `Order` entity lives in the Stock Trading domain.
 
 Each order carries a client-generated `idempotencyKey` that is stored with a unique constraint. Submitting a second request with the same key returns HTTP 409 — the client is responsible for handling replay.
 
@@ -15,23 +15,25 @@ Each order carries a client-generated `idempotencyKey` that is stored with a uni
 | accountId | uuid | yes | Reference to the account that funds this order. Must belong to the authenticated user and have `status: active`. |
 | userId | uuid | yes | Reference to the user who placed the order. Denormalised here to avoid cross-domain joins at query time. |
 | ticker | string | yes | 4-letter stock ticker symbol (e.g. `AAPL`). Must exist in the supported tickers configuration. |
-| quantity | decimal | yes | Number of shares to buy. May be fractional (e.g. `0.75`) or whole (e.g. `2`). Must be greater than zero. |
+| quantity | decimal | yes | Number of shares to trade. May be fractional (e.g. `0.75`) or whole (e.g. `2`). Must be greater than zero. |
+| side | enum | yes | `BUY` \| `SELL`. Set on creation; immutable thereafter. See decision `2026-07-14-order-side-field`. |
 | orderType | enum | yes | `MARKET` — only supported value in this iteration. |
 | status | enum | yes | `PENDING` \| `FILLED` \| `REJECTED`. Set to `PENDING` on creation; updated to `FILLED` or `REJECTED` within the same transaction. |
-| priceSnapshot | decimal | yes | Indicative price per share captured by the client at right-click time (USD, 3 decimal places). Informational only — not used for the financial calculation. |
+| priceSnapshot | decimal | yes | Indicative price per share captured at panel-open time (USD, 3 decimal places). Informational only — not used for the financial calculation. For buy orders this is captured client-side from the grid; for sell orders it is fetched from the backend at panel-open time. |
 | executionPrice | decimal | no | Actual price per share read from the `MarketDataSnapshot` cache at fill time (USD, 3 decimal places). Populated only when `status` transitions to `FILLED`. `null` for `REJECTED` orders. |
-| rejectionReason | string | no | Human-readable reason for rejection (e.g. `"Insufficient funds"`). Populated only when `status` is `REJECTED`. `null` for `FILLED` orders. |
+| rejectionReason | string | no | Human-readable reason for rejection (e.g. `"Insufficient funds"`, `"Quantity exceeds holding"`). Populated only when `status` is `REJECTED`. `null` for `FILLED` orders. |
 | createdAt | datetime | yes | Timestamp of order creation. Immutable. |
 | updatedAt | datetime | yes | Timestamp of last status update. |
 
 ## Behaviors
 
-- **Place**: Creates the order record with `status: PENDING`. Reads the current price from the `MarketDataSnapshot` cache (via the Market Data `api/` interface) to set `executionPrice`. Calls the Ledger `api/` interface synchronously to attempt the two ledger writes. If the ledger write succeeds, transitions to `FILLED`. If the account has insufficient funds, transitions to `REJECTED` with `rejectionReason: "Insufficient funds"`. Both outcomes are persisted in the same transaction.
+- **Place (BUY)**: Creates the order record with `status: PENDING` and `side: BUY`. Reads the current `currentPrice` from the `MarketDataSnapshot` cache (via the Market Data `api/` interface) to set `executionPrice`. Calls the Ledger `api/` interface synchronously to attempt the two ledger writes (`DEBIT/CASH` + `CREDIT/STOCK_BUY`). If the ledger write succeeds, transitions to `FILLED`. If the account has insufficient funds, transitions to `REJECTED` with `rejectionReason: "Insufficient funds"`. Both outcomes are persisted in the same transaction.
+- **Place (SELL)**: Creates the order record with `status: PENDING` and `side: SELL`. Checks that the account's current share position for `ticker` is ≥ `quantity` (via the Portfolio `api/` interface). If the check fails, transitions to `REJECTED` with `rejectionReason: "Quantity exceeds holding"`. No ledger entries are written. If the check passes, reads `executionPrice` from the `MarketDataSnapshot` cache, calls the Ledger `api/` interface to write two ledger entries (`DEBIT/STOCK_SELL` + `CREDIT/CASH`), and transitions to `FILLED`. All writes are in the same transaction.
 
 ## Events
 
-- **OrderFilledEvent**: Emitted after a successful fill. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `executionPrice`, `timestamp`.
-- **OrderRejectedEvent**: Emitted after a rejection. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `rejectionReason`, `timestamp`.
+- **OrderFilledEvent**: Emitted after a successful fill. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `side`, `executionPrice`, `timestamp`.
+- **OrderRejectedEvent**: Emitted after a rejection. Payload: `orderId`, `accountId`, `userId`, `ticker`, `quantity`, `side`, `rejectionReason`, `timestamp`.
 
 ## Relationships
 
@@ -42,8 +44,11 @@ Each order carries a client-generated `idempotencyKey` that is stored with a uni
 
 - `quantity` must be greater than zero. Fractional quantities are permitted.
 - `orderType` must be `MARKET`. No other order types are supported in this iteration.
+- `side` must be `BUY` or `SELL`. It is immutable after creation.
 - The account referenced by `accountId` must exist, belong to the authenticated user, and have `status: active`.
-- The account's cash `balance` must be sufficient to cover `quantity × executionPrice`. If not, the order is `REJECTED`.
+- **BUY:** The account's cash `balance` must be sufficient to cover `quantity × executionPrice`. If not, the order is `REJECTED` with `rejectionReason: "Insufficient funds"`.
+- **SELL:** The account's current share position for `ticker` must be ≥ `quantity`. If not, the order is `REJECTED` with `rejectionReason: "Quantity exceeds holding"`. Cash assets cannot be sold — `ticker` must not reference a cash asset.
+- Orders fill immediately and fully — no partial fills.
 - `executionPrice` is read from the `MarketDataSnapshot` cache at fill time — it is not the client-supplied `priceSnapshot` and may differ from it.
 - `idempotencyKey` must be unique across all orders. A duplicate key results in HTTP 409; no new order is created.
 - Both the order record and the two `LedgerEntry` rows are written atomically in a single transaction. If any write fails, the entire operation rolls back.
@@ -51,3 +56,4 @@ Each order carries a client-generated `idempotencyKey` that is stored with a uni
 - `executionPrice` and `rejectionReason` are mutually exclusive: exactly one is non-null on a settled order.
 - `priceSnapshot` is stored for audit and display purposes only. It plays no role in financial calculations.
 - All monetary and quantity calculations use `BigDecimal` to ensure precision. Rounding is not applied during calculation; the raw `BigDecimal` result is stored.
+- The `OrderFilledEvent` and `OrderRejectedEvent` payloads include `side` so that downstream consumers can branch without re-querying the order.
