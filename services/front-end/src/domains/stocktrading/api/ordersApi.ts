@@ -5,6 +5,7 @@ export interface PlaceOrderRequest {
   userId: string
   ticker: string
   quantity: string
+  side: 'BUY' | 'SELL'
   orderType: 'MARKET'
   priceSnapshot: string
 }
@@ -14,8 +15,10 @@ export interface PlaceOrderResponse {
   status: 'FILLED' | 'REJECTED'
   ticker: string
   quantity: string
+  side: 'BUY' | 'SELL'
   executionPrice: string | null
   totalCost: string | null
+  totalProceeds: number | null
   rejectionReason: string | null
   accountId: string
   createdAt: string

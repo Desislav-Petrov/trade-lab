@@ -37,8 +37,10 @@ describe('usePlaceOrder', () => {
       status: 'FILLED',
       ticker: 'AAPL',
       quantity: '2',
+      side: 'BUY' as const,
       executionPrice: '181.000',
       totalCost: '362.000',
+      totalProceeds: null,
       rejectionReason: null,
       accountId: 'acc-1',
       createdAt: '2026-01-01T00:00:00Z',
@@ -57,6 +59,7 @@ describe('usePlaceOrder', () => {
         userId: 'user-1',
         ticker: 'AAPL',
         quantity: '2',
+        side: 'BUY',
         orderType: 'MARKET',
         priceSnapshot: '180.000',
       })
@@ -86,6 +89,7 @@ describe('usePlaceOrder', () => {
         userId: 'user-1',
         ticker: 'AAPL',
         quantity: '2',
+        side: 'BUY',
         orderType: 'MARKET',
         priceSnapshot: '180.000',
       })
@@ -102,8 +106,10 @@ describe('usePlaceOrder', () => {
       status: 'FILLED',
       ticker: 'MSFT',
       quantity: '1',
+      side: 'BUY' as const,
       executionPrice: '300.000',
       totalCost: '300.000',
+      totalProceeds: null,
       rejectionReason: null,
       accountId: 'acc-2',
       createdAt: '2026-01-01T00:00:00Z',
@@ -120,6 +126,7 @@ describe('usePlaceOrder', () => {
         userId: 'user-2',
         ticker: 'MSFT',
         quantity: '1',
+        side: 'BUY',
         orderType: 'MARKET',
         priceSnapshot: '299.000',
       })
@@ -131,6 +138,7 @@ describe('usePlaceOrder', () => {
       userId: 'user-2',
       ticker: 'MSFT',
       quantity: '1',
+      side: 'BUY',
       orderType: 'MARKET',
       priceSnapshot: '299.000',
     })
