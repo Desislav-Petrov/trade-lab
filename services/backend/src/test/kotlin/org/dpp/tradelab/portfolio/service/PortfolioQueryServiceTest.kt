@@ -189,4 +189,27 @@ class PortfolioQueryServiceTest : FunSpec({
         result.holdings[0].portfolioPercent shouldBe null
         result.cash.portfolioPercent shouldBe null
     }
+
+    // ── getPositionQuantity ──────────────────────────────────────────────────
+
+    test("getPositionQuantity_positionExists_returnsQuantity") {
+        val ticker = "AAPL"
+        val position = buildPosition(ticker, BigDecimal("5.0000"), BigDecimal("150.0000"))
+        whenever(positionRepository.findByAccountIdAndTicker(accountId, ticker))
+            .thenReturn(java.util.Optional.of(position))
+
+        val result = service.getPositionQuantity(accountId, ticker)
+
+        result shouldBe BigDecimal("5.0000")
+    }
+
+    test("getPositionQuantity_noPosition_returnsZero") {
+        val ticker = "AAPL"
+        whenever(positionRepository.findByAccountIdAndTicker(accountId, ticker))
+            .thenReturn(java.util.Optional.empty())
+
+        val result = service.getPositionQuantity(accountId, ticker)
+
+        result shouldBe BigDecimal.ZERO
+    }
 })

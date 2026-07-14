@@ -52,6 +52,10 @@ class Order(
     val orderType: OrderType,
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    val side: OrderSide,
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: OrderStatus,
 

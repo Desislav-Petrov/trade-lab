@@ -101,6 +101,7 @@ components:
         - quantity
         - orderType
         - priceSnapshot
+        - side
       properties:
         accountId:
           type: string
@@ -127,6 +128,10 @@ components:
           type: number
           exclusiveMinimum: 0
           example: 182.500
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
 
     PlaceOrderResponse:
       type: object
@@ -137,6 +142,7 @@ components:
         - quantity
         - accountId
         - createdAt
+        - side
       properties:
         orderId:
           type: string
@@ -172,6 +178,14 @@ components:
           type: string
           format: date-time
           example: "2026-07-08T12:00:00Z"
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
+        totalProceeds:
+          type: number
+          nullable: true
+          example: 456.250
 
     ErrorResponse:
       type: object

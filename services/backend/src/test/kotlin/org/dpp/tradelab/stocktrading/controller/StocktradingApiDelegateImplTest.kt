@@ -50,7 +50,8 @@ class StocktradingApiDelegateImplTest(
             "ticker" to "AAPL",
             "quantity" to 2.5,
             "orderType" to "MARKET",
-            "priceSnapshot" to 182.5
+            "priceSnapshot" to 182.5,
+            "side" to "BUY"
         )
 
         fun buildFilledOrder(): Order = Order(
@@ -61,6 +62,7 @@ class StocktradingApiDelegateImplTest(
             ticker = "AAPL",
             quantity = BigDecimal("2.5000"),
             orderType = OrderType.MARKET,
+            side = org.dpp.tradelab.stocktrading.model.OrderSide.BUY,
             status = OrderStatus.FILLED,
             priceSnapshot = BigDecimal("182.500"),
             executionPrice = BigDecimal("183.000"),
@@ -75,6 +77,7 @@ class StocktradingApiDelegateImplTest(
             ticker = "AAPL",
             quantity = BigDecimal("2.5000"),
             orderType = OrderType.MARKET,
+            side = org.dpp.tradelab.stocktrading.model.OrderSide.BUY,
             status = OrderStatus.REJECTED,
             priceSnapshot = BigDecimal("182.500"),
             rejectionReason = "Insufficient funds",
@@ -82,7 +85,7 @@ class StocktradingApiDelegateImplTest(
         )
 
         test("placeOrder_filledOrder_returns200WithFilledResponse") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(buildFilledOrder())
 
             mockMvc.perform(
@@ -97,11 +100,73 @@ class StocktradingApiDelegateImplTest(
                 .andExpect(jsonPath("$.ticker").value("AAPL"))
                 .andExpect(jsonPath("$.executionPrice").value(183.0))
                 .andExpect(jsonPath("$.totalCost").exists())
+                .andExpect(jsonPath("$.side").value("BUY"))
                 .andExpect(jsonPath("$.rejectionReason").doesNotExist())
         }
 
+        test("placeOrder_sellFilledOrder_returns200WithTotalProceeds") {
+            val sellFilledOrder = Order(
+                orderId = orderId,
+                idempotencyKey = idempotencyKey,
+                accountId = accountId,
+                userId = userId,
+                ticker = "AAPL",
+                quantity = BigDecimal("2.5000"),
+                orderType = OrderType.MARKET,
+                side = org.dpp.tradelab.stocktrading.model.OrderSide.SELL,
+                status = OrderStatus.FILLED,
+                priceSnapshot = BigDecimal("182.500"),
+                executionPrice = BigDecimal("183.000"),
+                createdAt = Instant.parse("2026-07-08T12:00:00Z")
+            )
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(sellFilledOrder)
+
+            val sellRequestBody = buildValidRequestBody() + mapOf("side" to "SELL")
+            mockMvc.perform(
+                post("/api/v1/stock-orders")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", idempotencyKey.toString())
+                    .content(objectMapper.writeValueAsString(sellRequestBody))
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("FILLED"))
+                .andExpect(jsonPath("$.side").value("SELL"))
+                .andExpect(jsonPath("$.totalProceeds").exists())
+        }
+
+        test("placeOrder_sellRejectedOrder_returns200WithQuantityExceedsHolding") {
+            val sellRejectedOrder = Order(
+                orderId = orderId,
+                idempotencyKey = idempotencyKey,
+                accountId = accountId,
+                userId = userId,
+                ticker = "AAPL",
+                quantity = BigDecimal("2.5000"),
+                orderType = OrderType.MARKET,
+                side = org.dpp.tradelab.stocktrading.model.OrderSide.SELL,
+                status = OrderStatus.REJECTED,
+                priceSnapshot = BigDecimal("182.500"),
+                rejectionReason = "Quantity exceeds holding",
+                createdAt = Instant.parse("2026-07-08T12:00:00Z")
+            )
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(sellRejectedOrder)
+
+            val sellRequestBody = buildValidRequestBody() + mapOf("side" to "SELL")
+            mockMvc.perform(
+                post("/api/v1/stock-orders")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", idempotencyKey.toString())
+                    .content(objectMapper.writeValueAsString(sellRequestBody))
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.rejectionReason").value("Quantity exceeds holding"))
+        }
+
         test("placeOrder_rejectedOrder_returns200WithRejectedResponse") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(buildRejectedOrder())
 
             mockMvc.perform(
@@ -118,7 +183,7 @@ class StocktradingApiDelegateImplTest(
         }
 
         test("placeOrder_tickerNotFound_returns400") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(TickerNotFoundException("UNKNOWN"))
 
             mockMvc.perform(
@@ -132,7 +197,7 @@ class StocktradingApiDelegateImplTest(
         }
 
         test("placeOrder_accountNotFound_returns404") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(OrderAccountNotFoundException(accountId))
 
             mockMvc.perform(
@@ -146,7 +211,7 @@ class StocktradingApiDelegateImplTest(
         }
 
         test("placeOrder_accountNotOwned_returns403") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(OrderAccountNotOwnedException(accountId, userId))
 
             mockMvc.perform(
@@ -160,7 +225,7 @@ class StocktradingApiDelegateImplTest(
         }
 
         test("placeOrder_accountNotActive_returns403") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(OrderAccountNotActiveException(accountId))
 
             mockMvc.perform(
@@ -174,7 +239,7 @@ class StocktradingApiDelegateImplTest(
         }
 
         test("placeOrder_duplicateIdempotencyKey_returns409") {
-            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any()))
+            whenever(stockTradingService.placeOrder(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(DuplicateIdempotencyKeyException(idempotencyKey))
 
             mockMvc.perform(

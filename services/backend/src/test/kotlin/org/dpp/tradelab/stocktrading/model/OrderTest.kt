@@ -24,6 +24,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -40,6 +41,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -56,6 +58,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.5000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -80,6 +83,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -96,6 +100,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -112,6 +117,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -129,6 +135,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -146,6 +153,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -168,6 +176,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -179,6 +188,7 @@ class OrderTest : DescribeSpec({
                 ticker = "GOOG",
                 quantity = BigDecimal("5.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.FILLED,
                 priceSnapshot = BigDecimal("100.000")
             )
@@ -195,6 +205,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -206,6 +217,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -222,6 +234,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -241,6 +254,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )
@@ -258,6 +272,7 @@ class OrderTest : DescribeSpec({
                 ticker = "AAPL",
                 quantity = BigDecimal("2.0000"),
                 orderType = OrderType.MARKET,
+                side = OrderSide.BUY,
                 status = OrderStatus.PENDING,
                 priceSnapshot = BigDecimal("182.500")
             )

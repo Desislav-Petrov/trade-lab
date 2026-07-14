@@ -1,5 +1,6 @@
 package org.dpp.tradelab.stocktrading.messaging
 
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -11,5 +12,6 @@ data class OrderRejectedEvent(
     val ticker: String,
     val quantity: BigDecimal,
     val rejectionReason: String,
+    val side: OrderSide,
     val timestamp: Instant
 )

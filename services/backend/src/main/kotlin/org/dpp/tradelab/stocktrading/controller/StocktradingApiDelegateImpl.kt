@@ -4,6 +4,7 @@ import org.dpp.tradelab.stocktrading.generated.api.StockOrdersApiDelegate
 import org.dpp.tradelab.stocktrading.generated.model.PlaceOrderRequest
 import org.dpp.tradelab.stocktrading.generated.model.PlaceOrderResponse
 import org.dpp.tradelab.stocktrading.mapper.OrderMapper
+import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.dpp.tradelab.stocktrading.model.OrderType
 import org.dpp.tradelab.stocktrading.service.StockTradingService
 import org.springframework.http.ResponseEntity
@@ -20,6 +21,7 @@ class StocktradingApiDelegateImpl(
         idempotencyKey: UUID,
         placeOrderRequest: PlaceOrderRequest
     ): ResponseEntity<PlaceOrderResponse> {
+        val side = OrderSide.valueOf(placeOrderRequest.side.value)
         val order = stockTradingService.placeOrder(
             idempotencyKey = idempotencyKey,
             accountId = placeOrderRequest.accountId,
@@ -27,7 +29,8 @@ class StocktradingApiDelegateImpl(
             ticker = placeOrderRequest.ticker,
             quantity = placeOrderRequest.quantity,
             orderType = OrderType.valueOf(placeOrderRequest.orderType.value),
-            priceSnapshot = placeOrderRequest.priceSnapshot
+            priceSnapshot = placeOrderRequest.priceSnapshot,
+            side = side
         )
         return ResponseEntity.ok(orderMapper.toPlaceOrderResponse(order))
     }
