@@ -134,13 +134,15 @@ export function PortfolioPage() {
       {renderHoldingsSection()}
 
       {isOpen && ticker !== null && maxQuantity !== null && (
-        <SellPanel
-          ticker={ticker}
-          companyName={
-            holdingsData?.holdings.find((h) => h.ticker === ticker)?.ticker ?? ticker
-          }
-          maxQuantity={maxQuantity}
-        />
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <SellPanel
+            ticker={ticker}
+            companyName={
+              holdingsData?.holdings.find((h) => h.ticker === ticker)?.ticker ?? ticker
+            }
+            maxQuantity={maxQuantity}
+          />
+        </div>
       )}
     </div>
   )
