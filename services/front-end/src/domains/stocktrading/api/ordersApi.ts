@@ -7,6 +7,7 @@ export interface PlaceOrderRequest {
   quantity: string
   orderType: 'MARKET'
   priceSnapshot: string
+  side: 'BUY' | 'SELL'
 }
 
 export interface PlaceOrderResponse {
@@ -16,12 +17,27 @@ export interface PlaceOrderResponse {
   quantity: string
   executionPrice: string | null
   totalCost: string | null
+  totalProceeds: number | null
+  side: 'BUY' | 'SELL'
   rejectionReason: string | null
   accountId: string
   createdAt: string
 }
 
+export interface IndicativePriceResponse {
+  ticker: string
+  indicativePrice: number
+}
+
 export const ORDERS_QUERY_KEY = ['orders'] as const
+
+export async function fetchIndicativePrice(ticker: string): Promise<IndicativePriceResponse> {
+  const response = await axiosInstance.get<IndicativePriceResponse>(
+    '/v1/stock-orders/indicative-price',
+    { params: { ticker } }
+  )
+  return response.data
+}
 
 export async function placeOrder(
   idempotencyKey: string,

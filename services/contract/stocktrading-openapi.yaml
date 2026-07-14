@@ -15,6 +15,47 @@ tags:
 
 paths:
 
+  /stock-orders/indicative-price:
+    get:
+      tags:
+        - Stocktrading
+      summary: Get indicative price for a ticker
+      operationId: getIndicativePrice
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          description: The stock ticker symbol
+      responses:
+        '200':
+          description: Indicative price for the given ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndicativePriceResponse'
+        '400':
+          description: Invalid ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Market data unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /stock-orders:
     post:
       tags:
@@ -101,6 +142,7 @@ components:
         - quantity
         - orderType
         - priceSnapshot
+        - side
       properties:
         accountId:
           type: string
@@ -127,12 +169,17 @@ components:
           type: number
           exclusiveMinimum: 0
           example: 182.500
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
 
     PlaceOrderResponse:
       type: object
       required:
         - orderId
         - status
+        - side
         - ticker
         - quantity
         - accountId
@@ -146,6 +193,10 @@ components:
           type: string
           enum: [FILLED, REJECTED]
           example: FILLED
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
         ticker:
           type: string
           example: AAPL
@@ -157,6 +208,10 @@ components:
           nullable: true
           example: 182.500
         totalCost:
+          type: number
+          nullable: true
+          example: 456.250
+        totalProceeds:
           type: number
           nullable: true
           example: 456.250
@@ -172,6 +227,20 @@ components:
           type: string
           format: date-time
           example: "2026-07-08T12:00:00Z"
+
+    IndicativePriceResponse:
+      type: object
+      required:
+        - ticker
+        - indicativePrice
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        indicativePrice:
+          type: number
+          exclusiveMinimum: 0
+          example: 182.500
 
     ErrorResponse:
       type: object

@@ -50,19 +50,71 @@ vi.mock('../components/PortfolioHoldingsTable', () => ({
   PortfolioHoldingsTable: ({
     holdings,
     cash,
-  }: PortfolioHoldingsResponse) =>
+    onSell,
+  }: PortfolioHoldingsResponse & { onSell?: (ticker: string, maxQuantity: number) => void }) =>
     createElement(
       'div',
       { 'data-testid': 'holdings-table' },
-      `Holdings: ${holdings.length}, Cash: ${cash.balance}`
+      createElement(
+        'span',
+        null,
+        `Holdings: ${holdings.length}, Cash: ${cash.balance}`
+      ),
+      onSell
+        ? createElement(
+            'button',
+            {
+              'data-testid': 'trigger-sell',
+              onClick: () => onSell('AAPL', 10),
+            },
+            'Trigger Sell'
+          )
+        : null
     ),
+}))
+
+vi.mock('../../stocktrading/hooks/useSellPanel', () => ({
+  useSellPanel: vi.fn(),
+}))
+
+vi.mock('../../stocktrading/components/SellPanel', () => ({
+  SellPanel: ({ ticker, maxQuantity }: { ticker: string; companyName: string; maxQuantity: number }) =>
+    createElement('div', { 'data-testid': 'sell-panel' }, `Sell: ${ticker} max:${maxQuantity}`),
 }))
 
 import { useActiveAccounts } from '../../ledger/hooks/useLedger'
 import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings'
+import { useSellPanel } from '../../stocktrading/hooks/useSellPanel'
 
 const mockUseActiveAccounts = vi.mocked(useActiveAccounts)
 const mockUsePortfolioHoldings = vi.mocked(usePortfolioHoldings)
+const mockUseSellPanel = vi.mocked(useSellPanel)
+
+function setupSellPanelMock(overrides: {
+  isOpen?: boolean
+  ticker?: string | null
+  maxQuantity?: number | null
+  openSellPanel?: ReturnType<typeof vi.fn>
+} = {}) {
+  mockUseSellPanel.mockReturnValue({
+    isOpen: overrides.isOpen ?? false,
+    ticker: overrides.ticker ?? null,
+    maxQuantity: overrides.maxQuantity ?? null,
+    priceSnapshot: null,
+    idempotencyKey: null,
+    quantity: '',
+    validationError: null,
+    isFetchingPrice: false,
+    priceError: null,
+    isSubmitting: false,
+    submitError: null,
+    result: null,
+    openSellPanel: overrides.openSellPanel ?? vi.fn(),
+    closeSellPanel: vi.fn(),
+    setQuantity: vi.fn(),
+    confirmSell: vi.fn().mockResolvedValue(undefined),
+  } as unknown as ReturnType<typeof useSellPanel>)
+}
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -131,6 +183,7 @@ describe('PortfolioPage', () => {
       useSessionStore.getState().clearSession()
       usePortfolioStore.setState({ selectedAccountId: null })
     })
+    setupSellPanelMock()
   })
 
   it('PortfolioPage - no session - redirects to /login', () => {
@@ -399,5 +452,76 @@ describe('PortfolioPage', () => {
     renderPage()
 
     expect(usePortfolioStore.getState().selectedAccountId).toBe('acc-1')
+  })
+
+  it('PortfolioPage - trigger sell from holdings table - calls openSellPanel with ticker and maxQuantity', () => {
+    const openSellPanel = vi.fn()
+    setupSellPanelMock({ openSellPanel })
+
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue({
+      data: mockHoldingsResponse,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+
+    renderPage()
+
+    fireEvent.click(screen.getByTestId('trigger-sell'))
+
+    expect(openSellPanel).toHaveBeenCalledWith('AAPL', 10)
+  })
+
+  it('PortfolioPage - SellPanel shown when isOpen true - renders with correct ticker and maxQuantity', () => {
+    setupSellPanelMock({ isOpen: true, ticker: 'AAPL', maxQuantity: 10 })
+
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue({
+      data: mockHoldingsResponse,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+
+    renderPage()
+
+    const sellPanel = screen.getByTestId('sell-panel')
+    expect(sellPanel).toBeInTheDocument()
+    expect(sellPanel).toHaveTextContent('Sell: AAPL max:10')
+  })
+
+  it('PortfolioPage - SellPanel not shown when isOpen false - does not render sell panel', () => {
+    setupSellPanelMock({ isOpen: false })
+
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue({
+      data: mockHoldingsResponse,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+
+    renderPage()
+
+    expect(screen.queryByTestId('sell-panel')).not.toBeInTheDocument()
   })
 })

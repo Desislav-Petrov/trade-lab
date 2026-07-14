@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axiosInstance from '../../../shared/api/axiosInstance'
-import { placeOrder } from './ordersApi'
+import { placeOrder, fetchIndicativePrice } from './ordersApi'
 import type { PlaceOrderRequest } from './ordersApi'
 
 vi.mock('../../../shared/api/axiosInstance', () => ({
-  default: { post: vi.fn() },
+  default: { post: vi.fn(), get: vi.fn() },
 }))
 
 const mockPost = vi.mocked(axiosInstance.post)
+const mockGet = vi.mocked(axiosInstance.get)
 
 const sampleRequest: PlaceOrderRequest = {
   accountId: 'acc-1',
@@ -16,6 +17,7 @@ const sampleRequest: PlaceOrderRequest = {
   quantity: '2',
   orderType: 'MARKET',
   priceSnapshot: '180.000',
+  side: 'BUY',
 }
 
 describe('placeOrder', () => {
@@ -128,6 +130,63 @@ describe('placeOrder', () => {
 
     await expect(placeOrder('idem-key-dup', sampleRequest)).rejects.toMatchObject({
       response: { status: 409 },
+    })
+  })
+
+  it('placeOrder - side SELL - POSTs with side: SELL in request body', async () => {
+    const sellRequest: PlaceOrderRequest = {
+      ...sampleRequest,
+      side: 'SELL',
+    }
+    mockPost.mockResolvedValueOnce({
+      data: {
+        orderId: 'order-sell-1',
+        status: 'FILLED' as const,
+        ticker: 'AAPL',
+        quantity: '2',
+        executionPrice: '182.000',
+        totalCost: null,
+        totalProceeds: 364,
+        side: 'SELL' as const,
+        rejectionReason: null,
+        accountId: 'acc-1',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    })
+
+    const result = await placeOrder('idem-key-sell', sellRequest)
+
+    expect(result.side).toBe('SELL')
+    expect(result.totalProceeds).toBe(364)
+    const sentBody = mockPost.mock.calls[0][1] as PlaceOrderRequest
+    expect(sentBody.side).toBe('SELL')
+  })
+})
+
+describe('fetchIndicativePrice', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('fetchIndicativePrice - happy path - GETs /v1/stock-orders/indicative-price with ticker param', async () => {
+    const response = { ticker: 'AAPL', indicativePrice: 182.5 }
+    mockGet.mockResolvedValueOnce({ data: response })
+
+    const result = await fetchIndicativePrice('AAPL')
+
+    expect(result).toEqual(response)
+    expect(mockGet).toHaveBeenCalledWith('/v1/stock-orders/indicative-price', {
+      params: { ticker: 'AAPL' },
+    })
+  })
+
+  it('fetchIndicativePrice - error - throws when GET fails', async () => {
+    const error = Object.assign(new Error('Service Unavailable'), {
+      isAxiosError: true,
+      response: { status: 503 },
+    })
+    mockGet.mockRejectedValueOnce(error)
+
+    await expect(fetchIndicativePrice('AAPL')).rejects.toMatchObject({
+      response: { status: 503 },
     })
   })
 })
