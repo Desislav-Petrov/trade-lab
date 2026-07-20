@@ -3,3 +3,4 @@ dist/
 .vite/
 coverage/
 *.tsbuildinfo
+package-lock.json

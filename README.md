@@ -122,31 +122,31 @@ Content-Type: application/json
 ### Prerequisites
 
 - Node.js 20 or above
-- npm 10 or above
+- pnpm 11 or above (`npm install -g pnpm` or enable via Corepack: `corepack enable`)
 
 ### Install dependencies
 
 ```bash
 cd services/front-end
-npm install
+pnpm install
 ```
 
 ### Start
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The application starts on `http://localhost:5173`.
 
 The dev server proxies all `/api` requests to the backend at `http://localhost:8080`. Start the backend first.
 
-### Other npm tasks
+### Other pnpm tasks
 
 | Task | Purpose |
 |---|---|
-| `npm run build` | Production build (output: `dist/`) |
-| `npm run test` | Run all tests |
-| `npm run lint` | Run Oxlint |
-| `npm run format` | Format source files with Oxfmt |
-| `npm run format:check` | Check formatting with Oxfmt without writing |
+| `pnpm run build` | Production build (output: `dist/`) |
+| `pnpm run test` | Run all tests |
+| `pnpm run lint` | Run Oxlint |
+| `pnpm run format` | Format source files with Oxfmt |
+| `pnpm run format:check` | Check formatting with Oxfmt without writing |
