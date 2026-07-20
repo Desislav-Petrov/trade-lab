@@ -11,7 +11,7 @@
 | Client state | Zustand |
 | HTTP client | Axios |
 | Testing | Vitest + React Testing Library |
-| Package manager | npm |
+| Package manager | pnpm |
 
 ---
 
@@ -134,12 +134,12 @@ These IDs match those used by the decomposer agent.
 
 | Task | Purpose |
 |---|---|
-| `npm run dev` | Start the development server |
-| `npm run build` | Production build |
-| `npm run test` | Run all tests |
-| `npm run lint` | Run Oxlint on frontend source |
-| `npm run format` | Format frontend source with Oxfmt |
-| `npm run format:check` | Check frontend formatting with Oxfmt |
+| `pnpm run dev` | Start the development server |
+| `pnpm run build` | Production build |
+| `pnpm run test` | Run all tests |
+| `pnpm run lint` | Run Oxlint on frontend source |
+| `pnpm run format` | Format frontend source with Oxfmt |
+| `pnpm run format:check` | Check frontend formatting with Oxfmt |
 
 ---
 
