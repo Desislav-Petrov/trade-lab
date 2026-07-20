@@ -137,6 +137,9 @@ These IDs match those used by the decomposer agent.
 | `npm run dev` | Start the development server |
 | `npm run build` | Production build |
 | `npm run test` | Run all tests |
+| `npm run lint` | Run Oxlint on frontend source |
+| `npm run format` | Format frontend source with Oxfmt |
+| `npm run format:check` | Check frontend formatting with Oxfmt |
 
 ---
 

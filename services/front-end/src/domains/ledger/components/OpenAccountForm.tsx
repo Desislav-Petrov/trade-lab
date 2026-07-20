@@ -18,7 +18,8 @@ export function OpenAccountForm({ onSubmit, isLoading, error, onCancel }: OpenAc
       | 'GBP'
       | 'EUR'
       | ''
-    const name = ((form.elements.namedItem('name') as HTMLInputElement).value ?? '').trim() || undefined
+    const name =
+      ((form.elements.namedItem('name') as HTMLInputElement).value ?? '').trim() || undefined
 
     if (!currency) {
       setValidationError('Please select a base currency.')

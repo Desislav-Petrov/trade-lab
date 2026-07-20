@@ -72,10 +72,7 @@ function getSortIndicator(
   return sortDirection === 'asc' ? ' ▲' : ' ▼'
 }
 
-function getPriceMovement(
-  currentPrice: number,
-  previousPrice: number | undefined,
-): PriceMovement {
+function getPriceMovement(currentPrice: number, previousPrice: number | undefined): PriceMovement {
   if (previousPrice === undefined || previousPrice === currentPrice) {
     return 'none'
   }
@@ -87,7 +84,11 @@ function getPriceMovement(
 // change. Combined with useDeferredValue in StockTradingPage this prevents
 // rapid WebSocket tick updates from scheduling synchronous re-renders that
 // could block user-initiated events such as sidebar navigation clicks.
-export const MarketDataGrid = memo(function MarketDataGrid({ rows, feedStatus, onBuy }: MarketDataGridProps) {
+export const MarketDataGrid = memo(function MarketDataGrid({
+  rows,
+  feedStatus,
+  onBuy,
+}: MarketDataGridProps) {
   const [sortColumn, setSortColumn] = useState<keyof MarketDataUpdate | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -196,7 +197,10 @@ export const MarketDataGrid = memo(function MarketDataGrid({ rows, feedStatus, o
         </thead>
         <tbody>
           {sortedRows.map((row) => {
-            const tickerMovement = getPriceMovement(row.currentPrice, previousPrices.get(row.ticker))
+            const tickerMovement = getPriceMovement(
+              row.currentPrice,
+              previousPrices.get(row.ticker),
+            )
 
             return (
               <tr
@@ -208,12 +212,18 @@ export const MarketDataGrid = memo(function MarketDataGrid({ rows, feedStatus, o
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     <span>{row.ticker}</span>
                     {tickerMovement === 'up' && (
-                      <span className="text-[var(--color-success)]" aria-label={`${row.ticker} price increased`}>
+                      <span
+                        className="text-[var(--color-success)]"
+                        aria-label={`${row.ticker} price increased`}
+                      >
                         ↑
                       </span>
                     )}
                     {tickerMovement === 'down' && (
-                      <span className="text-[var(--color-danger)]" aria-label={`${row.ticker} price decreased`}>
+                      <span
+                        className="text-[var(--color-danger)]"
+                        aria-label={`${row.ticker} price decreased`}
+                      >
                         ↓
                       </span>
                     )}

@@ -202,9 +202,7 @@ describe('useSellPanel', () => {
       result.current.setQuantity('10')
     })
 
-    expect(result.current.validationError).toBe(
-      'Quantity cannot exceed your holding of 5 shares.'
-    )
+    expect(result.current.validationError).toBe('Quantity cannot exceed your holding of 5 shares.')
   })
 
   it('useSellPanel - confirmSell FILLED - result set, cache invalidated for holdings and accounts', async () => {

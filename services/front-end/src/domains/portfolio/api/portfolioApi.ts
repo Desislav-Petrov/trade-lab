@@ -5,11 +5,10 @@ export const PORTFOLIO_HOLDINGS_KEY = 'portfolioHoldings'
 
 export async function fetchPortfolioHoldings(
   accountId: string,
-  userId: string
+  userId: string,
 ): Promise<PortfolioHoldingsResponse> {
-  const response = await axiosInstance.get<PortfolioHoldingsResponse>(
-    '/v1/portfolio/holdings',
-    { params: { accountId, userId } }
-  )
+  const response = await axiosInstance.get<PortfolioHoldingsResponse>('/v1/portfolio/holdings', {
+    params: { accountId, userId },
+  })
   return response.data
 }

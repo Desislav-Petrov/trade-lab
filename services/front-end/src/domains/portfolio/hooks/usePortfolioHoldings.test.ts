@@ -97,7 +97,7 @@ describe('usePortfolioHoldings', () => {
 
     const { result, rerender } = renderHook(
       ({ id }: { id: string | null }) => usePortfolioHoldings(id, 'u1'),
-      { wrapper: createWrapper(), initialProps: { id: null as string | null } }
+      { wrapper: createWrapper(), initialProps: { id: null as string | null } },
     )
 
     expect(result.current.fetchStatus).toBe('idle')

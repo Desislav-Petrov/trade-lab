@@ -41,8 +41,8 @@ vi.mock('../components/PortfolioAccountSelector', () => ({
         onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onAccountChange(e.target.value),
       },
       accounts.map((a: AccountResponse) =>
-        createElement('option', { key: a.id, value: a.id }, `${a.name} (${a.currency})`)
-      )
+        createElement('option', { key: a.id, value: a.id }, `${a.name} (${a.currency})`),
+      ),
     )
   },
 }))
@@ -59,7 +59,7 @@ vi.mock('../components/PortfolioHoldingsTable', () => ({
     return createElement(
       'div',
       { 'data-testid': 'holdings-table' },
-      `Holdings: ${holdings.length}, Cash: ${cash.balance}`
+      `Holdings: ${holdings.length}, Cash: ${cash.balance}`,
     )
   },
 }))
@@ -70,7 +70,11 @@ vi.mock('../../stocktrading/hooks/useSellPanel', () => ({
 
 vi.mock('../../stocktrading/components/SellPanel', () => ({
   SellPanel: ({ ticker, maxQuantity }: { ticker: string; maxQuantity: number }) =>
-    createElement('div', { 'data-testid': 'sell-panel' }, `SellPanel: ${ticker} qty=${maxQuantity}`),
+    createElement(
+      'div',
+      { 'data-testid': 'sell-panel' },
+      `SellPanel: ${ticker} qty=${maxQuantity}`,
+    ),
 }))
 
 import { useActiveAccounts } from '../../ledger/hooks/useLedger'
@@ -156,10 +160,13 @@ function renderPage(initialPath = '/portfolio') {
           Routes,
           null,
           createElement(Route, { path: '/portfolio', element: createElement(PortfolioPage) }),
-          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') })
-        )
-      )
-    )
+          createElement(Route, {
+            path: '/login',
+            element: createElement('div', null, 'Login Page'),
+          }),
+        ),
+      ),
+    ),
   )
 }
 
@@ -295,7 +302,7 @@ describe('PortfolioPage', () => {
     renderPage()
 
     expect(
-      screen.getByText('Could not load portfolio. Price data unavailable.')
+      screen.getByText('Could not load portfolio. Price data unavailable.'),
     ).toBeInTheDocument()
   })
 
@@ -324,7 +331,7 @@ describe('PortfolioPage', () => {
     renderPage()
 
     expect(
-      screen.getByText('Could not load portfolio. Balance data unavailable.')
+      screen.getByText('Could not load portfolio. Balance data unavailable.'),
     ).toBeInTheDocument()
   })
 
@@ -344,9 +351,7 @@ describe('PortfolioPage', () => {
 
     renderPage()
 
-    expect(
-      screen.getByText('No accounts available. Open an account first.')
-    ).toBeInTheDocument()
+    expect(screen.getByText('No accounts available. Open an account first.')).toBeInTheDocument()
     expect(screen.queryByTestId('holdings-table')).not.toBeInTheDocument()
   })
 
@@ -471,7 +476,7 @@ describe('PortfolioPage', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseSellPanel.mockReturnValue(
-      buildSellPanelHook({ isOpen: true, ticker: 'AAPL', maxQuantity: 10 })
+      buildSellPanelHook({ isOpen: true, ticker: 'AAPL', maxQuantity: 10 }),
     )
     mockUseActiveAccounts.mockReturnValue({
       data: { accounts: [mockAccount] },

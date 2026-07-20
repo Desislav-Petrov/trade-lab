@@ -6,20 +6,26 @@ import { RegistrationPage } from './RegistrationPage'
 
 vi.mock('../components/RegistrationForm', () => ({
   RegistrationForm: ({ onSuccess }: { onSuccess?: () => void }) =>
-    createElement('div', null,
+    createElement(
+      'div',
+      null,
       createElement('span', null, 'RegistrationForm'),
-      createElement('button', { onClick: onSuccess }, 'Trigger Success')
+      createElement('button', { onClick: onSuccess }, 'Trigger Success'),
     ),
 }))
 
 describe('RegistrationPage', () => {
   it('RegistrationPage - renders - displays RegistrationForm', () => {
     render(
-      createElement(MemoryRouter, { initialEntries: ['/register'] },
-        createElement(Routes, null,
-          createElement(Route, { path: '/register', element: createElement(RegistrationPage) })
-        )
-      )
+      createElement(
+        MemoryRouter,
+        { initialEntries: ['/register'] },
+        createElement(
+          Routes,
+          null,
+          createElement(Route, { path: '/register', element: createElement(RegistrationPage) }),
+        ),
+      ),
     )
 
     expect(screen.getByText('RegistrationForm')).toBeInTheDocument()
@@ -27,12 +33,19 @@ describe('RegistrationPage', () => {
 
   it('RegistrationPage - success - redirects to /login', async () => {
     render(
-      createElement(MemoryRouter, { initialEntries: ['/register'] },
-        createElement(Routes, null,
+      createElement(
+        MemoryRouter,
+        { initialEntries: ['/register'] },
+        createElement(
+          Routes,
+          null,
           createElement(Route, { path: '/register', element: createElement(RegistrationPage) }),
-          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') })
-        )
-      )
+          createElement(Route, {
+            path: '/login',
+            element: createElement('div', null, 'Login Page'),
+          }),
+        ),
+      ),
     )
 
     screen.getByRole('button', { name: /trigger success/i }).click()

@@ -33,14 +33,16 @@ function renderBuyPanel(props = defaultProps) {
   return render(<BuyPanel {...props} />, { wrapper: createWrapper() })
 }
 
-function setupMockMutation(overrides: {
-  mutate?: ReturnType<typeof vi.fn>
-  isPending?: boolean
-  isSuccess?: boolean
-  isError?: boolean
-  data?: PlaceOrderResponse
-  error?: unknown
-} = {}) {
+function setupMockMutation(
+  overrides: {
+    mutate?: ReturnType<typeof vi.fn>
+    isPending?: boolean
+    isSuccess?: boolean
+    isError?: boolean
+    data?: PlaceOrderResponse
+    error?: unknown
+  } = {},
+) {
   mockUsePlaceOrder.mockReturnValue({
     mutate: overrides.mutate ?? vi.fn(),
     isPending: overrides.isPending ?? false,

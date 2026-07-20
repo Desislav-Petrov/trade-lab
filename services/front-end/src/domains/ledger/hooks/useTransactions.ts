@@ -5,7 +5,7 @@ import type { TransactionListResponse } from '../types/transaction'
 export function useTransactions(
   accountId: string,
   userId: string,
-  page: number
+  page: number,
 ): {
   data: TransactionListResponse | undefined
   isLoading: boolean

@@ -18,9 +18,7 @@ export function SubscriptionList({
   }
 
   if (subscriptions.length === 0) {
-    return (
-      <p className="text-xs text-[var(--color-text-muted)]">You have no subscriptions yet.</p>
-    )
+    return <p className="text-xs text-[var(--color-text-muted)]">You have no subscriptions yet.</p>
   }
 
   function handleCheckboxChange(ticker: string, checked: boolean) {

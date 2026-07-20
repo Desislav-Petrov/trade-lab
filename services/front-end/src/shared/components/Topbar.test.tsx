@@ -20,7 +20,15 @@ function renderTopbar(initialPath = '/') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
-        <Route path="*" element={<><Topbar /><div data-testid="outlet" /></>} />
+        <Route
+          path="*"
+          element={
+            <>
+              <Topbar />
+              <div data-testid="outlet" />
+            </>
+          }
+        />
         <Route path="/login" element={<div>Login Page</div>} />
       </Routes>
     </MemoryRouter>,
@@ -64,7 +72,10 @@ describe('Topbar', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     renderTopbar()
     const today = new Date().toLocaleDateString(undefined, {
-      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     })
     expect(screen.getByText(today)).toBeInTheDocument()
   })

@@ -16,7 +16,7 @@ export async function createAccount(request: OpenAccountRequest): Promise<Accoun
 
 export async function fetchAccounts(
   userId: string,
-  status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+  status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED',
 ): Promise<AccountListResponse> {
   const params: { userId: string; status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' } = { userId }
   if (status !== undefined) {
@@ -30,11 +30,11 @@ export const TOP_UP_ACCOUNT_KEY = 'topUpAccount'
 
 export async function topUpAccount(
   accountId: string,
-  request: TopUpAccountRequest
+  request: TopUpAccountRequest,
 ): Promise<TopUpAccountResponse> {
   const response = await axiosInstance.post<TopUpAccountResponse>(
     `/v1/accounts/${accountId}/top-up`,
-    request
+    request,
   )
   return response.data
 }

@@ -18,8 +18,12 @@ const mockProfile: UserProfile = {
 
 function renderProfilePage() {
   return render(
-    createElement(MemoryRouter, { initialEntries: ['/profile'] },
-      createElement(Routes, null,
+    createElement(
+      MemoryRouter,
+      { initialEntries: ['/profile'] },
+      createElement(
+        Routes,
+        null,
         createElement(Route, { path: '/profile', element: createElement(ProfilePage) }),
         createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
       ),
@@ -53,11 +57,14 @@ describe('ProfilePage', () => {
     expect(screen.getByText(/january 1, 2026/i)).toBeInTheDocument()
   })
 
-  it('ProfilePage - session exists - renders today\'s date', () => {
+  it("ProfilePage - session exists - renders today's date", () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     renderProfilePage()
     const today = new Date().toLocaleDateString(undefined, {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     })
     expect(screen.getByText(today)).toBeInTheDocument()
   })

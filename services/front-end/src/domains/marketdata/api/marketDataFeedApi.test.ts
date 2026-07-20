@@ -6,8 +6,6 @@ import type { FeedMessage, SnapshotMessage, TickMessage } from './marketDataFeed
 
 interface MockWebSocketInstance {
   url: string
-  onmessage: ((event: MessageEvent<string>) => void) | null
-  onclose: ((event: CloseEvent) => void) | null
   close: ReturnType<typeof vi.fn>
   simulateMessage: (data: FeedMessage) => void
   simulateClose: (code: number) => void
@@ -23,21 +21,14 @@ class MockWebSocketClass {
 
   constructor(url: string) {
     this.url = url
-    // Store reference so tests can interact with it
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this
     instances.push({
-      url: self.url,
-      get onmessage() { return self.onmessage },
-      set onmessage(v) { self.onmessage = v },
-      get onclose() { return self.onclose },
-      set onclose(v) { self.onclose = v },
-      close: self.close,
-      simulateMessage(data: FeedMessage) {
-        self.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>)
+      url: this.url,
+      close: this.close,
+      simulateMessage: (data: FeedMessage) => {
+        this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>)
       },
-      simulateClose(code: number) {
-        self.onclose?.({ code } as CloseEvent)
+      simulateClose: (code: number) => {
+        this.onclose?.({ code } as CloseEvent)
       },
     })
   }
@@ -61,9 +52,7 @@ describe('connectMarketDataFeed', () => {
   it('connectMarketDataFeed - called with userId - opens WebSocket with correct URL', () => {
     connectMarketDataFeed('user-123', vi.fn(), vi.fn(), vi.fn())
     expect(instances).toHaveLength(1)
-    expect(instances[0].url).toBe(
-      'ws://localhost:3000/api/v1/market-data/feed?userId=user-123',
-    )
+    expect(instances[0].url).toBe('ws://localhost:3000/api/v1/market-data/feed?userId=user-123')
   })
 
   it('connectMarketDataFeed - SNAPSHOT message received - calls onMessage with parsed SNAPSHOT', () => {
@@ -119,9 +108,7 @@ describe('connectMarketDataFeed', () => {
 
     // Should have created a second (reconnect) socket
     expect(instances).toHaveLength(2)
-    expect(instances[1].url).toBe(
-      'ws://localhost:3000/api/v1/market-data/feed?userId=user-3',
-    )
+    expect(instances[1].url).toBe('ws://localhost:3000/api/v1/market-data/feed?userId=user-3')
   })
 
   it('connectMarketDataFeed - reconnect socket also closes unexpectedly - calls onError with code', () => {

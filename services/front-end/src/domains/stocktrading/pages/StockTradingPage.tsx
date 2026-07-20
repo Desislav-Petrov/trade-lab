@@ -38,7 +38,11 @@ export function StockTradingPage() {
   const [addError, setAddError] = useState<string | null>(null)
   const [buyContext, setBuyContext] = useState<BuyContext | null>(null)
 
-  const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
+  const {
+    data: subscriptionsData,
+    isLoading,
+    error: loadError,
+  } = useSubscriptions(user?.userId ?? '')
   const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
@@ -51,7 +55,11 @@ export function StockTradingPage() {
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
   const deferredRows = useDeferredValue(rows)
 
-  const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
+  const {
+    data: activeAccountsData,
+    isLoading: isAccountsLoading,
+    isError: isAccountsError,
+  } = useActiveAccounts()
   const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
   const setSelectedAccountId = useStockTradingStore((s) => s.setSelectedAccountId)
 
@@ -174,9 +182,12 @@ export function StockTradingPage() {
       <MarketDataGrid
         rows={deferredRows}
         feedStatus={feedStatus}
-        onBuy={selectedAccountId
-          ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
-          : undefined}
+        onBuy={
+          selectedAccountId
+            ? (ticker, companyName, priceSnapshot) =>
+                setBuyContext({ ticker, companyName, priceSnapshot })
+            : undefined
+        }
       />
 
       {buyContext && selectedAccountId && (

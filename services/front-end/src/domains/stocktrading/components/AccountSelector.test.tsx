@@ -61,9 +61,7 @@ describe('AccountSelector', () => {
         isError={false}
       />,
     )
-    expect(
-      screen.getByText('No accounts available. Open an account first.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('No accounts available. Open an account first.')).toBeInTheDocument()
   })
 
   it('AccountSelector - accounts provided - renders select with one option per account', () => {

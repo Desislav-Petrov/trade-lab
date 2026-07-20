@@ -9,20 +9,35 @@ import * as useFetchUserProfileModule from '../hooks/useFetchUserProfile'
 
 vi.mock('../components/LoginForm', () => ({
   LoginForm: ({ onSuccess }: { onSuccess?: (data: LoginResponse) => void }) =>
-    createElement('div', null,
+    createElement(
+      'div',
+      null,
       createElement('span', null, 'LoginForm'),
-      createElement('button', { onClick: () => onSuccess?.({ userId: 'u1', email: 'a@example.com' }) }, 'Trigger Success'),
+      createElement(
+        'button',
+        { onClick: () => onSuccess?.({ userId: 'u1', email: 'a@example.com' }) },
+        'Trigger Success',
+      ),
     ),
 }))
 
 function renderPage(initialPath = '/login', state?: Record<string, unknown>) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return render(
-    createElement(QueryClientProvider, { client: queryClient },
-      createElement(MemoryRouter, { initialEntries: [{ pathname: initialPath, state: state ?? null }] },
-        createElement(Routes, null,
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(
+        MemoryRouter,
+        { initialEntries: [{ pathname: initialPath, state: state ?? null }] },
+        createElement(
+          Routes,
+          null,
           createElement(Route, { path: '/login', element: createElement(LoginPage) }),
-          createElement(Route, { path: '/profile', element: createElement('div', null, 'Profile Page') }),
+          createElement(Route, {
+            path: '/profile',
+            element: createElement('div', null, 'Profile Page'),
+          }),
         ),
       ),
     ),
@@ -55,10 +70,13 @@ describe('LoginPage', () => {
 
   it('LoginPage - profile fetch succeeds - navigates to /profile', async () => {
     vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
-      ({ onSuccess } = {}) => ({
-        mutate: () => { onSuccess?.() },
-        isPending: false,
-      } as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+      ({ onSuccess } = {}) =>
+        ({
+          mutate: () => {
+            onSuccess?.()
+          },
+          isPending: false,
+        }) as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>,
     )
 
     renderPage()
@@ -68,10 +86,13 @@ describe('LoginPage', () => {
 
   it('LoginPage - profile fetch fails - shows profile error message', async () => {
     vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
-      ({ onError } = {}) => ({
-        mutate: () => { onError?.() },
-        isPending: false,
-      } as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>)
+      ({ onError } = {}) =>
+        ({
+          mutate: () => {
+            onError?.()
+          },
+          isPending: false,
+        }) as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>,
     )
 
     renderPage()

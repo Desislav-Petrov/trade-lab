@@ -36,9 +36,7 @@ const mockCash: CashHolding = {
 
 describe('PortfolioHoldingsTable', () => {
   it('PortfolioHoldingsTable - renders - all column headers are present', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     expect(screen.getByRole('columnheader', { name: /ticker/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /shares/i })).toBeInTheDocument()
@@ -51,9 +49,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - renders - all columns show correct values for stock rows', () => {
-    render(
-      <PortfolioHoldingsTable holdings={[mockHoldings[0]]} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={[mockHoldings[0]]} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     // rows[0] = header, rows[1] = MSFT, rows[2] = cash
@@ -71,9 +67,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - cash row - always renders last with correct values', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     const cashRow = screen.getByTestId('cash-row')
     const cells = within(cashRow).getAllByRole('cell')
@@ -89,9 +83,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - default sort - renders tickers in ascending order', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     // rows[0] = header, rows[1] = AAPL (asc), rows[2] = MSFT, rows[3] = cash
@@ -102,9 +94,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - click Ticker header - descending then default', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     const tickerHeader = screen.getByRole('columnheader', { name: /ticker/i })
 
@@ -125,9 +115,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - click Current Value header - sorts stock rows ascending; cash stays last', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     fireEvent.click(screen.getByRole('columnheader', { name: /current value/i }))
 
@@ -143,7 +131,7 @@ describe('PortfolioHoldingsTable', () => {
     const cashWithNull: CashHolding = { ...mockCash, portfolioPercent: null }
 
     render(
-      <PortfolioHoldingsTable holdings={[holdingWithNull]} cash={cashWithNull} currency="USD" />
+      <PortfolioHoldingsTable holdings={[holdingWithNull]} cash={cashWithNull} currency="USD" />,
     )
 
     const rows = screen.getAllByRole('row')
@@ -155,9 +143,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - positive unrealisedPnL - has pnl-positive class', () => {
-    render(
-      <PortfolioHoldingsTable holdings={[mockHoldings[0]]} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={[mockHoldings[0]]} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     const pnlCell = within(rows[1]).getAllByRole('cell')[7]
@@ -165,9 +151,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - negative unrealisedPnL - has pnl-negative class', () => {
-    render(
-      <PortfolioHoldingsTable holdings={[mockHoldings[1]]} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={[mockHoldings[1]]} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     const pnlCell = within(rows[1]).getAllByRole('cell')[7]
@@ -175,9 +159,7 @@ describe('PortfolioHoldingsTable', () => {
   })
 
   it('PortfolioHoldingsTable - empty holdings - renders cash row only with no stock rows', () => {
-    render(
-      <PortfolioHoldingsTable holdings={[]} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={[]} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     // rows[0] = header, rows[1] = cash
@@ -187,16 +169,14 @@ describe('PortfolioHoldingsTable', () => {
 
   it('PortfolioHoldingsTable - empty holdings - no error rendered', () => {
     const { container } = render(
-      <PortfolioHoldingsTable holdings={[]} cash={mockCash} currency="USD" />
+      <PortfolioHoldingsTable holdings={[]} cash={mockCash} currency="USD" />,
     )
 
     expect(container.querySelector('[role="alert"]')).toBeNull()
   })
 
   it('PortfolioHoldingsTable - sorting other column - cash row stays last', () => {
-    render(
-      <PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={mockHoldings} cash={mockCash} currency="USD" />)
 
     fireEvent.click(screen.getByRole('columnheader', { name: /unrealised p&l/i }))
 
@@ -218,9 +198,7 @@ describe('PortfolioHoldingsTable', () => {
       unrealisedPnL: 0.1,
     }
 
-    render(
-      <PortfolioHoldingsTable holdings={[holding]} cash={mockCash} currency="USD" />
-    )
+    render(<PortfolioHoldingsTable holdings={[holding]} cash={mockCash} currency="USD" />)
 
     const rows = screen.getAllByRole('row')
     const cells = within(rows[1]).getAllByRole('cell')
@@ -238,7 +216,7 @@ describe('PortfolioHoldingsTable', () => {
         cash={mockCash}
         currency="USD"
         onSell={onSell}
-      />
+      />,
     )
 
     const rows = screen.getAllByRole('row')
@@ -257,7 +235,7 @@ describe('PortfolioHoldingsTable', () => {
         cash={mockCash}
         currency="USD"
         onSell={onSell}
-      />
+      />,
     )
 
     const rows = screen.getAllByRole('row')
@@ -277,7 +255,7 @@ describe('PortfolioHoldingsTable', () => {
         cash={mockCash}
         currency="USD"
         onSell={onSell}
-      />
+      />,
     )
 
     const cashRow = screen.getByTestId('cash-row')
@@ -294,7 +272,7 @@ describe('PortfolioHoldingsTable', () => {
         cash={mockCash}
         currency="USD"
         onSell={onSell}
-      />
+      />,
     )
 
     const rows = screen.getAllByRole('row')
@@ -314,7 +292,7 @@ describe('PortfolioHoldingsTable', () => {
         cash={mockCash}
         currency="USD"
         onSell={onSell}
-      />
+      />,
     )
 
     const rows = screen.getAllByRole('row')
