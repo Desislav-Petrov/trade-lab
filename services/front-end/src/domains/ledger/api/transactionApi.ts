@@ -10,7 +10,7 @@ export const TRANSACTION_KEYS = {
 export async function fetchTransactions(
   accountId: string,
   userId: string,
-  page: number
+  page: number,
 ): Promise<TransactionListResponse> {
   const response = await axiosInstance.get<TransactionListResponse>(
     `/v1/accounts/${accountId}/transactions`,
@@ -20,7 +20,7 @@ export async function fetchTransactions(
         page,
         size: 25,
       },
-    }
+    },
   )
   return response.data
 }

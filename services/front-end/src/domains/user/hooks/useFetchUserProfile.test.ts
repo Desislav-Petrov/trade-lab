@@ -30,7 +30,9 @@ describe('useFetchUserProfile', () => {
     const onSuccess = vi.fn()
     const { result } = renderHook(() => useFetchUserProfile({ onSuccess }), { wrapper })
 
-    act(() => { result.current.mutate('u1') })
+    act(() => {
+      result.current.mutate('u1')
+    })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -45,7 +47,9 @@ describe('useFetchUserProfile', () => {
     const onError = vi.fn()
     const { result } = renderHook(() => useFetchUserProfile({ onError }), { wrapper })
 
-    act(() => { result.current.mutate('u1') })
+    act(() => {
+      result.current.mutate('u1')
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 

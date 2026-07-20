@@ -34,7 +34,12 @@ describe('useRegisterUser', () => {
     })
 
     act(() => {
-      result.current.mutate({ firstName: 'Jane', lastName: 'Doe', address: '123 Main St', email: 'jane@example.com' })
+      result.current.mutate({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        address: '123 Main St',
+        email: 'jane@example.com',
+      })
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -53,7 +58,12 @@ describe('useRegisterUser', () => {
     })
 
     act(() => {
-      result.current.mutate({ firstName: 'Jane', lastName: 'Doe', address: '123 Main St', email: 'dupe@example.com' })
+      result.current.mutate({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        address: '123 Main St',
+        email: 'dupe@example.com',
+      })
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
@@ -72,7 +82,12 @@ describe('useRegisterUser', () => {
     })
 
     act(() => {
-      result.current.mutate({ firstName: '', lastName: 'Doe', address: '123 Main St', email: 'jane@example.com' })
+      result.current.mutate({
+        firstName: '',
+        lastName: 'Doe',
+        address: '123 Main St',
+        email: 'jane@example.com',
+      })
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))

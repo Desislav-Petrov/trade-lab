@@ -54,11 +54,10 @@ export function useMarketDataFeed(
       cleanup()
       cleanupRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   useEffect(() => {
-    if (subscribedTickers.length === 0) return   // not loaded yet — do nothing
+    if (subscribedTickers.length === 0) return // not loaded yet — do nothing
     setRows((prev) => prev.filter((r) => subscribedTickers.includes(r.ticker)))
   }, [subscribedTickers])
 

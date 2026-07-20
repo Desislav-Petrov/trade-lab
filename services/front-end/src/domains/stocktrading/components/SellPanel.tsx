@@ -15,7 +15,7 @@ function computeEstimatedProceeds(quantity: string, priceSnapshot: number | null
 function computeTotalProceeds(
   totalProceeds: number | null,
   executionPrice: string | null,
-  quantity: string
+  quantity: string,
 ): string {
   if (totalProceeds !== null) return totalProceeds.toFixed(2)
   const price = parseFloat(executionPrice ?? '')
@@ -44,7 +44,7 @@ export function SellPanel({ ticker, companyName, maxQuantity }: SellPanelProps) 
     const totalProceeds = computeTotalProceeds(
       result.totalProceeds,
       result.executionPrice,
-      result.quantity
+      result.quantity,
     )
     return (
       <div
@@ -55,7 +55,9 @@ export function SellPanel({ ticker, companyName, maxQuantity }: SellPanelProps) 
         <p className="mb-2 font-medium text-[var(--color-success)]">Order filled ✓</p>
         <p className="mb-1 text-[var(--color-text-primary)]">Ticker: {result.ticker}</p>
         <p className="mb-1 text-[var(--color-text-primary)]">Quantity: {result.quantity}</p>
-        <p className="mb-1 text-[var(--color-text-primary)]">Execution price: {result.executionPrice}</p>
+        <p className="mb-1 text-[var(--color-text-primary)]">
+          Execution price: {result.executionPrice}
+        </p>
         <p className="mb-3 text-[var(--color-text-primary)]">Total proceeds: {totalProceeds}</p>
         <button
           type="button"
@@ -172,11 +174,7 @@ export function SellPanel({ ticker, companyName, maxQuantity }: SellPanelProps) 
           title="Confirm"
           className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-success)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
         >
-          {isSubmitting ? (
-            <span aria-label="Loading">⏳</span>
-          ) : (
-            <span aria-hidden="true">✓</span>
-          )}
+          {isSubmitting ? <span aria-label="Loading">⏳</span> : <span aria-hidden="true">✓</span>}
         </button>
         <button
           type="button"

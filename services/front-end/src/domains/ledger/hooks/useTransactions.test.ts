@@ -52,13 +52,12 @@ describe('useTransactions', () => {
 
   it('useTransactions - on mount - isLoading is true before data arrives', async () => {
     mockFetchTransactions.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(mockTransactionListResponse), 100))
+      () => new Promise((resolve) => setTimeout(() => resolve(mockTransactionListResponse), 100)),
     )
 
-    const { result } = renderHook(
-      () => useTransactions('acc-1', 'user-1', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-1', 'user-1', 0), {
+      wrapper: createWrapper(),
+    })
 
     expect(result.current.isLoading).toBe(true)
     expect(result.current.data).toBeUndefined()
@@ -69,10 +68,9 @@ describe('useTransactions', () => {
   it('useTransactions - success - returns data from fetchTransactions', async () => {
     mockFetchTransactions.mockResolvedValueOnce(mockTransactionListResponse)
 
-    const { result } = renderHook(
-      () => useTransactions('acc-1', 'user-1', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-1', 'user-1', 0), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
@@ -89,10 +87,9 @@ describe('useTransactions', () => {
       totalCount: 120,
     })
 
-    const { result } = renderHook(
-      () => useTransactions('acc-42', 'user-99', 2),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-42', 'user-99', 2), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
@@ -108,10 +105,9 @@ describe('useTransactions', () => {
     })
     mockFetchTransactions.mockRejectedValueOnce(serverError)
 
-    const { result } = renderHook(
-      () => useTransactions('acc-1', 'user-1', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-1', 'user-1', 0), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -127,10 +123,9 @@ describe('useTransactions', () => {
     })
     mockFetchTransactions.mockRejectedValueOnce(notFoundError)
 
-    const { result } = renderHook(
-      () => useTransactions('acc-missing', 'user-1', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-missing', 'user-1', 0), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -144,10 +139,9 @@ describe('useTransactions', () => {
     })
     mockFetchTransactions.mockRejectedValueOnce(forbiddenError)
 
-    const { result } = renderHook(
-      () => useTransactions('acc-1', 'user-other', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-1', 'user-other', 0), {
+      wrapper: createWrapper(),
+    })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -155,10 +149,9 @@ describe('useTransactions', () => {
   })
 
   it('useTransactions - empty userId - does not call fetchTransactions', async () => {
-    const { result } = renderHook(
-      () => useTransactions('acc-1', '', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('acc-1', '', 0), {
+      wrapper: createWrapper(),
+    })
 
     // Give TanStack Query a tick to potentially fire
     await new Promise((r) => setTimeout(r, 50))
@@ -169,10 +162,9 @@ describe('useTransactions', () => {
   })
 
   it('useTransactions - empty accountId - does not call fetchTransactions', async () => {
-    const { result } = renderHook(
-      () => useTransactions('', 'user-1', 0),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useTransactions('', 'user-1', 0), {
+      wrapper: createWrapper(),
+    })
 
     await new Promise((r) => setTimeout(r, 50))
 

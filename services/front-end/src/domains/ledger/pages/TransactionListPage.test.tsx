@@ -21,8 +21,7 @@ vi.mock('../components/TransactionTable', () => ({
   TransactionTable: ({ transactions, isLoading, isError }: TransactionTableProps) => {
     if (isLoading) return createElement('div', { role: 'status' }, 'Loading…')
     if (isError) return createElement('p', { role: 'alert' }, 'Could not load transactions.')
-    if (transactions.length === 0)
-      return createElement('p', null, 'No transactions yet.')
+    if (transactions.length === 0) return createElement('p', null, 'No transactions yet.')
     return createElement(
       'div',
       { 'data-testid': 'transaction-table' },
@@ -46,11 +45,7 @@ vi.mock('../components/PaginationControls', () => ({
       'div',
       { 'data-testid': 'pagination-controls' },
       createElement('span', null, `Page ${currentPage + 1} of ${totalPages}`),
-      createElement(
-        'button',
-        { onClick: () => onPageChange(currentPage + 1) },
-        'Next',
-      ),
+      createElement('button', { onClick: () => onPageChange(currentPage + 1) }, 'Next'),
     )
   },
 }))
@@ -100,9 +95,7 @@ function renderPage(
         MemoryRouter,
         {
           initialEntries: [
-            locationState
-              ? { pathname: initialPath, state: locationState }
-              : initialPath,
+            locationState ? { pathname: initialPath, state: locationState } : initialPath,
           ],
         },
         createElement(
@@ -151,9 +144,7 @@ describe('TransactionListPage', () => {
       accountName: 'My USD Account',
       currency: 'USD',
     })
-    expect(
-      screen.getByRole('heading', { name: 'My USD Account — USD' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'My USD Account — USD' })).toBeInTheDocument()
   })
 
   it('TransactionListPage - no location state - falls back to accountId in heading', () => {

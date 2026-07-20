@@ -40,9 +40,20 @@ vi.mock('../components/AccountSelector', () => ({
     isLoading: boolean
     isError: boolean
   }) => {
-    if (isLoading) return createElement('p', { 'data-testid': 'account-selector-loading' }, 'Loading accounts…')
-    if (isError) return createElement('p', { role: 'alert', 'data-testid': 'account-selector-error' }, 'Could not load accounts.')
-    if (accounts.length === 0) return createElement('p', { 'data-testid': 'account-selector-empty' }, 'No accounts available. Open an account first.')
+    if (isLoading)
+      return createElement('p', { 'data-testid': 'account-selector-loading' }, 'Loading accounts…')
+    if (isError)
+      return createElement(
+        'p',
+        { role: 'alert', 'data-testid': 'account-selector-error' },
+        'Could not load accounts.',
+      )
+    if (accounts.length === 0)
+      return createElement(
+        'p',
+        { 'data-testid': 'account-selector-empty' },
+        'No accounts available. Open an account first.',
+      )
     return createElement(
       'select',
       {
@@ -155,7 +166,11 @@ vi.mock('../components/RemoveTickerBar', () => ({
     createElement(
       'div',
       { 'data-testid': 'remove-ticker-bar' },
-      createElement('button', { onClick: onRemove, disabled: selectedCount === 0 }, `Remove selected (${selectedCount})`),
+      createElement(
+        'button',
+        { onClick: onRemove, disabled: selectedCount === 0 },
+        `Remove selected (${selectedCount})`,
+      ),
     ),
 }))
 
@@ -250,26 +265,31 @@ function renderPage(initialPath = '/trade') {
           Routes,
           null,
           createElement(Route, { path: '/trade', element: createElement(StockTradingPage) }),
-          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
+          createElement(Route, {
+            path: '/login',
+            element: createElement('div', null, 'Login Page'),
+          }),
         ),
       ),
     ),
   )
 }
 
-function setupMocks(overrides: {
-  subscriptions?: SubscriptionResponse[]
-  isLoading?: boolean
-  loadError?: Error | null
-  addMutate?: ReturnType<typeof vi.fn>
-  removeMutate?: ReturnType<typeof vi.fn>
-  addIsPending?: boolean
-  removeIsPending?: boolean
-  removeError?: Error | null
-  activeAccounts?: typeof mockActiveAccounts
-  isAccountsLoading?: boolean
-  isAccountsError?: boolean
-} = {}) {
+function setupMocks(
+  overrides: {
+    subscriptions?: SubscriptionResponse[]
+    isLoading?: boolean
+    loadError?: Error | null
+    addMutate?: ReturnType<typeof vi.fn>
+    removeMutate?: ReturnType<typeof vi.fn>
+    addIsPending?: boolean
+    removeIsPending?: boolean
+    removeError?: Error | null
+    activeAccounts?: typeof mockActiveAccounts
+    isAccountsLoading?: boolean
+    isAccountsError?: boolean
+  } = {},
+) {
   mockUseSubscriptions.mockReturnValue({
     data: overrides.subscriptions !== undefined ? overrides.subscriptions : mockSubscriptions,
     isLoading: overrides.isLoading ?? false,
@@ -298,7 +318,8 @@ function setupMocks(overrides: {
     error: null,
   } as unknown as ReturnType<typeof useSupportedTickers>)
 
-  const accounts = overrides.activeAccounts !== undefined ? overrides.activeAccounts : mockActiveAccounts
+  const accounts =
+    overrides.activeAccounts !== undefined ? overrides.activeAccounts : mockActiveAccounts
   mockUseActiveAccounts.mockReturnValue({
     data: { accounts } as AccountListResponse,
     isLoading: overrides.isAccountsLoading ?? false,
@@ -356,10 +377,7 @@ describe('StockTradingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /add tickers/i }))
     fireEvent.click(screen.getByRole('button', { name: /confirm add/i }))
 
-    expect(addMutate).toHaveBeenCalledWith(
-      { userId: 'u1', tickers: ['AAPL'] },
-      expect.any(Object),
-    )
+    expect(addMutate).toHaveBeenCalledWith({ userId: 'u1', tickers: ['AAPL'] }, expect.any(Object))
   })
 
   it('StockTradingPage - onRemove fires - calls bulkRemoveSubscriptions with selected tickers', () => {
@@ -383,7 +401,9 @@ describe('StockTradingPage', () => {
       isAxiosError: true,
       response: { data: { error: 'Ticker not found in subscriptions.' }, status: 404 },
     })
-    const removeMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
+    const removeMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) =>
+      onError(error),
+    )
     setupMocks({ removeMutate })
     renderPage()
 

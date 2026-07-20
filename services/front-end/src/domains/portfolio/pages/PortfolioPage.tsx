@@ -101,9 +101,7 @@ export function PortfolioPage() {
     if (isHoldingsError) {
       const status = (holdingsError as AxiosError)?.response?.status
       if (status === 502) {
-        return (
-          <p role="alert">{getHoldings502ErrorMessage(holdingsError)}</p>
-        )
+        return <p role="alert">{getHoldings502ErrorMessage(holdingsError)}</p>
       }
       return <p role="alert">Could not load portfolio.</p>
     }
@@ -137,9 +135,7 @@ export function PortfolioPage() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <SellPanel
             ticker={ticker}
-            companyName={
-              holdingsData?.holdings.find((h) => h.ticker === ticker)?.ticker ?? ticker
-            }
+            companyName={holdingsData?.holdings.find((h) => h.ticker === ticker)?.ticker ?? ticker}
             maxQuantity={maxQuantity}
           />
         </div>

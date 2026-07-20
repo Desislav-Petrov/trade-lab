@@ -46,7 +46,9 @@ describe('fetchTransactions', () => {
   })
 
   it('fetchTransactions - size is always 25 - hardcoded regardless of other params', async () => {
-    mockGet.mockResolvedValueOnce({ data: { transactions: [], page: 0, totalPages: 1, totalCount: 0 } })
+    mockGet.mockResolvedValueOnce({
+      data: { transactions: [], page: 0, totalPages: 1, totalCount: 0 },
+    })
 
     await fetchTransactions('acc-1', 'user-1', 0)
 

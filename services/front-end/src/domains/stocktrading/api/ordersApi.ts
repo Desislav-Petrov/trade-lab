@@ -28,7 +28,7 @@ export const ORDERS_QUERY_KEY = ['orders'] as const
 
 export async function placeOrder(
   idempotencyKey: string,
-  request: PlaceOrderRequest
+  request: PlaceOrderRequest,
 ): Promise<PlaceOrderResponse> {
   const response = await axiosInstance.post<PlaceOrderResponse>('/v1/stock-orders', request, {
     headers: {

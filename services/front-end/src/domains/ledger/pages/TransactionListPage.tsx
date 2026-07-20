@@ -33,8 +33,7 @@ export function TransactionListPage() {
     tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const heading =
-    accountName && currency ? `${accountName} — ${currency}` : accountId ?? ''
+  const heading = accountName && currency ? `${accountName} — ${currency}` : (accountId ?? '')
 
   return (
     <div className="max-w-4xl">

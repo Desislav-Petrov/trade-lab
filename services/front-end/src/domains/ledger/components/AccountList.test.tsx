@@ -93,7 +93,11 @@ describe('AccountList', () => {
     const user = userEvent.setup()
     const handleTransactions = vi.fn()
     render(
-      <AccountList accounts={mockAccounts} onTopUp={() => {}} onTransactions={handleTransactions} />,
+      <AccountList
+        accounts={mockAccounts}
+        onTopUp={() => {}}
+        onTransactions={handleTransactions}
+      />,
     )
 
     const txButtons = screen.getAllByRole('button', { name: /transactions/i })

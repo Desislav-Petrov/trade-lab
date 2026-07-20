@@ -53,8 +53,22 @@ describe('useMarketDataFeed', () => {
       capturedOnMessage({
         type: 'SNAPSHOT',
         data: [
-          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
-          { ticker: 'MSFT', companyName: 'Microsoft Corporation', currentPrice: 300.0, open: 298.0, dayLow: 295.0, fiftyTwoWeekHigh: 350.0 },
+          {
+            ticker: 'AAPL',
+            companyName: 'Apple Inc.',
+            currentPrice: 180.5,
+            open: 179.0,
+            dayLow: 178.0,
+            fiftyTwoWeekHigh: 200.0,
+          },
+          {
+            ticker: 'MSFT',
+            companyName: 'Microsoft Corporation',
+            currentPrice: 300.0,
+            open: 298.0,
+            dayLow: 295.0,
+            fiftyTwoWeekHigh: 350.0,
+          },
         ],
       })
     })
@@ -72,8 +86,22 @@ describe('useMarketDataFeed', () => {
       capturedOnMessage({
         type: 'SNAPSHOT',
         data: [
-          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
-          { ticker: 'MSFT', companyName: 'Microsoft Corporation', currentPrice: 300.0, open: 298.0, dayLow: 295.0, fiftyTwoWeekHigh: 350.0 },
+          {
+            ticker: 'AAPL',
+            companyName: 'Apple Inc.',
+            currentPrice: 180.5,
+            open: 179.0,
+            dayLow: 178.0,
+            fiftyTwoWeekHigh: 200.0,
+          },
+          {
+            ticker: 'MSFT',
+            companyName: 'Microsoft Corporation',
+            currentPrice: 300.0,
+            open: 298.0,
+            dayLow: 295.0,
+            fiftyTwoWeekHigh: 350.0,
+          },
         ],
       })
     })
@@ -81,7 +109,14 @@ describe('useMarketDataFeed', () => {
     act(() => {
       capturedOnMessage({
         type: 'TICK',
-        data: { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 185.0, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
+        data: {
+          ticker: 'AAPL',
+          companyName: 'Apple Inc.',
+          currentPrice: 185.0,
+          open: 179.0,
+          dayLow: 178.0,
+          fiftyTwoWeekHigh: 200.0,
+        },
       })
     })
 
@@ -99,7 +134,14 @@ describe('useMarketDataFeed', () => {
       capturedOnMessage({
         type: 'SNAPSHOT',
         data: [
-          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
+          {
+            ticker: 'AAPL',
+            companyName: 'Apple Inc.',
+            currentPrice: 180.5,
+            open: 179.0,
+            dayLow: 178.0,
+            fiftyTwoWeekHigh: 200.0,
+          },
         ],
       })
     })
@@ -107,7 +149,14 @@ describe('useMarketDataFeed', () => {
     act(() => {
       capturedOnMessage({
         type: 'TICK',
-        data: { ticker: 'GOOG', companyName: 'Alphabet Inc.', currentPrice: 150.0, open: 148.0, dayLow: 145.0, fiftyTwoWeekHigh: 180.0 },
+        data: {
+          ticker: 'GOOG',
+          companyName: 'Alphabet Inc.',
+          currentPrice: 150.0,
+          open: 148.0,
+          dayLow: 145.0,
+          fiftyTwoWeekHigh: 180.0,
+        },
       })
     })
 
@@ -125,8 +174,22 @@ describe('useMarketDataFeed', () => {
       capturedOnMessage({
         type: 'SNAPSHOT',
         data: [
-          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
-          { ticker: 'MSFT', companyName: 'Microsoft Corporation', currentPrice: 300.0, open: 298.0, dayLow: 295.0, fiftyTwoWeekHigh: 350.0 },
+          {
+            ticker: 'AAPL',
+            companyName: 'Apple Inc.',
+            currentPrice: 180.5,
+            open: 179.0,
+            dayLow: 178.0,
+            fiftyTwoWeekHigh: 200.0,
+          },
+          {
+            ticker: 'MSFT',
+            companyName: 'Microsoft Corporation',
+            currentPrice: 300.0,
+            open: 298.0,
+            dayLow: 295.0,
+            fiftyTwoWeekHigh: 350.0,
+          },
         ],
       })
     })
@@ -181,8 +244,22 @@ describe('useMarketDataFeed', () => {
       capturedOnMessage({
         type: 'SNAPSHOT',
         data: [
-          { ticker: 'AAPL', companyName: 'Apple Inc.', currentPrice: 180.5, open: 179.0, dayLow: 178.0, fiftyTwoWeekHigh: 200.0 },
-          { ticker: 'MSFT', companyName: 'Microsoft Corporation', currentPrice: 300.0, open: 298.0, dayLow: 295.0, fiftyTwoWeekHigh: 350.0 },
+          {
+            ticker: 'AAPL',
+            companyName: 'Apple Inc.',
+            currentPrice: 180.5,
+            open: 179.0,
+            dayLow: 178.0,
+            fiftyTwoWeekHigh: 200.0,
+          },
+          {
+            ticker: 'MSFT',
+            companyName: 'Microsoft Corporation',
+            currentPrice: 300.0,
+            open: 298.0,
+            dayLow: 295.0,
+            fiftyTwoWeekHigh: 350.0,
+          },
         ],
       })
     })

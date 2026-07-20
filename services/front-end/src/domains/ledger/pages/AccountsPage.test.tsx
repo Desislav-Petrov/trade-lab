@@ -35,16 +35,8 @@ vi.mock('../components/AccountList', () => ({
               'div',
               { key: a.id },
               a.name,
-              createElement(
-                'button',
-                { onClick: () => onTopUp(a) },
-                'Top Up',
-              ),
-              createElement(
-                'button',
-                { onClick: () => onTransactions(a) },
-                'Transactions',
-              ),
+              createElement('button', { onClick: () => onTopUp(a) }, 'Top Up'),
+              createElement('button', { onClick: () => onTransactions(a) }, 'Transactions'),
             ),
           ),
     ),
@@ -142,7 +134,10 @@ function renderPage(initialPath = '/accounts') {
           Routes,
           null,
           createElement(Route, { path: '/accounts', element: createElement(AccountsPage) }),
-          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
+          createElement(Route, {
+            path: '/login',
+            element: createElement('div', null, 'Login Page'),
+          }),
           createElement(Route, {
             path: '/accounts/:accountId/transactions',
             element: createElement('div', null, 'Transaction List Page'),
@@ -368,9 +363,7 @@ describe('AccountsPage', () => {
       isAxiosError: true,
       response: { status: 401 },
     })
-    const topUpMutate = vi.fn(
-      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
-    )
+    const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
     renderPage()
 
@@ -386,9 +379,7 @@ describe('AccountsPage', () => {
       isAxiosError: true,
       response: { status: 403 },
     })
-    const topUpMutate = vi.fn(
-      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
-    )
+    const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
     renderPage()
 
@@ -405,9 +396,7 @@ describe('AccountsPage', () => {
       isAxiosError: true,
       response: { status: 404 },
     })
-    const topUpMutate = vi.fn(
-      (_, { onError }: { onError: (e: unknown) => void }) => onError(error),
-    )
+    const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
     renderPage()
 

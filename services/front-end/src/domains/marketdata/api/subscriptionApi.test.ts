@@ -109,9 +109,9 @@ describe('bulkAddSubscriptions', () => {
     })
     mockPost.mockRejectedValueOnce(error)
 
-    await expect(
-      bulkAddSubscriptions({ userId: 'u1', tickers: ['XYZ'] })
-    ).rejects.toMatchObject({ response: { status: 400 } })
+    await expect(bulkAddSubscriptions({ userId: 'u1', tickers: ['XYZ'] })).rejects.toMatchObject({
+      response: { status: 400 },
+    })
   })
 
   it('bulkAddSubscriptions - 409 response - throws AxiosError with status 409', async () => {
@@ -121,9 +121,9 @@ describe('bulkAddSubscriptions', () => {
     })
     mockPost.mockRejectedValueOnce(error)
 
-    await expect(
-      bulkAddSubscriptions({ userId: 'u1', tickers: ['AAPL'] })
-    ).rejects.toMatchObject({ response: { status: 409 } })
+    await expect(bulkAddSubscriptions({ userId: 'u1', tickers: ['AAPL'] })).rejects.toMatchObject({
+      response: { status: 409 },
+    })
   })
 })
 
@@ -148,7 +148,7 @@ describe('bulkRemoveSubscriptions', () => {
     mockDelete.mockRejectedValueOnce(error)
 
     await expect(
-      bulkRemoveSubscriptions({ userId: 'u1', tickers: ['AAPL'] })
+      bulkRemoveSubscriptions({ userId: 'u1', tickers: ['AAPL'] }),
     ).rejects.toMatchObject({ response: { status: 404 } })
   })
 
@@ -160,7 +160,7 @@ describe('bulkRemoveSubscriptions', () => {
     mockDelete.mockRejectedValueOnce(error)
 
     await expect(
-      bulkRemoveSubscriptions({ userId: 'u1', tickers: ['AAPL'] })
+      bulkRemoveSubscriptions({ userId: 'u1', tickers: ['AAPL'] }),
     ).rejects.toMatchObject({ response: { status: 401 } })
   })
 })

@@ -30,36 +30,18 @@ const stockTransaction: TransactionResponse = {
 
 describe('TransactionTable', () => {
   it('TransactionTable - cash transaction - renders direction and asset type', () => {
-    render(
-      <TransactionTable
-        transactions={[cashTransaction]}
-        isLoading={false}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[cashTransaction]} isLoading={false} isError={false} />)
     expect(screen.getByText('CREDIT')).toBeInTheDocument()
     expect(screen.getByText('CASH')).toBeInTheDocument()
   })
 
   it('TransactionTable - cash transaction - renders value with currency', () => {
-    render(
-      <TransactionTable
-        transactions={[cashTransaction]}
-        isLoading={false}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[cashTransaction]} isLoading={false} isError={false} />)
     expect(screen.getByText('1,000.00 USD')).toBeInTheDocument()
   })
 
   it('TransactionTable - cash transaction - ticker and shares cells are empty', () => {
-    render(
-      <TransactionTable
-        transactions={[cashTransaction]}
-        isLoading={false}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[cashTransaction]} isLoading={false} isError={false} />)
     const rows = screen.getAllByRole('row')
     // rows[0] is the header; rows[1] is the data row
     const dataRow = rows[1]
@@ -70,85 +52,45 @@ describe('TransactionTable', () => {
   })
 
   it('TransactionTable - stock transaction - renders ticker and shares', () => {
-    render(
-      <TransactionTable
-        transactions={[stockTransaction]}
-        isLoading={false}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[stockTransaction]} isLoading={false} isError={false} />)
     expect(screen.getByText('AAPL')).toBeInTheDocument()
     expect(screen.getByText('2.5')).toBeInTheDocument()
   })
 
   it('TransactionTable - stock transaction - renders STOCK_BUY asset type and DEBIT direction', () => {
-    render(
-      <TransactionTable
-        transactions={[stockTransaction]}
-        isLoading={false}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[stockTransaction]} isLoading={false} isError={false} />)
     expect(screen.getByText('DEBIT')).toBeInTheDocument()
     expect(screen.getByText('STOCK_BUY')).toBeInTheDocument()
   })
 
   it('TransactionTable - empty transactions - shows empty state message', () => {
-    render(
-      <TransactionTable transactions={[]} isLoading={false} isError={false} />,
-    )
+    render(<TransactionTable transactions={[]} isLoading={false} isError={false} />)
     expect(screen.getByText(/no transactions yet/i)).toBeInTheDocument()
   })
 
   it('TransactionTable - empty transactions - does not render table header', () => {
-    render(
-      <TransactionTable transactions={[]} isLoading={false} isError={false} />,
-    )
+    render(<TransactionTable transactions={[]} isLoading={false} isError={false} />)
     expect(screen.queryByRole('columnheader')).not.toBeInTheDocument()
   })
 
   it('TransactionTable - loading state - renders loading indicator', () => {
-    render(
-      <TransactionTable
-        transactions={[]}
-        isLoading={true}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[]} isLoading={true} isError={false} />)
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('TransactionTable - loading state - does not render table rows', () => {
-    render(
-      <TransactionTable
-        transactions={[cashTransaction]}
-        isLoading={true}
-        isError={false}
-      />,
-    )
+    render(<TransactionTable transactions={[cashTransaction]} isLoading={true} isError={false} />)
     expect(screen.queryByRole('row')).not.toBeInTheDocument()
   })
 
   it('TransactionTable - error state - shows error banner', () => {
-    render(
-      <TransactionTable
-        transactions={[]}
-        isLoading={false}
-        isError={true}
-      />,
-    )
+    render(<TransactionTable transactions={[]} isLoading={false} isError={true} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(/could not load transactions/i)).toBeInTheDocument()
   })
 
   it('TransactionTable - error state - does not render table rows', () => {
-    render(
-      <TransactionTable
-        transactions={[cashTransaction]}
-        isLoading={false}
-        isError={true}
-      />,
-    )
+    render(<TransactionTable transactions={[cashTransaction]} isLoading={false} isError={true} />)
     expect(screen.queryByRole('row')).not.toBeInTheDocument()
   })
 

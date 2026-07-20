@@ -147,6 +147,6 @@ The dev server proxies all `/api` requests to the backend at `http://localhost:8
 |---|---|
 | `npm run build` | Production build (output: `dist/`) |
 | `npm run test` | Run all tests |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format source files with Prettier |
-| `npm run format:check` | Check formatting without writing |
+| `npm run lint` | Run Oxlint |
+| `npm run format` | Format source files with Oxfmt |
+| `npm run format:check` | Check formatting with Oxfmt without writing |

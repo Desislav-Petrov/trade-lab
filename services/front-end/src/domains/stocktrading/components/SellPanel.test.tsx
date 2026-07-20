@@ -55,7 +55,7 @@ describe('SellPanel', () => {
 
   it('SellPanel - confirm button disabled when validationError set', () => {
     mockUseSellPanel.mockReturnValue(
-      buildHookState({ quantity: '0', validationError: 'Quantity must be greater than zero.' })
+      buildHookState({ quantity: '0', validationError: 'Quantity must be greater than zero.' }),
     )
 
     render(<SellPanel {...defaultProps} />)
@@ -72,9 +72,7 @@ describe('SellPanel', () => {
   })
 
   it('SellPanel - confirm button enabled when quantity valid and no validationError', () => {
-    mockUseSellPanel.mockReturnValue(
-      buildHookState({ quantity: '5', validationError: null })
-    )
+    mockUseSellPanel.mockReturnValue(buildHookState({ quantity: '5', validationError: null }))
 
     render(<SellPanel {...defaultProps} />)
 
@@ -83,7 +81,7 @@ describe('SellPanel', () => {
 
   it('SellPanel - confirm button shows ✓ icon when not submitting', () => {
     mockUseSellPanel.mockReturnValue(
-      buildHookState({ quantity: '5', validationError: null, isSubmitting: false })
+      buildHookState({ quantity: '5', validationError: null, isSubmitting: false }),
     )
 
     render(<SellPanel {...defaultProps} />)
@@ -128,7 +126,7 @@ describe('SellPanel', () => {
       buildHookState({
         quantity: 'abc',
         validationError: 'Please enter a valid number.',
-      })
+      }),
     )
 
     render(<SellPanel {...defaultProps} />)
@@ -138,9 +136,7 @@ describe('SellPanel', () => {
   })
 
   it('SellPanel - estimated proceeds computed from quantity × priceSnapshot', () => {
-    mockUseSellPanel.mockReturnValue(
-      buildHookState({ quantity: '4', priceSnapshot: 182.5 })
-    )
+    mockUseSellPanel.mockReturnValue(buildHookState({ quantity: '4', priceSnapshot: 182.5 }))
 
     render(<SellPanel {...defaultProps} />)
 
@@ -157,7 +153,7 @@ describe('SellPanel', () => {
 
   it('SellPanel - confirm and decline disabled when isFetchingPrice=true', () => {
     mockUseSellPanel.mockReturnValue(
-      buildHookState({ isFetchingPrice: true, quantity: '5', validationError: null })
+      buildHookState({ isFetchingPrice: true, quantity: '5', validationError: null }),
     )
 
     render(<SellPanel {...defaultProps} />)
@@ -168,7 +164,7 @@ describe('SellPanel', () => {
 
   it('SellPanel - spinner shown when isSubmitting=true', () => {
     mockUseSellPanel.mockReturnValue(
-      buildHookState({ isSubmitting: true, quantity: '5', validationError: null })
+      buildHookState({ isSubmitting: true, quantity: '5', validationError: null }),
     )
 
     render(<SellPanel {...defaultProps} />)
@@ -248,15 +244,15 @@ describe('SellPanel', () => {
 
   it('SellPanel - submitError shown as role="alert"', () => {
     mockUseSellPanel.mockReturnValue(
-      buildHookState({ submitError: 'Something went wrong. Please try again.' })
+      buildHookState({ submitError: 'Something went wrong. Please try again.' }),
     )
 
     render(<SellPanel {...defaultProps} />)
 
     const alerts = screen.getAllByRole('alert')
-    expect(
-      alerts.some((el) => el.textContent === 'Something went wrong. Please try again.')
-    ).toBe(true)
+    expect(alerts.some((el) => el.textContent === 'Something went wrong. Please try again.')).toBe(
+      true,
+    )
   })
 
   it('SellPanel - close button calls closeSellPanel in fill view', () => {

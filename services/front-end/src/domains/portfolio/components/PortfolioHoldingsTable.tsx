@@ -40,8 +40,7 @@ const COLUMNS: { key: SortableColumn; label: string }[] = [
 const DEFAULT_SORT: SortState = { column: 'ticker', direction: 'asc' }
 
 function sortHoldings(holdings: StockHolding[], sort: SortState): StockHolding[] {
-  const effectiveSort: SortState =
-    sort.direction === 'default' ? DEFAULT_SORT : sort
+  const effectiveSort: SortState = sort.direction === 'default' ? DEFAULT_SORT : sort
 
   return [...holdings].sort((a, b) => {
     const col = effectiveSort.column
@@ -168,9 +167,7 @@ export function PortfolioHoldingsTable({
               <td>{formatMoney(holding.maxPrice)}</td>
               <td>{formatMoney(holding.avgPrice)}</td>
               <td>
-                {holding.portfolioPercent !== null
-                  ? formatMoney(holding.portfolioPercent)
-                  : '—'}
+                {holding.portfolioPercent !== null ? formatMoney(holding.portfolioPercent) : '—'}
               </td>
               <td
                 className={
@@ -192,9 +189,7 @@ export function PortfolioHoldingsTable({
             <td>—</td>
             <td>—</td>
             <td>—</td>
-            <td>
-              {cash.portfolioPercent !== null ? formatMoney(cash.portfolioPercent) : '—'}
-            </td>
+            <td>{cash.portfolioPercent !== null ? formatMoney(cash.portfolioPercent) : '—'}</td>
             <td>—</td>
           </tr>
         </tbody>

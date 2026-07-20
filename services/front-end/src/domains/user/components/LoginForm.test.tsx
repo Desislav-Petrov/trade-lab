@@ -15,7 +15,11 @@ const mockUseLoginUser = vi.mocked(useLoginUser)
 function renderForm(onSuccess?: () => void) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return render(
-    createElement(QueryClientProvider, { client: queryClient }, createElement(LoginForm, { onSuccess })),
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(LoginForm, { onSuccess }),
+    ),
   )
 }
 
@@ -34,7 +38,9 @@ describe('LoginForm', () => {
 
   it('LoginForm - loading emails - shows loading message', () => {
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: true, isError: false, data: undefined,
+      isLoading: true,
+      isError: false,
+      data: undefined,
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock()
     renderForm()
@@ -44,7 +50,9 @@ describe('LoginForm', () => {
 
   it('LoginForm - email fetch error - shows error message', () => {
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: true, data: undefined,
+      isLoading: false,
+      isError: true,
+      data: undefined,
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock()
     renderForm()
@@ -55,7 +63,9 @@ describe('LoginForm', () => {
 
   it('LoginForm - no active users - shows empty state message', () => {
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: [] },
+      isLoading: false,
+      isError: false,
+      data: { emails: [] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock()
     renderForm()
@@ -65,7 +75,9 @@ describe('LoginForm', () => {
 
   it('LoginForm - emails loaded - renders select with options', () => {
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: ['a@example.com', 'b@example.com'] },
+      isLoading: false,
+      isError: false,
+      data: { emails: ['a@example.com', 'b@example.com'] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock()
     renderForm()
@@ -78,7 +90,9 @@ describe('LoginForm', () => {
   it('LoginForm - submit with email selected - calls mutate', async () => {
     const mutate = vi.fn()
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: ['a@example.com'] },
+      isLoading: false,
+      isError: false,
+      data: { emails: ['a@example.com'] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock({ mutate })
     renderForm()
@@ -91,7 +105,9 @@ describe('LoginForm', () => {
 
   it('LoginForm - pending state - disables button', () => {
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: ['a@example.com'] },
+      isLoading: false,
+      isError: false,
+      data: { emails: ['a@example.com'] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock({ isPending: true })
     renderForm()
@@ -100,9 +116,14 @@ describe('LoginForm', () => {
   })
 
   it('LoginForm - 404 server error - shows not found message', () => {
-    const error = Object.assign(new Error('Not Found'), { isAxiosError: true, response: { status: 404 } })
+    const error = Object.assign(new Error('Not Found'), {
+      isAxiosError: true,
+      response: { status: 404 },
+    })
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: ['a@example.com'] },
+      isLoading: false,
+      isError: false,
+      data: { emails: ['a@example.com'] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock({ isError: true, error })
     renderForm()
@@ -111,9 +132,14 @@ describe('LoginForm', () => {
   })
 
   it('LoginForm - 403 server error - shows account unavailable message', () => {
-    const error = Object.assign(new Error('Forbidden'), { isAxiosError: true, response: { status: 403 } })
+    const error = Object.assign(new Error('Forbidden'), {
+      isAxiosError: true,
+      response: { status: 403 },
+    })
     mockUseActiveUserEmails.mockReturnValue({
-      isLoading: false, isError: false, data: { emails: ['a@example.com'] },
+      isLoading: false,
+      isError: false,
+      data: { emails: ['a@example.com'] },
     } as unknown as ReturnType<typeof useActiveUserEmails>)
     setupMutationMock({ isError: true, error })
     renderForm()

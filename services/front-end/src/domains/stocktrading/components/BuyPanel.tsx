@@ -30,7 +30,14 @@ function validateQuantity(value: string): string | null {
   return null
 }
 
-export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId, onClose }: BuyPanelProps) {
+export function BuyPanel({
+  ticker,
+  companyName,
+  priceSnapshot,
+  accountId,
+  userId,
+  onClose,
+}: BuyPanelProps) {
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID())
   const [quantity, setQuantity] = useState<string>('')
   const [quantityError, setQuantityError] = useState<string | null>(null)
@@ -112,7 +119,9 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId
         <p className="mb-2 font-medium text-[var(--color-success)]">Order filled ✓</p>
         <p className="mb-1 text-[var(--color-text-primary)]">Ticker: {ticker}</p>
         <p className="mb-1 text-[var(--color-text-primary)]">Quantity: {filledData.quantity}</p>
-        <p className="mb-1 text-[var(--color-text-primary)]">Execution price: {filledData.executionPrice}</p>
+        <p className="mb-1 text-[var(--color-text-primary)]">
+          Execution price: {filledData.executionPrice}
+        </p>
         <p className="mb-3 text-[var(--color-text-primary)]">Total cost: {filledData.totalCost}</p>
         <button
           type="button"
@@ -193,19 +202,15 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId
           aria-describedby={quantityError ? 'buy-panel-quantity-error' : undefined}
         />
         {quantityError && (
-          <p
-            id="buy-panel-quantity-error"
-            role="alert"
-            className="mt-1 text-[var(--color-danger)]"
-          >
+          <p id="buy-panel-quantity-error" role="alert" className="mt-1 text-[var(--color-danger)]">
             {quantityError}
           </p>
         )}
       </div>
 
       <p className="mb-3 text-[var(--color-text-secondary)]">
-        Estimated cost: {isQuantityValid ? computeEstimatedCost(quantity, priceSnapshot) : '—'}
-        {' '}(Estimated)
+        Estimated cost: {isQuantityValid ? computeEstimatedCost(quantity, priceSnapshot) : '—'}{' '}
+        (Estimated)
       </p>
 
       {stage === 'error' && (
@@ -223,11 +228,7 @@ export function BuyPanel({ ticker, companyName, priceSnapshot, accountId, userId
           title="Confirm"
           className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-success)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
         >
-          {isLoading ? (
-            <span aria-label="Loading">⏳</span>
-          ) : (
-            <span aria-hidden="true">✓</span>
-          )}
+          {isLoading ? <span aria-label="Loading">⏳</span> : <span aria-hidden="true">✓</span>}
         </button>
         <button
           type="button"

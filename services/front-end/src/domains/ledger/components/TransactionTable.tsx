@@ -106,9 +106,7 @@ export function TransactionTable({ transactions, isLoading, isError }: Transacti
   }
 
   if (transactions.length === 0) {
-    return (
-      <p className="text-xs text-[var(--color-text-muted)]">No transactions yet.</p>
-    )
+    return <p className="text-xs text-[var(--color-text-muted)]">No transactions yet.</p>
   }
 
   const sorted =
@@ -141,15 +139,17 @@ export function TransactionTable({ transactions, isLoading, isError }: Transacti
             >
               <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.type}</td>
               <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.assetType}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{formatValue(tx.amount, tx.currency)}</td>
+              <td className="py-2 px-3 text-[var(--color-text-primary)]">
+                {formatValue(tx.amount, tx.currency)}
+              </td>
               <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.ticker ?? ''}</td>
               <td className="py-2 px-3 text-[var(--color-text-primary)]">
-                {tx.shares !== null && tx.shares !== undefined
-                  ? tx.shares.toString()
-                  : ''}
+                {tx.shares !== null && tx.shares !== undefined ? tx.shares.toString() : ''}
               </td>
               <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.description ?? ''}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{formatDate(tx.createdAt)}</td>
+              <td className="py-2 px-3 text-[var(--color-text-primary)]">
+                {formatDate(tx.createdAt)}
+              </td>
             </tr>
           ))}
         </tbody>

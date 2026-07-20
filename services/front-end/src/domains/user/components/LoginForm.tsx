@@ -40,9 +40,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         </p>
       )}
 
-      {isLoading && (
-        <p className="text-xs text-[var(--color-text-muted)]">Loading accounts…</p>
-      )}
+      {isLoading && <p className="text-xs text-[var(--color-text-muted)]">Loading accounts…</p>}
 
       {isError && (
         <p role="alert" className="text-xs text-[var(--color-danger)]">

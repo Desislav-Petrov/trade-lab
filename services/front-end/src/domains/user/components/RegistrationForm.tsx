@@ -34,7 +34,12 @@ function validate(fields: FormFields): FieldErrors {
 }
 
 export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
-  const [fields, setFields] = useState<FormFields>({ firstName: '', lastName: '', address: '', email: '' })
+  const [fields, setFields] = useState<FormFields>({
+    firstName: '',
+    lastName: '',
+    address: '',
+    email: '',
+  })
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
   const { mutate, isPending, error } = useRegisterUser({ onSuccess })
@@ -72,7 +77,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       )}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="firstName" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+        <label
+          htmlFor="firstName"
+          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
+        >
           First name
         </label>
         <input
@@ -90,7 +98,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="lastName" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+        <label
+          htmlFor="lastName"
+          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
+        >
           Last name
         </label>
         <input
@@ -108,7 +119,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="address" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+        <label
+          htmlFor="address"
+          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
+        >
           Address
         </label>
         <input
@@ -126,7 +140,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+        <label
+          htmlFor="email"
+          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
+        >
           Email
         </label>
         <input

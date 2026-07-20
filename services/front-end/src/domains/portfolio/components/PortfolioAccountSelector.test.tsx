@@ -29,7 +29,7 @@ describe('PortfolioAccountSelector', () => {
         accounts={mockAccounts}
         selectedAccountId={null}
         onAccountChange={vi.fn()}
-      />
+      />,
     )
 
     expect(screen.getByRole('option', { name: 'My USD Account (USD)' })).toBeInTheDocument()
@@ -42,7 +42,7 @@ describe('PortfolioAccountSelector', () => {
         accounts={mockAccounts}
         selectedAccountId="acc-2"
         onAccountChange={vi.fn()}
-      />
+      />,
     )
 
     const select = screen.getByRole('combobox', { name: /select account/i })
@@ -56,7 +56,7 @@ describe('PortfolioAccountSelector', () => {
         accounts={mockAccounts}
         selectedAccountId="acc-1"
         onAccountChange={onAccountChange}
-      />
+      />,
     )
 
     const select = screen.getByRole('combobox', { name: /select account/i })
@@ -67,16 +67,10 @@ describe('PortfolioAccountSelector', () => {
 
   it('PortfolioAccountSelector - accounts is empty - renders empty-state message', () => {
     render(
-      <PortfolioAccountSelector
-        accounts={[]}
-        selectedAccountId={null}
-        onAccountChange={vi.fn()}
-      />
+      <PortfolioAccountSelector accounts={[]} selectedAccountId={null} onAccountChange={vi.fn()} />,
     )
 
-    expect(
-      screen.getByText('No accounts available. Open an account first.')
-    ).toBeInTheDocument()
+    expect(screen.getByText('No accounts available. Open an account first.')).toBeInTheDocument()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 
@@ -86,7 +80,7 @@ describe('PortfolioAccountSelector', () => {
         accounts={mockAccounts}
         selectedAccountId={null}
         onAccountChange={vi.fn()}
-      />
+      />,
     )
 
     const options = screen.getAllByRole('option')

@@ -26,7 +26,10 @@ export function Topbar() {
       <span className="text-xs font-medium tracking-widest text-[var(--color-accent)]">
         TRADE-LAB
       </span>
-      <div aria-label="User area" className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
+      <div
+        aria-label="User area"
+        className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]"
+      >
         {user ? (
           <>
             <span>{today}</span>
@@ -41,10 +44,7 @@ export function Topbar() {
             </button>
           </>
         ) : (
-          <a
-            href="/login"
-            className="hover:text-[var(--color-text-primary)] transition-colors"
-          >
+          <a href="/login" className="hover:text-[var(--color-text-primary)] transition-colors">
             Login or Register
           </a>
         )}

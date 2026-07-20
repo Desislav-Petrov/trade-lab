@@ -20,7 +20,14 @@ function validateAmount(raw: string): string | null {
   return null
 }
 
-export function TopUpModal({ account, onConfirm, onClose, isLoading, isSuccess, error }: TopUpModalProps) {
+export function TopUpModal({
+  account,
+  onConfirm,
+  onClose,
+  isLoading,
+  isSuccess,
+  error,
+}: TopUpModalProps) {
   const [amountRaw, setAmountRaw] = useState<string>('')
   const [touched, setTouched] = useState<boolean>(false)
 

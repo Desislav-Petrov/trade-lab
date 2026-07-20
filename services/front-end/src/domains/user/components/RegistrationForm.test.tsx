@@ -22,9 +22,11 @@ type MockHookResult = Pick<
 function renderForm(onSuccess?: () => void) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return render(
-    createElement(QueryClientProvider, { client: queryClient },
-      createElement(RegistrationForm, { onSuccess })
-    )
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(RegistrationForm, { onSuccess }),
+    ),
   )
 }
 
