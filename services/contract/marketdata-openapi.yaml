@@ -352,6 +352,7 @@ components:
         - currentPrice
         - open
         - dayLow
+        - dayHigh
         - fiftyTwoWeekHigh
       properties:
         ticker:
@@ -372,6 +373,10 @@ components:
           type: number
           multipleOf: 0.001
           example: 147.500
+        dayHigh:
+          type: number
+          multipleOf: 0.001
+          example: 155.000
         fiftyTwoWeekHigh:
           type: number
           multipleOf: 0.001

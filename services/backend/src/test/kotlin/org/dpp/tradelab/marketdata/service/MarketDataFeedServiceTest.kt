@@ -39,6 +39,7 @@ class MarketDataFeedServiceTest : FunSpec({
         currentPrice = BigDecimal("150.000"),
         open = BigDecimal("148.000"),
         dayLow = BigDecimal("147.500"),
+        dayHigh = BigDecimal("155.000"),
         fiftyTwoWeekHigh = BigDecimal("200.000"),
         updatedAt = Instant.now()
     )
@@ -48,6 +49,7 @@ class MarketDataFeedServiceTest : FunSpec({
         currentPrice = BigDecimal("300.000"),
         open = BigDecimal("298.000"),
         dayLow = BigDecimal("295.500"),
+        dayHigh = BigDecimal("305.000"),
         fiftyTwoWeekHigh = BigDecimal("400.000"),
         updatedAt = Instant.now()
     )
@@ -324,5 +326,24 @@ class MarketDataFeedServiceTest : FunSpec({
         payload.contains("\"type\":\"TICK\"") shouldBe true
         payload.contains("\"ticker\":\"AAPL\"") shouldBe true
         payload.contains("\"currentPrice\":150.000") shouldBe true
+    }
+
+    test("snapshotToJson_withDayHigh_includesDayHighField") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val json = service.snapshotToJson(aaplSnapshot)
+
+        json.contains("\"dayHigh\":155.000") shouldBe true
+        json.contains("\"dayLow\":147.500") shouldBe true
+        json.contains("\"fiftyTwoWeekHigh\":200.000") shouldBe true
+        // Verify field order: dayLow before dayHigh before fiftyTwoWeekHigh
+        val dayLowIdx = json.indexOf("\"dayLow\"")
+        val dayHighIdx = json.indexOf("\"dayHigh\"")
+        val fiftyTwoWeekHighIdx = json.indexOf("\"fiftyTwoWeekHigh\"")
+        (dayLowIdx < dayHighIdx) shouldBe true
+        (dayHighIdx < fiftyTwoWeekHighIdx) shouldBe true
     }
 })

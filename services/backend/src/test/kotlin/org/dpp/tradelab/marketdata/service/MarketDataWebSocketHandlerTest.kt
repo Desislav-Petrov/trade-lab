@@ -35,6 +35,7 @@ class MarketDataWebSocketHandlerTest : FunSpec({
         currentPrice = BigDecimal("150.000"),
         open = BigDecimal("148.000"),
         dayLow = BigDecimal("147.500"),
+        dayHigh = BigDecimal("155.000"),
         fiftyTwoWeekHigh = BigDecimal("200.000"),
         updatedAt = Instant.now()
     )

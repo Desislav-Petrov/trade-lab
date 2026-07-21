@@ -15,6 +15,7 @@ data class MarketDataSnapshot(
     val currentPrice: BigDecimal,
     val open: BigDecimal,
     val dayLow: BigDecimal,
+    val dayHigh: BigDecimal,
     val fiftyTwoWeekHigh: BigDecimal,
     val updatedAt: Instant
 )
