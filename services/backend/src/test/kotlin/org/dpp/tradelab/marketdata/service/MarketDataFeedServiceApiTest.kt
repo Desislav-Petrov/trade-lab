@@ -31,6 +31,7 @@ class MarketDataFeedServiceApiTest : FunSpec({
         currentPrice = BigDecimal("182.500"),
         open = BigDecimal("180.000"),
         dayLow = BigDecimal("179.000"),
+        dayHigh = BigDecimal("185.000"),
         fiftyTwoWeekHigh = BigDecimal("200.000"),
         updatedAt = Instant.now()
     )
@@ -90,6 +91,7 @@ class MarketDataFeedServiceApiTest : FunSpec({
             currentPrice = BigDecimal("340.750"),
             open = BigDecimal("338.000"),
             dayLow = BigDecimal("337.000"),
+            dayHigh = BigDecimal("342.000"),
             fiftyTwoWeekHigh = BigDecimal("350.000"),
             updatedAt = Instant.now()
         )

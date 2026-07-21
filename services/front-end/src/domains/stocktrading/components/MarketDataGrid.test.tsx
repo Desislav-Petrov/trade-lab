@@ -10,6 +10,7 @@ const sampleRows: MarketDataUpdate[] = [
     currentPrice: 180.123,
     open: 179.456,
     dayLow: 178.789,
+    dayHigh: 182.500,
     fiftyTwoWeekHigh: 200.001,
   },
   {
@@ -18,6 +19,7 @@ const sampleRows: MarketDataUpdate[] = [
     currentPrice: 300.5,
     open: 298.0,
     dayLow: 295.25,
+    dayHigh: 305.0,
     fiftyTwoWeekHigh: 350.999,
   },
   {
@@ -26,6 +28,7 @@ const sampleRows: MarketDataUpdate[] = [
     currentPrice: 150.0,
     open: 148.0,
     dayLow: 145.0,
+    dayHigh: 155.0,
     fiftyTwoWeekHigh: 180.0,
   },
 ]
@@ -37,6 +40,7 @@ const updatedRows: MarketDataUpdate[] = [
     currentPrice: 181.123,
     open: 179.456,
     dayLow: 178.789,
+    dayHigh: 183.500,
     fiftyTwoWeekHigh: 200.001,
   },
   {
@@ -45,6 +49,7 @@ const updatedRows: MarketDataUpdate[] = [
     currentPrice: 299.5,
     open: 298.0,
     dayLow: 295.25,
+    dayHigh: 305.0,
     fiftyTwoWeekHigh: 350.999,
   },
   {
@@ -53,6 +58,7 @@ const updatedRows: MarketDataUpdate[] = [
     currentPrice: 150.0,
     open: 148.0,
     dayLow: 145.0,
+    dayHigh: 155.0,
     fiftyTwoWeekHigh: 180.0,
   },
 ]
@@ -84,13 +90,14 @@ describe('MarketDataGrid', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
-  it('MarketDataGrid - feedStatus connected with rows - renders table with all six column headers', () => {
+  it('MarketDataGrid - feedStatus connected with rows - renders table with all seven column headers', () => {
     render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
     expect(screen.getByText('Ticker ⇅')).toBeInTheDocument()
     expect(screen.getByText('Company Name ⇅')).toBeInTheDocument()
     expect(screen.getByText('Current Price (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('Open (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('Day Low (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Day High (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('52W High (USD) ⇅')).toBeInTheDocument()
   })
 
@@ -101,6 +108,7 @@ describe('MarketDataGrid', () => {
     expect(screen.getByText('Current Price (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('Open (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('Day Low (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Day High (USD) ⇅')).toBeInTheDocument()
     expect(screen.getByText('52W High (USD) ⇅')).toBeInTheDocument()
   })
 
@@ -274,5 +282,40 @@ describe('MarketDataGrid', () => {
     fireEvent.contextMenu(rows[1])
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - dayHigh column - renders Day High (USD) header', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+    expect(screen.getByText('Day High (USD) ⇅')).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - dayHigh column - displays dayHigh value formatted to 3dp', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+    expect(screen.getByText('182.500')).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - dayHigh column - clicking Day High header sorts ascending then descending then unsorted', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    fireEvent.click(screen.getByText(/^Day High/))
+    // ascending: GOOG(155.0) < AAPL(182.5) < MSFT(305.0)
+    let rows = screen.getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('GOOG')
+    expect(rows[2]).toHaveTextContent('AAPL')
+    expect(rows[3]).toHaveTextContent('MSFT')
+
+    fireEvent.click(screen.getByText(/^Day High \(USD\) ▲/))
+    // descending: MSFT, AAPL, GOOG
+    rows = screen.getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('MSFT')
+    expect(rows[2]).toHaveTextContent('AAPL')
+    expect(rows[3]).toHaveTextContent('GOOG')
+
+    fireEvent.click(screen.getByText(/^Day High \(USD\) ▼/))
+    // unsorted — original order
+    rows = screen.getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('AAPL')
+    expect(rows[2]).toHaveTextContent('MSFT')
+    expect(rows[3]).toHaveTextContent('GOOG')
   })
 })

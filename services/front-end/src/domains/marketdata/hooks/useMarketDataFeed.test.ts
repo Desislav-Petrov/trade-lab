@@ -59,6 +59,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 180.5,
             open: 179.0,
             dayLow: 178.0,
+            dayHigh: 182.0,
             fiftyTwoWeekHigh: 200.0,
           },
           {
@@ -67,6 +68,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 300.0,
             open: 298.0,
             dayLow: 295.0,
+            dayHigh: 305.0,
             fiftyTwoWeekHigh: 350.0,
           },
         ],
@@ -92,6 +94,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 180.5,
             open: 179.0,
             dayLow: 178.0,
+            dayHigh: 182.0,
             fiftyTwoWeekHigh: 200.0,
           },
           {
@@ -100,6 +103,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 300.0,
             open: 298.0,
             dayLow: 295.0,
+            dayHigh: 305.0,
             fiftyTwoWeekHigh: 350.0,
           },
         ],
@@ -115,6 +119,7 @@ describe('useMarketDataFeed', () => {
           currentPrice: 185.0,
           open: 179.0,
           dayLow: 178.0,
+          dayHigh: 185.0,
           fiftyTwoWeekHigh: 200.0,
         },
       })
@@ -140,6 +145,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 180.5,
             open: 179.0,
             dayLow: 178.0,
+            dayHigh: 182.0,
             fiftyTwoWeekHigh: 200.0,
           },
         ],
@@ -155,6 +161,7 @@ describe('useMarketDataFeed', () => {
           currentPrice: 150.0,
           open: 148.0,
           dayLow: 145.0,
+          dayHigh: 155.0,
           fiftyTwoWeekHigh: 180.0,
         },
       })
@@ -180,6 +187,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 180.5,
             open: 179.0,
             dayLow: 178.0,
+            dayHigh: 182.0,
             fiftyTwoWeekHigh: 200.0,
           },
           {
@@ -188,6 +196,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 300.0,
             open: 298.0,
             dayLow: 295.0,
+            dayHigh: 305.0,
             fiftyTwoWeekHigh: 350.0,
           },
         ],
@@ -230,11 +239,6 @@ describe('useMarketDataFeed', () => {
 
   it('useMarketDataFeed - same subscribedTickers reference on rerender - does NOT re-run filter setRows', () => {
     // Regression test for bug #61.
-    // StockTradingPage re-renders on every WebSocket tick. With useMemo, it
-    // passes the SAME subscribedTickers reference on every tick-driven rerender.
-    // The filter useEffect MUST NOT fire when the reference is unchanged —
-    // otherwise it calls setRows again → another render → another effect fire
-    // → tight loop saturating React's scheduler → sidebar nav clicks dropped.
     const { result, rerender } = renderHook(
       ({ tickers }: { tickers: string[] }) => useMarketDataFeed('user-8', tickers),
       { initialProps: { tickers: AAPL_MSFT } },
@@ -250,6 +254,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 180.5,
             open: 179.0,
             dayLow: 178.0,
+            dayHigh: 182.0,
             fiftyTwoWeekHigh: 200.0,
           },
           {
@@ -258,6 +263,7 @@ describe('useMarketDataFeed', () => {
             currentPrice: 300.0,
             open: 298.0,
             dayLow: 295.0,
+            dayHigh: 305.0,
             fiftyTwoWeekHigh: 350.0,
           },
         ],
@@ -267,11 +273,8 @@ describe('useMarketDataFeed', () => {
     expect(result.current.rows).toHaveLength(2)
     const rowsBeforeRerender = result.current.rows
 
-    // Same reference rerender — simulates tick-driven parent rerender
-    // where useMemo kept subscribedTickers stable.
     rerender({ tickers: AAPL_MSFT })
 
-    // Filter effect must not have fired: rows reference is unchanged.
     expect(result.current.rows).toBe(rowsBeforeRerender)
     expect(result.current.rows).toHaveLength(2)
   })

@@ -24,6 +24,7 @@ const COLUMNS: { key: keyof MarketDataUpdate; label: string }[] = [
   { key: 'currentPrice', label: 'Current Price (USD)' },
   { key: 'open', label: 'Open (USD)' },
   { key: 'dayLow', label: 'Day Low (USD)' },
+  { key: 'dayHigh', label: 'Day High (USD)' },
   { key: 'fiftyTwoWeekHigh', label: '52W High (USD)' },
 ]
 
@@ -240,6 +241,9 @@ export const MarketDataGrid = memo(function MarketDataGrid({
                 </td>
                 <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
                   {row.dayLow.toFixed(3)}
+                </td>
+                <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
+                  {row.dayHigh.toFixed(3)}
                 </td>
                 <td className="border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)]">
                   {row.fiftyTwoWeekHigh.toFixed(3)}

@@ -4,6 +4,7 @@ export interface MarketDataUpdate {
   currentPrice: number
   open: number
   dayLow: number
+  dayHigh: number
   fiftyTwoWeekHigh: number
 }
 
