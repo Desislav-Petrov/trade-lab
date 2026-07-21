@@ -68,6 +68,7 @@ describe('connectMarketDataFeed', () => {
           currentPrice: 180.5,
           open: 179.0,
           dayLow: 178.0,
+          dayHigh: 182.0,
           fiftyTwoWeekHigh: 200.0,
         },
       ],
@@ -90,6 +91,7 @@ describe('connectMarketDataFeed', () => {
         currentPrice: 300.0,
         open: 298.0,
         dayLow: 295.0,
+        dayHigh: 305.0,
         fiftyTwoWeekHigh: 350.0,
       },
     }

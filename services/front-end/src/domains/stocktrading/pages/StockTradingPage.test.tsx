@@ -532,6 +532,7 @@ describe('StockTradingPage', () => {
           currentPrice: 180.5,
           open: 179.0,
           dayLow: 178.0,
+          dayHigh: 182.0,
           fiftyTwoWeekHigh: 200.0,
         },
       ],
