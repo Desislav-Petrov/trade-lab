@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Navigate } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -9,10 +9,20 @@ import {
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
 import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
+import { useActiveAccounts } from '../../ledger/hooks/useLedger'
+import { useStockTradingStore } from '../hooks/useStockTradingStore'
+import { AccountSelector } from '../components/AccountSelector'
 import { SubscriptionList } from '../components/SubscriptionList'
 import { AddTickerPanel } from '../components/AddTickerPanel'
 import { RemoveTickerBar } from '../components/RemoveTickerBar'
 import { MarketDataGrid } from '../components/MarketDataGrid'
+import { BuyPanel } from '../components/BuyPanel'
+
+interface BuyContext {
+  ticker: string
+  companyName: string
+  priceSnapshot: string
+}
 
 function extractErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ error?: string }>
@@ -26,14 +36,38 @@ export function StockTradingPage() {
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
+  const [buyContext, setBuyContext] = useState<BuyContext | null>(null)
 
-  const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
+  const {
+    data: subscriptionsData,
+    isLoading,
+    error: loadError,
+  } = useSubscriptions(user?.userId ?? '')
   const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
 
-  const subscribedTickers = subscriptionsData?.map(s => s.ticker) ?? []
+  const subscribedTickers = useMemo(
+    () => subscriptionsData?.map((s) => s.ticker) ?? [],
+    [subscriptionsData],
+  )
+
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
+  const deferredRows = useDeferredValue(rows)
+
+  const {
+    data: activeAccountsData,
+    isLoading: isAccountsLoading,
+    isError: isAccountsError,
+  } = useActiveAccounts()
+  const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
+  const setSelectedAccountId = useStockTradingStore((s) => s.setSelectedAccountId)
+
+  useEffect(() => {
+    if (selectedAccountId === null && (activeAccountsData?.accounts?.length ?? 0) > 0) {
+      setSelectedAccountId(activeAccountsData!.accounts[0].id)
+    }
+  }, [activeAccountsData])
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -76,7 +110,7 @@ export function StockTradingPage() {
   }
 
   return (
-    <div className="max-w-lg">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="mb-1 text-xs tracking-widest text-[var(--color-accent)]">MARKET DATA</p>
@@ -91,6 +125,16 @@ export function StockTradingPage() {
             Add tickers
           </button>
         )}
+      </div>
+
+      <div className="mb-4">
+        <AccountSelector
+          accounts={activeAccountsData?.accounts ?? []}
+          selectedAccountId={selectedAccountId}
+          onSelect={setSelectedAccountId}
+          isLoading={isAccountsLoading}
+          isError={isAccountsError}
+        />
       </div>
 
       {loadError && (
@@ -135,7 +179,32 @@ export function StockTradingPage() {
         isLoading={isLoading}
       />
 
-      <MarketDataGrid rows={rows} feedStatus={feedStatus} />
+      <MarketDataGrid
+        rows={deferredRows}
+        feedStatus={feedStatus}
+        onBuy={
+          selectedAccountId
+            ? (ticker, companyName, priceSnapshot) =>
+                setBuyContext({ ticker, companyName, priceSnapshot })
+            : undefined
+        }
+      />
+
+      {buyContext && selectedAccountId && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+          role="presentation"
+        >
+          <BuyPanel
+            ticker={buyContext.ticker}
+            companyName={buyContext.companyName}
+            priceSnapshot={buyContext.priceSnapshot}
+            accountId={selectedAccountId}
+            userId={user.userId}
+            onClose={() => setBuyContext(null)}
+          />
+        </div>
+      )}
     </div>
   )
 }
