@@ -39,7 +39,7 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
 
     override fun getUserById(userId: UUID): ResponseEntity<UserResponse> {
         val user = userService.getUserById(userId)
-        val settings = user.settings!!
+        val settings = user.settings
         val status = when (user.status) {
             org.dpp.tradelab.user.model.UserStatus.ACTIVE -> UserResponse.Status.ACTIVE
             org.dpp.tradelab.user.model.UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED

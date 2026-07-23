@@ -158,19 +158,6 @@ class UserServiceTest : FunSpec({
         result.settings shouldBe settings
     }
 
-    test("getUserById_existingUser_returnsSettingsInline") {
-        val user = makeUser()
-        val settings = makeSettings(feedType = FeedType.REAL)
-        whenever(userRepository.findById(validId)).thenReturn(Optional.of(user))
-        whenever(userSettingsRepository.findByUserId(validId)).thenReturn(settings)
-
-        val result = userService.getUserById(validId)
-
-        result.settings shouldNotBe null
-        result.settings!!.feedType shouldBe FeedType.REAL
-        result.settings!!.updatedAt shouldNotBe null
-    }
-
     test("getUserById_unknownId_throwsUserNotFoundException") {
         whenever(userRepository.findById(validId)).thenReturn(Optional.empty())
 

@@ -67,7 +67,7 @@ class User(
 ) : Persistable<UUID> {
 
     @Transient
-    var settings: UserSettings? = null
+    lateinit var settings: UserSettings
 
     override fun getId(): UUID = id
 

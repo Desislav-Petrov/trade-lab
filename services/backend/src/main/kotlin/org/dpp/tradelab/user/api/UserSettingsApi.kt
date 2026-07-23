@@ -9,5 +9,5 @@ data class UserSettingsDto(
 )
 
 interface UserSettingsApi {
-    fun getAllUserSettings(): List<UserSettingsDto>
+    fun getUserSettings(userId: UUID): UserSettingsDto?
 }

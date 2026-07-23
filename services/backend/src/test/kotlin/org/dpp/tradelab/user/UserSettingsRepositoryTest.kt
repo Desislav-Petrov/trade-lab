@@ -5,7 +5,6 @@ import org.dpp.tradelab.user.model.UserSettings
 import org.dpp.tradelab.user.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -35,19 +34,5 @@ class UserSettingsRepositoryTest @Autowired constructor(
     fun findByUserId_settingsDoNotExist_returnsNull() {
         val result = userSettingsRepository.findByUserId(UUID.randomUUID())
         assertNull(result)
-    }
-
-    @Test
-    fun findAllBy_multipleRows_returnsAll() {
-        userSettingsRepository.save(
-            UserSettings(id = UUID.randomUUID(), userId = UUID.randomUUID(), feedType = FeedType.SYNTHETIC)
-        )
-        userSettingsRepository.save(
-            UserSettings(id = UUID.randomUUID(), userId = UUID.randomUUID(), feedType = FeedType.REAL)
-        )
-
-        val result = userSettingsRepository.findAllBy()
-
-        assertTrue(result.size >= 2)
     }
 }

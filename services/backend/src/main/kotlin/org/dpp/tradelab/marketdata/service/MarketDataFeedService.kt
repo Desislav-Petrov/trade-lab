@@ -58,7 +58,6 @@ class MarketDataFeedService(
     fun init() {
         seedSnapshotCache()
         loadSubscriptions()
-        seedFeedTypeCache()
     }
 
     private fun seedSnapshotCache() {
@@ -93,11 +92,14 @@ class MarketDataFeedService(
         }
     }
 
-    internal fun seedFeedTypeCache() {
-        userSettingsApi.getAllUserSettings().forEach { dto ->
-            feedTypeCache[dto.userId] = dto.feedType
+    internal fun resolveFeedType(userId: UUID): FeedType =
+        feedTypeCache.getOrPut(userId) {
+            userSettingsApi.getUserSettings(userId)?.feedType
+                ?: run {
+                    logger.warn("No feed type settings found for userId=$userId, defaulting to SYNTHETIC")
+                    FeedType.SYNTHETIC
+                }
         }
-    }
 
     // ── Scheduled dispatch ────────────────────────────────────────────
 
@@ -110,10 +112,7 @@ class MarketDataFeedService(
             subscribedUsers.forEach { userId ->
                 val session = activeSessions[userId] ?: return@forEach
                 if (session.isOpen) {
-                    val feedType = feedTypeCache[userId] ?: run {
-                        logger.warn("No feed type cache entry for user $userId — falling back to SYNTHETIC")
-                        FeedType.SYNTHETIC
-                    }
+                    val feedType = resolveFeedType(userId)
                     // In this iteration both SYNTHETIC and REAL serve synthetic data
                     sendTick(session, snapshot)
                 }
@@ -134,7 +133,7 @@ class MarketDataFeedService(
     // ── Snapshot query ────────────────────────────────────────────
 
     fun getSnapshotForUser(userId: UUID): List<MarketDataSnapshot> {
-        val feedType = feedTypeCache[userId] ?: FeedType.SYNTHETIC
+        val feedType = resolveFeedType(userId)
         // In this iteration both SYNTHETIC and REAL serve synthetic data
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }

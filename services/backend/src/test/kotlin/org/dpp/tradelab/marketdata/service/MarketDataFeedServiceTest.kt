@@ -90,7 +90,6 @@ class MarketDataFeedServiceTest : FunSpec({
             if (callCount % 2 == 0) listOf(aaplSnapshot) else listOf(msftSnapshot)
         }
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.init()
@@ -104,7 +103,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         val subscription = makeSubscription(userId, "AAPL", "Apple Inc.")
         whenever(repository.findAll()).thenReturn(listOf(subscription))
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.init()
@@ -115,17 +113,28 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers[userId]!!.contains("AAPL") shouldBe true
     }
 
-    test("seedFeedTypeCache_populatesCacheFromApi") {
-        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
-        whenever(repository.findAll()).thenReturn(emptyList())
-        val dto = UserSettingsDto(userId = userId, feedType = FeedType.REAL)
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(listOf(dto))
+    // ── resolveFeedType ────────────────────────────────────────────────────────
 
+    test("resolvesFeedType_cacheMiss_callsApiAndPopulatesCache") {
         val service = buildService()
-        service.seedFeedTypeCache()
+        val dto = UserSettingsDto(userId = userId, feedType = FeedType.REAL)
+        whenever(userSettingsApi.getUserSettings(userId)).thenReturn(dto)
 
+        val result = service.resolveFeedType(userId)
+
+        result shouldBe FeedType.REAL
         service.feedTypeCache[userId] shouldBe FeedType.REAL
+        verify(userSettingsApi).getUserSettings(userId)
+    }
+
+    test("resolvesFeedType_cacheHit_doesNotCallApi") {
+        val service = buildService()
+        service.feedTypeCache[userId] = FeedType.REAL
+
+        val result = service.resolveFeedType(userId)
+
+        result shouldBe FeedType.REAL
+        verify(userSettingsApi, never()).getUserSettings(any())
     }
 
     // ── dispatchTicks ─────────────────────────────────────────────────────────────
@@ -136,7 +145,6 @@ class MarketDataFeedServiceTest : FunSpec({
             .thenReturn(listOf(aaplSnapshot))
             .thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -162,7 +170,6 @@ class MarketDataFeedServiceTest : FunSpec({
             .thenReturn(listOf(aaplSnapshot))
             .thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -182,7 +189,6 @@ class MarketDataFeedServiceTest : FunSpec({
             .thenReturn(listOf(aaplSnapshot))
             .thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -197,7 +203,8 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
+        // API returns null to simulate missing settings — expect SYNTHETIC fallback
+        whenever(userSettingsApi.getUserSettings(userId)).thenReturn(null)
 
         val service = buildService()
 
@@ -221,7 +228,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
         whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.feedTypeCache[userId] = FeedType.SYNTHETIC
@@ -238,7 +244,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("MSFT" to "Microsoft Corporation"))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.snapshotCache["MSFT"] = msftSnapshot
@@ -263,7 +268,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("MSFT" to "Microsoft Corporation"))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.snapshotCache["MSFT"] = msftSnapshot
@@ -281,7 +285,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -299,7 +302,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -318,7 +320,6 @@ class MarketDataFeedServiceTest : FunSpec({
             .thenReturn(listOf(aaplSnapshot))
             .thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -343,7 +344,6 @@ class MarketDataFeedServiceTest : FunSpec({
         ))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot, msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         service.snapshotCache["AAPL"] = aaplSnapshot
@@ -361,7 +361,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
 
@@ -375,7 +374,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         val session = mockSession(userId)
@@ -395,7 +393,6 @@ class MarketDataFeedServiceTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
 
         val service = buildService()
         val json = service.snapshotToJson(aaplSnapshot)

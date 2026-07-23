@@ -24,7 +24,6 @@ class MarketDataFeedServiceApiTest : FunSpec({
         whenever(repository.findAll()).thenReturn(emptyList())
         whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
         return MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
     }
 
