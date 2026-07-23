@@ -6,6 +6,98 @@
 
 ---
 
+## Prerequisites — before any code is written
+
+The following must be in place in your environment before implementing any task in this file:
+
+| What | Where to get it | How it is consumed |
+|---|---|---|
+| Google OAuth2 Client ID | Google Cloud Console → APIs & Services → Credentials → Create OAuth 2.0 Client ID (Web application) | `GOOGLE_CLIENT_ID` environment variable |
+| Google OAuth2 Client Secret | Same credential as above | `GOOGLE_CLIENT_SECRET` environment variable |
+| HMAC JWT secret | Any random string ≥ 32 characters | `JWT_SECRET` environment variable (optional in dev — a default is wired in `application.yml`) |
+
+When creating the Google credential, set the **Authorized redirect URI** to:  
+`http://localhost:8080/login/oauth2/code/google`
+
+---
+
+## BUILD — Build
+
+### BUILD-1 — Add Spring Security, OAuth2 client, and jjwt dependencies
+
+**Layer:** Build  
+**Domain:** global (`build.gradle.kts`)  
+**Use case:** oidc-authentication  
+**Implements:** prerequisite for SVC-1, CONTROLLER-1, CONTROLLER-2, CONTROLLER-3  
+**Inputs:**
+- Existing `build.gradle.kts`
+
+**Outputs:**
+- `spring-boot-starter-security` added to `dependencies` (version managed by Spring Boot BOM — no explicit version)
+- `spring-boot-starter-oauth2-client` added to `dependencies` (version managed by Spring Boot BOM — no explicit version)
+- `io.jsonwebtoken:jjwt-api:0.12.6` added to `dependencies` (explicit version — not in Spring Boot BOM)
+- `io.jsonwebtoken:jjwt-impl:0.12.6` added as `runtimeOnly`
+- `io.jsonwebtoken:jjwt-jackson:0.12.6` added as `runtimeOnly`
+
+**Acceptance criteria:**
+- [ ] `./gradlew build` completes without errors after the additions.
+- [ ] All three jjwt artefacts (`jjwt-api`, `jjwt-impl`, `jjwt-jackson`) are on the same version.
+- [ ] `spring-boot-starter-security` and `spring-boot-starter-oauth2-client` carry no explicit version — they resolve through the Spring Boot BOM.
+- [ ] Existing tests still pass after the dependency additions (Spring Security auto-configuration may lock down all endpoints by default — `CONFIG-1` and `CONTROLLER-3` will address this; if existing tests break only because of the security auto-config, note it and proceed).
+
+**Depends on:** none
+
+---
+
+### CONFIG-1 — Configure application.yml for OAuth2 provider, JWT, CORS, and frontend origin
+
+**Layer:** Build  
+**Domain:** global (`src/main/resources/application.yml`)  
+**Use case:** oidc-authentication  
+**Implements:** oidc-login — step 3 (Google provider registration); jwt-authentication — step 4 (HMAC secret); CONTROLLER-3 (CORS + frontend origin)  
+**Inputs:**
+- Existing `src/main/resources/application.yml`
+- Environment variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JWT_SECRET`, `FRONTEND_ORIGIN`
+
+**Outputs:**
+- `application.yml` extended with the following block (appended — do not overwrite existing config):
+
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-in-production-32c}
+  frontend:
+    origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+```
+
+- `README.md` updated with a "Local setup" section listing the three required environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JWT_SECRET`) and a link to the Google Cloud Console credential creation flow.
+
+**Acceptance criteria:**
+- [ ] Application starts without error when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set as environment variables.
+- [ ] Application **fails to start** when `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` are absent — they carry no fallback default.
+- [ ] Application starts with the dev default JWT secret when `JWT_SECRET` is not set.
+- [ ] `app.jwt.secret` fallback value is exactly 32+ characters (minimum for HMAC-SHA256).
+- [ ] `README.md` lists all three required env vars with a brief description and where to obtain them.
+
+**Depends on:** BUILD-1
+
+---
+
 ## DB — Database
 
 ### DB-1 — Make User.address nullable
@@ -146,7 +238,7 @@
 **Outputs:**
 - `JwtService` class in `user.service`
 - `issueToken(userId: UUID): String` — issues a JWT with `{ sub: userId.toString(), iat: now, exp: now+86400s, iss: "trade-platform" }` signed with HMAC-SHA256
-- `validateAndExtractUserId(token: String): UUID` — parses and validates the JWT; throws `InvalidTokenException` on any failure; returns the `sub` claim as `UUID`
+- `validateAndExtractUserId(token: String): UUID` — parses and validates the JWT using jjwt; performs three checks: (1) HMAC-SHA256 signature against `app.jwt.secret`, (2) `exp` not in the past, (3) `iss` equals `"trade-platform"`; throws `InvalidTokenException` on any failure; returns the `sub` claim parsed as `UUID`. No database lookup is performed — validation is entirely cryptographic.
 
 **Acceptance criteria:**
 - [ ] `issueToken` produces a valid JWT parseable by the jjwt library.
@@ -156,9 +248,10 @@
 - [ ] `validateAndExtractUserId` throws `InvalidTokenException` for a tampered signature.
 - [ ] `validateAndExtractUserId` throws `InvalidTokenException` when `iss` ≠ `"trade-platform"`.
 - [ ] `validateAndExtractUserId` throws `InvalidTokenException` for a malformed (non-JWT) string.
+- [ ] No repository or database call is made inside `JwtService`.
 - [ ] All cases covered by unit tests using KoTest + mockito-kotlin.
 
-**Depends on:** EXCEPTION-1
+**Depends on:** BUILD-1, EXCEPTION-1
 
 ---
 
@@ -208,7 +301,7 @@
 **Acceptance criteria:**
 - [ ] `registerUser` compiles and passes existing tests when called with a non-null `address`.
 - [ ] `registerUser` persists `address = null` when called without an address.
-- [ ] The OpenAPI-generated `RegisterUserRequest` DTO does not mark `address` as required (this will be addressed in API-CONTRACT-1; for this task, ensure the service layer does not enforce non-null).
+- [ ] The OpenAPI-generated `RegisterUserRequest` DTO does not mark `address` as required (addressed in API-CONTRACT-1; for this task, ensure the service layer does not enforce non-null).
 - [ ] Existing `UserService` unit tests pass unchanged.
 - [ ] A new unit test covers the case where `address` is `null`.
 
@@ -267,7 +360,7 @@
 - [ ] If the token is invalid (any `InvalidTokenException`), the filter writes HTTP 401 with the standard error body and does not call `filterChain.doFilter`.
 - [ ] Unit tests cover: valid token sets SecurityContext; missing header passes through; invalid token returns 401.
 
-**Depends on:** SVC-1, EXCEPTION-1
+**Depends on:** BUILD-1, SVC-1, EXCEPTION-1
 
 ---
 
@@ -301,7 +394,7 @@
 - [ ] `Authorization` is in the allowed request headers.
 - [ ] Integration test (H2, full context) verifies the public/protected split.
 
-**Depends on:** CONTROLLER-1, CONTROLLER-2
+**Depends on:** CONFIG-1, CONTROLLER-1, CONTROLLER-2
 
 ---
 
@@ -533,17 +626,19 @@
 
 | Task ID | Title | Depends on |
 |---------|-------|------------|
+| BUILD-1 | Add Spring Security, OAuth2 client, and jjwt dependencies | none |
+| CONFIG-1 | Configure application.yml for OAuth2, JWT, CORS, frontend origin | BUILD-1 |
 | DB-1 | Make User.address nullable | none |
 | DB-2 | Create ExternalIdentityProvider entity + ProviderType enum | none |
 | REPO-1 | Create ExternalIdentityProviderRepository | DB-2 |
 | REPO-2 | Verify UserRepository.findByEmail | DB-1 |
 | EXCEPTION-1 | Create OidcAuthenticationException and InvalidTokenException | none |
-| SVC-1 | Create JwtService | EXCEPTION-1 |
+| SVC-1 | Create JwtService | BUILD-1, EXCEPTION-1 |
 | SVC-2 | Create OidcAuthService | DB-1, DB-2, REPO-1, REPO-2, SVC-1, EXCEPTION-1 |
 | SVC-3 | Make UserService.registerUser address optional | DB-1 |
 | CONTROLLER-1 | Create OidcAuthenticationSuccessHandler | SVC-2, EXCEPTION-1 |
-| CONTROLLER-2 | Create JwtAuthenticationFilter | SVC-1, EXCEPTION-1 |
-| CONTROLLER-3 | Create SecurityConfig | CONTROLLER-1, CONTROLLER-2 |
+| CONTROLLER-2 | Create JwtAuthenticationFilter | BUILD-1, SVC-1, EXCEPTION-1 |
+| CONTROLLER-3 | Create SecurityConfig | CONFIG-1, CONTROLLER-1, CONTROLLER-2 |
 | API-CONTRACT-1 | Add BearerAuth security scheme to all domain OpenAPI contracts | CONTROLLER-3, SVC-3 |
 | CLI-1 | Add Bearer token interceptor to shared Axios instance | none |
 | CLI-2 | Add oidcApi.ts with redirectToGoogleLogin | none |
