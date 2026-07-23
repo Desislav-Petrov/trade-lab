@@ -7,7 +7,7 @@ import { act } from 'react'
 import { StockTradingPage } from './StockTradingPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import { useStockTradingStore } from '../hooks/useStockTradingStore'
-import type { UserProfile } from '../../user/types/user'
+import type { UserResponse } from '../../user/types/user'
 import type { SubscriptionResponse } from '../../marketdata/types/subscription'
 import type { AccountListResponse } from '../../ledger/types/account'
 
@@ -218,7 +218,7 @@ const mockUseSupportedTickers = vi.mocked(useSupportedTickers)
 const mockUseActiveAccounts = vi.mocked(useActiveAccounts)
 const mockUseMarketDataFeed = vi.mocked(useMarketDataFeed)
 
-const mockProfile: UserProfile = {
+const mockProfile: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -226,6 +226,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 const mockSubscriptions: SubscriptionResponse[] = [

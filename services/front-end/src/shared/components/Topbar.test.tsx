@@ -4,9 +4,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { act } from 'react'
 import { Topbar } from './Topbar'
 import { useSessionStore } from '../../domains/user/hooks/useSessionStore'
-import type { UserProfile } from '../../domains/user/types/user'
+import type { UserResponse } from '../../domains/user/types/user'
 
-const mockProfile: UserProfile = {
+const mockProfile: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -14,6 +14,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 function renderTopbar(initialPath = '/') {

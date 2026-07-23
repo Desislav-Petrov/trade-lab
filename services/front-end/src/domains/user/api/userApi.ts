@@ -5,7 +5,7 @@ import type {
   UserEmailsResponse,
   LoginRequest,
   LoginResponse,
-  UserProfile,
+  UserResponse,
 } from '../types/user'
 
 export const REGISTER_USER_KEY = ['users', 'register'] as const
@@ -28,7 +28,7 @@ export async function loginUser(request: LoginRequest): Promise<LoginResponse> {
   return response.data
 }
 
-export async function fetchUserById(userId: string): Promise<UserProfile> {
-  const response = await axiosInstance.get<UserProfile>(`/v1/users/${userId}`)
+export async function fetchUserById(userId: string): Promise<UserResponse> {
+  const response = await axiosInstance.get<UserResponse>(`/v1/users/${userId}`)
   return response.data
 }

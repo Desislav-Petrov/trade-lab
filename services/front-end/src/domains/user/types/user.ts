@@ -1,3 +1,5 @@
+import type { UserSettingsResponse } from './userSettings'
+
 export interface RegisterUserRequest {
   firstName: string
   lastName: string
@@ -32,4 +34,8 @@ export interface UserProfile {
   email: string
   status: UserStatus
   createdAt: string // UTC ISO 8601 — convert to local only at display layer
+}
+
+export interface UserResponse extends UserProfile {
+  settings: UserSettingsResponse
 }

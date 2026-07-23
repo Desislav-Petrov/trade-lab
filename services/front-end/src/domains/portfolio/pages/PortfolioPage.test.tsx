@@ -7,7 +7,7 @@ import { act } from 'react'
 import { PortfolioPage } from './PortfolioPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import { usePortfolioStore } from '../hooks/usePortfolioStore'
-import type { UserProfile } from '../../user/types/user'
+import type { UserResponse } from '../../user/types/user'
 import type { AccountResponse } from '../../ledger/types/account'
 import type { PortfolioHoldingsResponse } from '../types/portfolio.types'
 import type { SellPanelHook } from '../../stocktrading/hooks/useSellPanel'
@@ -107,7 +107,7 @@ function buildSellPanelHook(overrides: Partial<SellPanelHook> = {}): SellPanelHo
   }
 }
 
-const mockProfile: UserProfile = {
+const mockProfile: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -115,6 +115,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 const mockAccount: AccountResponse = {

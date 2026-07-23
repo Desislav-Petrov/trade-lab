@@ -72,7 +72,7 @@ describe('loginUser', () => {
 describe('fetchUserById', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('fetchUserById - success - returns UserProfile', async () => {
+  it('fetchUserById - success - returns UserResponse with settings', async () => {
     const profile = {
       userId: 'u1',
       firstName: 'Jane',
@@ -81,12 +81,14 @@ describe('fetchUserById', () => {
       email: 'jane@example.com',
       status: 'active',
       createdAt: '2026-01-01T00:00:00Z',
+      settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
     }
     mockGet.mockResolvedValueOnce({ data: profile })
 
     const result = await fetchUserById('u1')
 
     expect(result).toEqual(profile)
+    expect(result.settings).toEqual({ feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' })
     expect(mockGet).toHaveBeenCalledWith('/v1/users/u1')
   })
 

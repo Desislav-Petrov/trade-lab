@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { useAccounts, useActiveAccounts, useOpenAccount, useTopUpAccount } from './useLedger'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
-import type { UserProfile } from '../../user/types/user'
+import type { UserResponse } from '../../user/types/user'
 
 vi.mock('../api/accountApi', () => ({
   fetchAccounts: vi.fn(),
@@ -19,7 +19,7 @@ const mockFetchAccounts = vi.mocked(fetchAccounts)
 const mockCreateAccount = vi.mocked(createAccount)
 const mockTopUpAccount = vi.mocked(topUpAccount)
 
-const mockProfile: UserProfile = {
+const mockProfile: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -27,6 +27,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 function createWrapper() {
