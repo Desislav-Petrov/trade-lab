@@ -4,11 +4,16 @@ import org.dpp.tradelab.user.api.UserLookupApi
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
+import org.dpp.tradelab.user.exception.UserSettingsNotFoundException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.messaging.UserLoggedInEvent
+import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
+import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.model.User
+import org.dpp.tradelab.user.model.UserSettings
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
+import org.dpp.tradelab.user.repository.UserSettingsRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,6 +23,7 @@ import java.util.UUID
 @Service
 class UserService(
     private val userRepository: UserRepository,
+    private val userSettingsRepository: UserSettingsRepository,
     private val eventPublisher: ApplicationEventPublisher
 ) : UserLookupApi {
 
@@ -41,6 +47,14 @@ class UserService(
             )
         )
 
+        userSettingsRepository.save(
+            UserSettings(
+                id = UUID.randomUUID(),
+                userId = id,
+                feedType = FeedType.SYNTHETIC
+            )
+        )
+
         eventPublisher.publishEvent(
             UserRegisteredEvent(
                 userId = id,
@@ -59,9 +73,35 @@ class UserService(
             .map { it.email }
 
     @Transactional(readOnly = true)
-    fun getUserById(userId: UUID): User =
-        userRepository.findById(userId)
+    fun getUserById(userId: UUID): User {
+        val user = userRepository.findById(userId)
             .orElseThrow { UserNotFoundException(userId) }
+        user.settings = userSettingsRepository.findByUserId(userId)
+            ?: throw UserSettingsNotFoundException(userId)
+        return user
+    }
+
+    @Transactional
+    fun updateUserSettings(userId: UUID, feedType: FeedType?): UserSettings {
+        val settings = userSettingsRepository.findByUserId(userId)
+            ?: throw UserSettingsNotFoundException(userId)
+
+        if (feedType != null) {
+            settings.feedType = feedType
+        }
+
+        val saved = userSettingsRepository.save(settings)
+
+        eventPublisher.publishEvent(
+            UserSettingsChangedEvent(
+                userId = userId,
+                feedType = saved.feedType,
+                updatedAt = saved.updatedAt ?: Instant.now()
+            )
+        )
+
+        return saved
+    }
 
     @Transactional(readOnly = true)
     fun loginUser(email: String): User {

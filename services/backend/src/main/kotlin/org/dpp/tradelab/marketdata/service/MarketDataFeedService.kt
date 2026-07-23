@@ -8,6 +8,10 @@ import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
 import org.dpp.tradelab.marketdata.exception.UnsupportedTickerException
+import org.dpp.tradelab.user.api.UserSettingsApi
+import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
+import org.dpp.tradelab.user.model.FeedType
+import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
@@ -19,22 +23,23 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Central service managing the in-memory snapshot cache, per-user subscription lookups,
- * active WebSocket session registry, and the scheduled price-tick dispatcher.
+ * active WebSocket session registry, feed-type cache, and the scheduled price-tick dispatcher.
  *
- * Thread safety: all four maps are [ConcurrentHashMap]. The nested [MutableSet] instances
+ * Thread safety: all maps are [ConcurrentHashMap]. The nested [MutableSet] instances
  * are created as [ConcurrentHashMap.newKeySet()] to ensure thread-safe mutations.
  *
  * Prices are serialised to exactly 3 decimal places in all outbound JSON messages.
  *
- * Event handling entry-points ([handleAssetSubscribed], [handleAssetUnsubscribed]) are
- * called by [org.dpp.tradelab.marketdata.messaging.MarketDataEventListener] — they must
+ * Event handling entry-points ([handleAssetSubscribed], [handleAssetUnsubscribed],
+ * [handleUserSettingsChanged]) are called by dedicated listener classes — they must
  * not be annotated with `@EventListener` directly.
  */
 @Service
 class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
-    private val supportedTickerConfig: SupportedTickerConfig
+    private val supportedTickerConfig: SupportedTickerConfig,
+    private val userSettingsApi: UserSettingsApi
 ) : MarketDataApi {
 
     // ── Internal state ──────────────────────────────────────────────────
@@ -43,6 +48,9 @@ class MarketDataFeedService(
     internal val tickerToUsers: ConcurrentHashMap<String, MutableSet<UUID>> = ConcurrentHashMap()
     internal val userToTickers: ConcurrentHashMap<UUID, MutableSet<String>> = ConcurrentHashMap()
     internal val activeSessions: ConcurrentHashMap<UUID, WebSocketSession> = ConcurrentHashMap()
+    internal val feedTypeCache: ConcurrentHashMap<UUID, FeedType> = ConcurrentHashMap()
+
+    private val logger = LoggerFactory.getLogger(MarketDataFeedService::class.java)
 
     // ── Startup initialisation ───────────────────────────────────────────────
 
@@ -50,6 +58,7 @@ class MarketDataFeedService(
     fun init() {
         seedSnapshotCache()
         loadSubscriptions()
+        seedFeedTypeCache()
     }
 
     private fun seedSnapshotCache() {
@@ -84,6 +93,12 @@ class MarketDataFeedService(
         }
     }
 
+    internal fun seedFeedTypeCache() {
+        userSettingsApi.getAllUserSettings().forEach { dto ->
+            feedTypeCache[dto.userId] = dto.feedType
+        }
+    }
+
     // ── Scheduled dispatch ────────────────────────────────────────────
 
     @Scheduled(fixedDelay = 250)
@@ -95,6 +110,11 @@ class MarketDataFeedService(
             subscribedUsers.forEach { userId ->
                 val session = activeSessions[userId] ?: return@forEach
                 if (session.isOpen) {
+                    val feedType = feedTypeCache[userId] ?: run {
+                        logger.warn("No feed type cache entry for user $userId — falling back to SYNTHETIC")
+                        FeedType.SYNTHETIC
+                    }
+                    // In this iteration both SYNTHETIC and REAL serve synthetic data
                     sendTick(session, snapshot)
                 }
             }
@@ -114,6 +134,8 @@ class MarketDataFeedService(
     // ── Snapshot query ────────────────────────────────────────────
 
     fun getSnapshotForUser(userId: UUID): List<MarketDataSnapshot> {
+        val feedType = feedTypeCache[userId] ?: FeedType.SYNTHETIC
+        // In this iteration both SYNTHETIC and REAL serve synthetic data
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }
     }
@@ -165,7 +187,7 @@ class MarketDataFeedService(
         session.sendMessage(TextMessage(json))
     }
 
-    // ── Event handlers (called by MarketDataEventListener) ───────────────────────
+    // ── Event handlers (called by MarketDataEventListener / UserEventListener) ───────────────────────
 
     fun handleAssetSubscribed(event: AssetSubscribedEvent) {
         event.tickers.forEach { ticker ->
@@ -191,6 +213,10 @@ class MarketDataFeedService(
             tickerToUsers[ticker]?.remove(event.userId)
             userToTickers[event.userId]?.remove(ticker)
         }
+    }
+
+    fun handleUserSettingsChanged(event: UserSettingsChangedEvent) {
+        feedTypeCache[event.userId] = event.feedType
     }
 
     // ── JSON building helpers ──────────────────────────────────────────────

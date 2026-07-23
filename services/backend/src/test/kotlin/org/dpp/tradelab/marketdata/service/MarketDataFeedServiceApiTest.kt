@@ -6,6 +6,7 @@ import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
+import org.dpp.tradelab.user.api.UserSettingsApi
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -17,12 +18,14 @@ class MarketDataFeedServiceApiTest : FunSpec({
     val repository = mock<AssetSubscriptionRepository>()
     val priceFeedGenerator = mock<PriceFeedGenerator>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
+    val userSettingsApi = mock<UserSettingsApi>()
 
     fun buildService(): MarketDataFeedService {
         whenever(repository.findAll()).thenReturn(emptyList())
         whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        return MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig)
+        whenever(userSettingsApi.getAllUserSettings()).thenReturn(emptyList())
+        return MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
     }
 
     val aaplSnapshot = MarketDataSnapshot(

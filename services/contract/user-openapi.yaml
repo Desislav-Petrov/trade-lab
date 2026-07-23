@@ -90,6 +90,78 @@ paths:
                 details:
                   - "No user found with id: 550e8400-e29b-41d4-a716-446655440000"
 
+  /users/{userId}/settings:
+    patch:
+      tags:
+        - Users
+      summary: Update user settings
+      description: Partially updates the settings for the user with the given ID.
+      operationId: updateUserSettings
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettingsResponse'
+        '400':
+          description: Invalid feedType value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                error: Invalid feed type
+                details:
+                  - "Invalid feed type: UNKNOWN"
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 401
+                error: Unauthorized
+                details:
+                  - "Authentication required."
+        '403':
+          description: Path userId does not match session user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 403
+                error: Forbidden
+                details:
+                  - "You are not allowed to modify another user's settings."
+        '404':
+          description: Settings not found for the given user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: Settings not found
+                details:
+                  - "No settings found for user: 550e8400-e29b-41d4-a716-446655440000"
+
   /users/emails:
     get:
       tags:
@@ -201,6 +273,7 @@ components:
         - email
         - status
         - createdAt
+        - settings
       properties:
         userId:
           type: string
@@ -227,6 +300,31 @@ components:
           type: string
           format: date-time
           example: "2026-06-20T12:00:00Z"
+        settings:
+          $ref: '#/components/schemas/UserSettingsResponse'
+
+    UserSettingsResponse:
+      type: object
+      required:
+        - feedType
+        - updatedAt
+      properties:
+        feedType:
+          type: string
+          enum: [SYNTHETIC, REAL]
+          example: SYNTHETIC
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-06-20T12:00:00Z"
+
+    UpdateUserSettingsRequest:
+      type: object
+      properties:
+        feedType:
+          type: string
+          enum: [SYNTHETIC, REAL]
+          example: SYNTHETIC
 
     UserEmailsResponse:
       type: object
