@@ -5,9 +5,9 @@ import { createElement, type ReactNode } from 'react'
 import { useFetchUserProfile } from './useFetchUserProfile'
 import * as userApi from '../api/userApi'
 import { useSessionStore } from './useSessionStore'
-import type { UserProfile } from '../types/user'
+import type { UserResponse } from '../types/user'
 
-const mockProfile: UserProfile = {
+const mockResponse: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -15,6 +15,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -24,7 +25,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('useFetchUserProfile', () => {
   it('useFetchUserProfile - success - calls setSession with profile data', async () => {
-    vi.spyOn(userApi, 'fetchUserById').mockResolvedValueOnce(mockProfile)
+    vi.spyOn(userApi, 'fetchUserById').mockResolvedValueOnce(mockResponse)
     act(() => useSessionStore.getState().clearSession())
 
     const onSuccess = vi.fn()
@@ -36,7 +37,17 @@ describe('useFetchUserProfile', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(useSessionStore.getState().user).toEqual(mockProfile)
+    const { user, settings } = useSessionStore.getState()
+    expect(user).toEqual({
+      userId: 'u1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      address: '123 Main St',
+      email: 'jane@example.com',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00Z',
+    })
+    expect(settings).toEqual({ feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' })
     expect(onSuccess).toHaveBeenCalledOnce()
   })
 

@@ -9,7 +9,7 @@ import { TransactionListPage } from './TransactionListPage'
 // jsdom does not implement scrollIntoView — stub it to prevent unhandled errors
 window.HTMLElement.prototype.scrollIntoView = vi.fn()
 import { useSessionStore } from '../../user/hooks/useSessionStore'
-import type { UserProfile } from '../../user/types/user'
+import type { UserResponse } from '../../user/types/user'
 import type { TransactionResponse, TransactionListResponse } from '../types/transaction'
 import type { TransactionTableProps } from '../components/TransactionTable'
 
@@ -53,7 +53,7 @@ vi.mock('../components/PaginationControls', () => ({
 import { useTransactions } from '../hooks/useTransactions'
 const mockUseTransactions = vi.mocked(useTransactions)
 
-const mockProfile: UserProfile = {
+const mockProfile: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -61,6 +61,7 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 const mockTransaction: TransactionResponse = {

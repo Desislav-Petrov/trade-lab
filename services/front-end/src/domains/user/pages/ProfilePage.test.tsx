@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { act, createElement } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ProfilePage } from './ProfilePage'
 import { useSessionStore } from '../hooks/useSessionStore'
-import type { UserProfile } from '../types/user'
+import type { UserResponse } from '../types/user'
 
-const mockProfile: UserProfile = {
+const mockResponse: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
@@ -14,18 +16,26 @@ const mockProfile: UserProfile = {
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
 function renderProfilePage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
     createElement(
-      MemoryRouter,
-      { initialEntries: ['/profile'] },
+      QueryClientProvider,
+      { client: queryClient },
       createElement(
-        Routes,
-        null,
-        createElement(Route, { path: '/profile', element: createElement(ProfilePage) }),
-        createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
+        MemoryRouter,
+        { initialEntries: ['/profile'] },
+        createElement(
+          Routes,
+          null,
+          createElement(Route, { path: '/profile', element: createElement(ProfilePage) }),
+          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
+        ),
       ),
     ),
   )
@@ -37,20 +47,15 @@ describe('ProfilePage', () => {
     vi.clearAllMocks()
   })
 
-  it('ProfilePage - no session - redirects to /login', () => {
+  it('ProfilePage - redirects to login when no session', () => {
     renderProfilePage()
     expect(screen.getByText('Login Page')).toBeInTheDocument()
   })
 
-  it('ProfilePage - session exists - renders user name', () => {
-    act(() => useSessionStore.getState().setSession(mockProfile))
+  it('ProfilePage - renders Profile Information tab by default', () => {
+    act(() => useSessionStore.getState().setSession(mockResponse))
     renderProfilePage()
     expect(screen.getByRole('heading', { name: /jane doe/i })).toBeInTheDocument()
-  })
-
-  it('ProfilePage - session exists - renders email, address, status, member since', () => {
-    act(() => useSessionStore.getState().setSession(mockProfile))
-    renderProfilePage()
     expect(screen.getByText('jane@example.com')).toBeInTheDocument()
     expect(screen.getByText('123 Main St')).toBeInTheDocument()
     expect(screen.getByText('active')).toBeInTheDocument()
@@ -58,7 +63,7 @@ describe('ProfilePage', () => {
   })
 
   it("ProfilePage - session exists - renders today's date", () => {
-    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useSessionStore.getState().setSession(mockResponse))
     renderProfilePage()
     const today = new Date().toLocaleDateString(undefined, {
       weekday: 'long',
@@ -67,5 +72,15 @@ describe('ProfilePage', () => {
       day: 'numeric',
     })
     expect(screen.getByText(today)).toBeInTheDocument()
+  })
+
+  it('ProfilePage - renders Platform Settings tab when selected', async () => {
+    act(() => useSessionStore.getState().setSession(mockResponse))
+    renderProfilePage()
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /platform settings/i }))
+
+    expect(screen.getByText('General Platform Settings')).toBeInTheDocument()
   })
 })
