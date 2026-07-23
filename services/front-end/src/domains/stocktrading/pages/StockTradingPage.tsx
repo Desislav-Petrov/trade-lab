@@ -38,7 +38,11 @@ export function StockTradingPage() {
   const [addError, setAddError] = useState<string | null>(null)
   const [buyContext, setBuyContext] = useState<BuyContext | null>(null)
 
-  const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
+  const {
+    data: subscriptionsData,
+    isLoading,
+    error: loadError,
+  } = useSubscriptions(user?.userId ?? '')
   const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
@@ -102,7 +106,7 @@ export function StockTradingPage() {
   }
 
   return (
-    <div className="max-w-lg">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="mb-1 text-xs tracking-widest text-[var(--color-accent)]">MARKET DATA</p>
