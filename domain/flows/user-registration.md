@@ -2,7 +2,7 @@
 
 ## Overview
 
-Allows a guest to create a new user account on the paper trading platform via the registration screen at `/register`. On successful completion, the user exists in the system with `active` status and is redirected to `/login` with a confirmation banner.
+Allows a guest to create a new user account on the paper trading platform via the registration screen at `/register`. On successful completion, the user exists in the system with `active` status and a default `UserSettings` row, and is redirected to `/login` with a confirmation banner.
 
 ## Actors
 
@@ -27,13 +27,15 @@ Allows a guest to create a new user account on the paper trading platform via th
 | 6  | System        | Validate email format     | Checks that `email` conforms to a valid email format.                                                                                 |
 | 7  | System        | Check email uniqueness    | Queries existing users to confirm no account with the same `email` exists.                                                            |
 | 8  | System        | Create user record        | Generates a new `id` (UUID), sets `status` to `active`, and persists the user with `createdAt` and `updatedAt` set to current timestamp. |
-| 9  | System        | Emit event                | Emits `UserRegistered`.                                                                                                               |
-| 10 | System        | Return HTTP 201           | Response body includes `userId`.                                                                                                      |
-| 11 | Guest Browser | Navigate to `/login`      | Redirects the guest to `/login` and displays a success banner: "Account created. Please log in."                                      |
+| 9  | System        | Create default UserSettings | Within the same transaction as step 8, creates a `UserSettings` row with `feedType: SYNTHETIC` and `updatedAt` set to current timestamp. No event is emitted for this default creation. |
+| 10 | System        | Emit event                | Emits `UserRegistered`.                                                                                                               |
+| 11 | System        | Return HTTP 201           | Response body includes `userId`.                                                                                                      |
+| 12 | Guest Browser | Navigate to `/login`      | Redirects the guest to `/login` and displays a success banner: "Account created. Please log in."                                      |
 
 ## Postconditions
 
 - A `User` record exists in the system with `status` set to `active`.
+- A `UserSettings` record exists for the user with `feedType: SYNTHETIC`.
 - `UserRegistered` has been emitted.
 - The guest is on the `/login` screen with a success banner displayed.
 - The guest may now authenticate using their `email`.
@@ -49,3 +51,4 @@ Allows a guest to create a new user account on the paper trading platform via th
 ## Domain Models Involved
 
 - **User**: Created at step 8 with all provided fields and a system-generated `id`.
+- **UserSettings**: Created at step 9 with default values, atomically within the same transaction as the `User` record.
