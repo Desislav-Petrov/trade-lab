@@ -19,12 +19,13 @@ Represents a registered user of the paper trading platform. Holds identity and c
 
 ## Behaviors
 
-- **Register**: Creates a new user with `active` status. Validates that `email` is unique across the platform.
+- **Register**: Creates a new user with `active` status. Validates that `email` is unique across the platform. Creates a default `UserSettings` row in the same transaction.
 - **Close**: Transitions status to `closed`. Irreversible; no further actions are permitted on the user.
 
 ## Relationships
 
 - **Account** (`one-to-many`): A user may own one or more paper trading accounts.
+- **UserSettings** (`one-to-one`): Each user has exactly one settings record, created at registration with default values. Settings are returned inline with the user profile response.
 
 ## Business Rules
 
@@ -33,3 +34,4 @@ Represents a registered user of the paper trading platform. Holds identity and c
 - `status` transitions are one-directional: `active` → `suspended` → `closed`. A closed user cannot be reopened.
 - A suspended or closed user may not perform any trading actions.
 - `firstName` and `lastName` must not be empty.
+- A `UserSettings` row must exist for every user. It is created atomically in the same transaction as the `User` record and is never absent.
