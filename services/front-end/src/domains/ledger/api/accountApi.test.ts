@@ -85,6 +85,45 @@ describe('fetchAccounts', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/accounts', { params: { userId: 'u1' } })
   })
 
+  it('fetchAccounts - with status ACTIVE - passes status query param', async () => {
+    const accounts = [
+      {
+        id: 'acc-1',
+        name: 'My Account',
+        currency: 'USD',
+        balance: 100,
+        status: 'ACTIVE',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    mockGet.mockResolvedValueOnce({ data: { accounts } })
+
+    const result = await fetchAccounts('u1', 'ACTIVE')
+
+    expect(result).toEqual({ accounts })
+    expect(mockGet).toHaveBeenCalledWith('/v1/accounts', {
+      params: { userId: 'u1', status: 'ACTIVE' },
+    })
+  })
+
+  it('fetchAccounts - with status SUSPENDED - passes status query param', async () => {
+    mockGet.mockResolvedValueOnce({ data: { accounts: [] } })
+
+    await fetchAccounts('u1', 'SUSPENDED')
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/accounts', {
+      params: { userId: 'u1', status: 'SUSPENDED' },
+    })
+  })
+
+  it('fetchAccounts - without status - does not include status param', async () => {
+    mockGet.mockResolvedValueOnce({ data: { accounts: [] } })
+
+    await fetchAccounts('u1')
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/accounts', { params: { userId: 'u1' } })
+  })
+
   it('fetchAccounts - empty list - returns empty array', async () => {
     mockGet.mockResolvedValueOnce({ data: { accounts: [] } })
 

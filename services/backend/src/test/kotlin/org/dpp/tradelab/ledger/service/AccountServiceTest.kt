@@ -2,6 +2,8 @@ package org.dpp.tradelab.ledger.service
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.ledger.exception.UserNotFoundException
@@ -21,6 +23,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 class AccountServiceTest : FunSpec({
@@ -132,5 +135,44 @@ class AccountServiceTest : FunSpec({
         val result = accountService.listAccountsByUser(userId)
 
         result shouldBe emptyList()
+    }
+
+    test("listActiveAccountsByUser_hasActiveAccounts_returnsOnlyActiveAccountsSortedByCreatedAtAscending") {
+        val earlier = Instant.parse("2026-01-01T10:00:00Z")
+        val later = Instant.parse("2026-06-01T10:00:00Z")
+
+        val activeAccount1 = Account(
+            accountId = UUID.randomUUID(),
+            userId = userId,
+            name = "Active Later",
+            currency = Currency.USD,
+            status = AccountStatus.ACTIVE,
+            createdAt = later
+        )
+        val activeAccount2 = Account(
+            accountId = UUID.randomUUID(),
+            userId = userId,
+            name = "Active Earlier",
+            currency = Currency.GBP,
+            status = AccountStatus.ACTIVE,
+            createdAt = earlier
+        )
+        whenever(accountRepository.findAllByUserIdAndStatus(userId, AccountStatus.ACTIVE))
+            .thenReturn(listOf(activeAccount1, activeAccount2))
+
+        val result = accountService.listActiveAccountsByUser(userId)
+
+        result shouldHaveSize 2
+        result[0].createdAt shouldBe earlier
+        result[1].createdAt shouldBe later
+    }
+
+    test("listActiveAccountsByUser_noActiveAccounts_returnsEmptyList") {
+        whenever(accountRepository.findAllByUserIdAndStatus(userId, AccountStatus.ACTIVE))
+            .thenReturn(emptyList())
+
+        val result = accountService.listActiveAccountsByUser(userId)
+
+        result.shouldBeEmpty()
     }
 })

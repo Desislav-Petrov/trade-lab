@@ -1,0 +1,268 @@
+openapi: 3.0.3
+
+info:
+  title: "Trade Lab API — Stocktrading"
+  version: 1.0.0
+  description: Stock order placement endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Stocktrading
+    description: Stock order placement
+
+paths:
+
+  /stock-orders/indicative-price:
+    get:
+      tags:
+        - Stocktrading
+      summary: Get the current indicative market price for a ticker
+      operationId: getIndicativePrice
+      parameters:
+        - name: ticker
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          description: Stock ticker to price
+      responses:
+        '200':
+          description: Indicative price found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndicativePriceResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unsupported ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /stock-orders:
+    post:
+      tags:
+        - Stocktrading
+      summary: Place a stock order at market price
+      operationId: placeOrder
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Client-generated UUID to ensure idempotent order submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '200':
+          description: Order processed (either FILLED or REJECTED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceOrderResponse'
+        '400':
+          description: Validation failure — invalid request or unsupported ticker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                error: Bad request
+                details:
+                  - "ticker is not in the supported list"
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — account not owned by user or not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict — duplicate idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: Duplicate idempotency key
+                details:
+                  - "An order with this idempotency key has already been submitted"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    PlaceOrderRequest:
+      type: object
+      required:
+        - accountId
+        - userId
+        - ticker
+        - quantity
+        - side
+        - orderType
+        - priceSnapshot
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        ticker:
+          type: string
+          minLength: 1
+          maxLength: 10
+          example: AAPL
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          example: 2.5
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
+        orderType:
+          type: string
+          enum: [MARKET]
+          example: MARKET
+        priceSnapshot:
+          type: number
+          exclusiveMinimum: 0
+          example: 182.500
+
+    PlaceOrderResponse:
+      type: object
+      required:
+        - orderId
+        - status
+        - side
+        - ticker
+        - quantity
+        - accountId
+        - createdAt
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        status:
+          type: string
+          enum: [FILLED, REJECTED]
+          example: FILLED
+        side:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
+        ticker:
+          type: string
+          example: AAPL
+        quantity:
+          type: number
+          example: 2.5
+        executionPrice:
+          type: number
+          nullable: true
+          example: 182.500
+        totalCost:
+          type: number
+          nullable: true
+          example: 456.250
+        totalProceeds:
+          type: number
+          nullable: true
+          example: 456.250
+        rejectionReason:
+          type: string
+          nullable: true
+          example: "Insufficient funds"
+        accountId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-07-08T12:00:00Z"
+
+    IndicativePriceResponse:
+      type: object
+      required:
+        - ticker
+        - indicativePrice
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        indicativePrice:
+          type: number
+          example: 182.500
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "quantity must be greater than 0"

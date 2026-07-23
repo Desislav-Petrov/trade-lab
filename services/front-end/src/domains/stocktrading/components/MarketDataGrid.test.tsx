@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MarketDataGrid } from './MarketDataGrid'
 import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
@@ -16,6 +16,33 @@ const sampleRows: MarketDataUpdate[] = [
     ticker: 'MSFT',
     companyName: 'Microsoft Corporation',
     currentPrice: 300.5,
+    open: 298.0,
+    dayLow: 295.25,
+    fiftyTwoWeekHigh: 350.999,
+  },
+  {
+    ticker: 'GOOG',
+    companyName: 'Alphabet Inc.',
+    currentPrice: 150.0,
+    open: 148.0,
+    dayLow: 145.0,
+    fiftyTwoWeekHigh: 180.0,
+  },
+]
+
+const updatedRows: MarketDataUpdate[] = [
+  {
+    ticker: 'AAPL',
+    companyName: 'Apple Inc.',
+    currentPrice: 181.123,
+    open: 179.456,
+    dayLow: 178.789,
+    fiftyTwoWeekHigh: 200.001,
+  },
+  {
+    ticker: 'MSFT',
+    companyName: 'Microsoft Corporation',
+    currentPrice: 299.5,
     open: 298.0,
     dayLow: 295.25,
     fiftyTwoWeekHigh: 350.999,
@@ -59,15 +86,25 @@ describe('MarketDataGrid', () => {
 
   it('MarketDataGrid - feedStatus connected with rows - renders table with all six column headers', () => {
     render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
-    expect(screen.getByText(/^Ticker/)).toBeInTheDocument()
-    expect(screen.getByText(/^Company Name/)).toBeInTheDocument()
-    expect(screen.getByText(/^Current Price \(USD\)/)).toBeInTheDocument()
-    expect(screen.getByText(/^Open \(USD\)/)).toBeInTheDocument()
-    expect(screen.getByText(/^Day Low \(USD\)/)).toBeInTheDocument()
-    expect(screen.getByText(/^52W High \(USD\)/)).toBeInTheDocument()
+    expect(screen.getByText('Ticker ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Company Name ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Current Price (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Open (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Day Low (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('52W High (USD) ⇅')).toBeInTheDocument()
   })
 
-  it('MarketDataGrid - feedStatus connected with rows - renders row data', () => {
+  it('MarketDataGrid - connected rows - renders always visible sort indicators on sortable headers', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+    expect(screen.getByText('Ticker ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Company Name ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Current Price (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Open (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('Day Low (USD) ⇅')).toBeInTheDocument()
+    expect(screen.getByText('52W High (USD) ⇅')).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - connected rows - renders row data', () => {
     render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
     expect(screen.getByText('AAPL')).toBeInTheDocument()
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument()
@@ -87,6 +124,27 @@ describe('MarketDataGrid', () => {
     expect(screen.getByText('200.001')).toBeInTheDocument()
     // MSFT currentPrice 300.5 → '300.500'
     expect(screen.getByText('300.500')).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - live feed update - shows green up arrow for higher price and red down arrow for lower price', () => {
+    const { rerender } = render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    expect(screen.queryByLabelText('AAPL price increased')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('MSFT price decreased')).not.toBeInTheDocument()
+
+    rerender(<MarketDataGrid rows={updatedRows} feedStatus="connected" />)
+
+    expect(screen.getByLabelText('AAPL price increased')).toHaveClass('text-[var(--color-success)]')
+    expect(screen.getByLabelText('MSFT price decreased')).toHaveClass('text-[var(--color-danger)]')
+  })
+
+  it('MarketDataGrid - live feed initial snapshot - renders no direction arrows', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    expect(screen.queryByLabelText('AAPL price increased')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('AAPL price decreased')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('MSFT price increased')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('MSFT price decreased')).not.toBeInTheDocument()
   })
 
   it('MarketDataGrid - clicking Ticker header once - sorts ascending', () => {
@@ -143,7 +201,78 @@ describe('MarketDataGrid', () => {
   it('MarketDataGrid - table container - has overflowX and overflowY auto styles', () => {
     const { container } = render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
     const div = container.firstChild as HTMLElement
-    expect(div.style.overflowX).toBe('auto')
-    expect(div.style.overflowY).toBe('auto')
+    expect(div.className).toContain('overflow-x-auto')
+    expect(div.className).toContain('rounded')
+    expect(div.className).toContain('border')
+  })
+
+  it('MarketDataGrid - bordered cells - renders visible grid lines and header separation', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    expect(screen.getByRole('columnheader', { name: 'Ticker ⇅' })).toHaveClass('border')
+    expect(screen.getByRole('columnheader', { name: 'Ticker ⇅' })).toHaveClass('border-b')
+    expect(screen.getByRole('cell', { name: /AAPL/ })).toHaveClass('border')
+  })
+
+  // Context menu (COMP-1)
+  it('MarketDataGrid - right-click on row with onBuy - shows context menu with Buy option', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1]) // AAPL row
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Buy' })).toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - clicking Buy in context menu - invokes onBuy with correct args', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1]) // AAPL row (currentPrice 180.123 → '180.123')
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Buy' }))
+
+    expect(onBuy).toHaveBeenCalledWith('AAPL', 'Apple Inc.', '180.123')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('MarketDataGrid - click outside context menu - dismisses menu without invoking onBuy', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.mouseDown(document.body)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(onBuy).not.toHaveBeenCalled()
+  })
+
+  it('MarketDataGrid - press Escape - dismisses context menu without invoking onBuy', () => {
+    const onBuy = vi.fn()
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" onBuy={onBuy} />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(onBuy).not.toHaveBeenCalled()
+  })
+
+  it('MarketDataGrid - right-click without onBuy prop - does not show context menu', () => {
+    render(<MarketDataGrid rows={sampleRows} feedStatus="connected" />)
+
+    const rows = screen.getAllByRole('row')
+    fireEvent.contextMenu(rows[1])
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })

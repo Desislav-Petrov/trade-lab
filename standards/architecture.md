@@ -23,6 +23,7 @@ vertical may depend on them.
 | User        | User identity, registration, login, and lifecycle               |
 | Ledger      | Account holdings — money, stocks, and any other assets          |
 | Market Data | Sourcing and serving market data per product type               |
+| Portfolio   | Manages the asset holdings for a given user                     |
 
 ### Verticals
 
@@ -54,11 +55,12 @@ org/dpp/tradelab/
     controller/   # REST delegate implementations (implement generated ApiDelegate)
     exception/    # Domain-specific exception classes
     api/          # Kotlin interfaces exposed to other domains (cross-domain sync only)
-    messaging/    # Domain event definitions, publishers, listeners
+    messaging/    # Domain event data classes, publishers, and listener classes
     util/         # Domain-scoped utility classes
   ledger/         # same structure
   marketdata/     # same structure
   stocktrading/   # same structure
+  portfolio/      # same structure 
   config/                     # Global Spring configuration
   GlobalExceptionHandler.kt   # Root level — handles all domains consistently
   TradingLabApplication.kt
@@ -72,8 +74,10 @@ org/dpp/tradelab/
 | `controller` | REST delegate implementations — implement generated `{Domain}ApiDelegate` |
 | `exception` | Domain-specific exception classes |
 | `api` | Kotlin interfaces exposed to other domains (cross-domain sync only) |
-| `messaging` | Domain event data classes, publishers, `@EventListener` handlers |
+| `messaging` | Domain event `data class` types, `ApplicationEventPublisher` calls, and `@Component` listener classes containing `@EventListener` methods |
 | `util` | Utility classes scoped to this domain only |
+
+> **Listener class rule:** `@EventListener` and `@TransactionalEventListener` annotations are **never** placed on service class methods. They belong exclusively in a dedicated `@Component` listener class inside `{domain}.messaging`. Each listener method calls exactly one `handle*` method on the relevant service. See `standards/backend.md` — Domain Events for the full pattern and rationale.
 
 Request/response DTOs are generated from `services/contract/{domain}-openapi.yaml` — they are never hand-written. See `standards/backend.md` for full OpenAPI generation details.
 
@@ -102,10 +106,11 @@ source domain's `api/` package.
 When a domain needs to react to something that happened in another domain
 without requiring a response, it uses Spring Application Events.
 
-- The source domain publishes events from its `messaging/` package using
+- The source domain publishes events from its service layer using
   `ApplicationEventPublisher`.
-- The consuming domain subscribes via `@EventListener` in its own `messaging/`
-  package.
+- The consuming domain subscribes in a dedicated `@Component` listener class
+  inside its own `messaging/` package. The listener method calls a `handle*`
+  method on the relevant service — it contains no business logic itself.
 
 ### Rules that apply to both patterns
 
@@ -141,6 +146,7 @@ services/front-end/
       ledger/         # Account balances, holdings
       marketdata/     # Price feeds, instrument search
       stocktrading/   # Order placement, portfolio view
+      portfolio/      # Portoflio management
     shared/           # Shared components, API client, utilities
     app/              # Root configuration, routing, layout
 ```
@@ -154,6 +160,8 @@ When a domain is ready to be extracted into a standalone service:
 - Its `model`, `service`, `api`, and `messaging` sub-packages become the new
   service's source tree with minimal restructuring.
 - Spring Application Event contracts in `messaging` become message bus contracts
-  (e.g. Kafka topics, SQS queues).
+  (e.g. Kafka topics, SQS queues). Because listener logic is isolated in
+  dedicated listener classes (not embedded in service classes), only the
+  listener classes need to change — the service `handle*` methods remain intact.
 - No domain logic rewrite is required. Extraction is a packaging and deployment
   change only.

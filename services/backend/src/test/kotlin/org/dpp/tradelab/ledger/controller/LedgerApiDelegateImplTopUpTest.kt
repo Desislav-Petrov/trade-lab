@@ -12,6 +12,7 @@ import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.model.EntryType
 import org.dpp.tradelab.ledger.model.LedgerEntry
 import org.dpp.tradelab.ledger.service.AccountService
+import org.dpp.tradelab.ledger.service.LedgerService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
@@ -32,7 +33,8 @@ import java.util.UUID
 @AutoConfigureMockMvc
 class LedgerApiDelegateImplTopUpTest(
     @Autowired val mockMvc: MockMvc,
-    @MockitoBean val accountService: AccountService
+    @MockitoBean val accountService: AccountService,
+    @MockitoBean val ledgerService: LedgerService,
 ) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)

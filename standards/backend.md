@@ -32,11 +32,12 @@ src/
           controller/   # REST controllers (implement generated ApiDelegate interfaces)
           exception/    # Domain-specific exception classes
           api/          # Kotlin interfaces exposed to other domains (cross-domain sync only)
-          messaging/    # Domain event definitions, publishers, listeners
+          messaging/    # Domain event definitions, publishers, listener classes
           util/         # Domain-scoped utility classes
         ledger/         # same structure
         marketdata/     # same structure
         stocktrading/   # same structure
+        portfolio/      # same structure
         config/                     # Global Spring configuration
         GlobalExceptionHandler.kt   # Root level — handles all domains
         TradingLabApplication.kt
@@ -49,6 +50,7 @@ src/
         ledger/
         marketdata/
         stocktrading/
+        portfolio/
 ```
 
 One production class per file. One test class per production class.
@@ -67,7 +69,7 @@ These IDs match those used by the decomposer agent.
 | CONTROLLER | Controller | `{domain}.controller` | REST controllers — implement generated `{Domain}ApiDelegate` |
 | EXCEPTION | Exception | `{domain}.exception` | Domain-specific exception classes |
 | API | API | `{domain}.api` | Kotlin interfaces exposed to other domains (cross-domain sync only) |
-| EVT | Event | `{domain}.messaging` | Domain event classes and listeners |
+| EVT | Event | `{domain}.messaging` | Domain event `data class` types, `ApplicationEventPublisher` calls, and dedicated `@Component` listener classes |
 
 **Rules:**
 - No business logic in controllers or repositories.
@@ -76,6 +78,7 @@ These IDs match those used by the decomposer agent.
 - REST controller never calls a repository directly.
 - Other domains may only import from `{domain}.api` — never from `{domain}.model`, `{domain}.repository`, or `{domain}.service`.
 - DTOs (request/response models) are **never hand-written** — they are generated from the domain's OpenAPI contract (see OpenAPI Code Generation section below).
+- `@EventListener` and `@TransactionalEventListener` annotations are **never** placed on service class methods — see Domain Events section below.
 
 ---
 
@@ -288,11 +291,49 @@ Event names must match those defined in the flow docs exactly.
 eventPublisher.publishEvent(UserRegisteredEvent(userId = user.id, email = user.email, timestamp = Instant.now()))
 ```
 
-**Subscribing** — `@EventListener` method in the receiving domain's `messaging` package:
+### Listener class pattern (mandatory)
+
+`@EventListener` and `@TransactionalEventListener` annotations must **never** be placed on service class methods. They must only appear in a dedicated listener class inside `{domain}.messaging`.
+
+**Why:** When this monolith is split into microservices, Spring Application Events become Kafka consumers (or equivalent message-bus consumers). Keeping the listener annotation in its own class means the migration requires changing only the listener class — the service's `handle*` methods remain untouched.
+
+**Rules:**
+
+1. The listener class is annotated `@Component` (not `@Service`).
+2. The listener class receives the relevant service(s) via constructor injection.
+3. Each listener method does **one thing only**: call a single `handle*` service method. No business logic, no conditionals, no repository access inside the listener method.
+4. The service method being called is named `handle{EventName}` (e.g. `handleAssetSubscribed`, `handleUserRegistered`).
+5. The listener class has no state of its own.
+
+**Naming:**
+
+| Scenario | Class name |
+|---|---|
+| Domain reacting to its own events | `{Domain}EventListener` |
+| Domain reacting to events from another domain | `{PublishingDomain}EventListener` |
+
+**Example:**
 
 ```kotlin
-@EventListener
-fun on(event: UserRegisteredEvent) { ... }
+// marketdata/messaging/MarketDataEventListener.kt
+@Component
+class MarketDataEventListener(
+    private val marketDataFeedService: MarketDataFeedService
+) {
+    @EventListener
+    fun onAssetSubscribed(event: AssetSubscribedEvent) =
+        marketDataFeedService.handleAssetSubscribed(event)
+
+    @EventListener
+    fun onAssetUnsubscribed(event: AssetUnsubscribedEvent) =
+        marketDataFeedService.handleAssetUnsubscribed(event)
+}
+```
+
+```kotlin
+// marketdata/service/MarketDataFeedService.kt
+fun handleAssetSubscribed(event: AssetSubscribedEvent) { /* business logic */ }
+fun handleAssetUnsubscribed(event: AssetUnsubscribedEvent) { /* business logic */ }
 ```
 
 Use `@TransactionalEventListener(phase = AFTER_COMMIT)` when the listener must only run after the publishing transaction has committed successfully.
@@ -309,6 +350,10 @@ Events are synchronous by default. Introducing async (`@Async`) requires a decis
 - Delegate (controller) tests: `@SpringBootTest` + `@AutoConfigureMockMvc` + `MockMvc`, mock the service layer, assert HTTP status codes and response bodies.
 - Test method naming: `methodName_scenario_expectedOutcome`.
 
+### Listener class tests (EVT layer)
+- KoTest + `mockito-kotlin` — mock the service; assert that the correct `handle*` method is called with the correct event payload.
+- One test per listener method.
+
 ### Repository tests
 - `@SpringBootTest` + `@AutoConfigureTestEntityManager` + `@Transactional` with embedded H2.
 - Test only custom query methods — not Spring Data built-ins.
@@ -320,6 +365,7 @@ Events are synchronous by default. Introducing async (`@Async`) requires a decis
 ### Coverage expectations
 - All service methods must have unit tests covering the happy path and every error case defined in the flow docs.
 - All delegate methods must have `@SpringBootTest`+MockMvc tests covering success and error responses.
+- All listener methods must have unit tests asserting the correct service `handle*` method is invoked.
 
 ---
 

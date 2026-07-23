@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
-import { useAccounts, useOpenAccount, useTopUpAccount } from './useLedger'
+import { useAccounts, useActiveAccounts, useOpenAccount, useTopUpAccount } from './useLedger'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import type { UserProfile } from '../../user/types/user'
 
@@ -104,6 +104,77 @@ describe('useAccounts', () => {
     await waitFor(() => expect(result2.current.isSuccess).toBe(true))
 
     expect(mockFetchAccounts).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('useActiveAccounts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    act(() => useSessionStore.getState().clearSession())
+  })
+
+  it('useActiveAccounts - no session - query is disabled', async () => {
+    const { result } = renderHook(() => useActiveAccounts(), { wrapper: createWrapper() })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(mockFetchAccounts).not.toHaveBeenCalled()
+  })
+
+  it('useActiveAccounts - session exists - fetches active accounts with status ACTIVE', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const accounts = [
+      {
+        id: 'acc-1',
+        name: 'My Account',
+        currency: 'USD',
+        balance: 0,
+        status: 'ACTIVE',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    mockFetchAccounts.mockResolvedValueOnce({ accounts })
+
+    const { result } = renderHook(() => useActiveAccounts(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.accounts).toEqual(accounts)
+    expect(mockFetchAccounts).toHaveBeenCalledWith('u1', 'ACTIVE')
+  })
+
+  it('useActiveAccounts - fetch error - isError is true', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    mockFetchAccounts.mockRejectedValueOnce(new Error('Network error'))
+
+    const { result } = renderHook(() => useActiveAccounts(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+
+  it('useActiveAccounts - staleTime 0 - refetches on every mount', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    const accounts = [
+      {
+        id: 'acc-1',
+        name: 'My Account',
+        currency: 'USD',
+        balance: 0,
+        status: 'ACTIVE',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    mockFetchAccounts.mockResolvedValue({ accounts })
+
+    const wrapper = createWrapper()
+    const { result, unmount } = renderHook(() => useActiveAccounts(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    unmount()
+
+    const { result: result2 } = renderHook(() => useActiveAccounts(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result2.current.isSuccess).toBe(true))
+
+    expect(mockFetchAccounts).toHaveBeenCalledTimes(2)
+    expect(mockFetchAccounts).toHaveBeenCalledWith('u1', 'ACTIVE')
   })
 })
 

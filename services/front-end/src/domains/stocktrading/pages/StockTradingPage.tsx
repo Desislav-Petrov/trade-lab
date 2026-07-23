@@ -55,11 +55,7 @@ export function StockTradingPage() {
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
   const deferredRows = useDeferredValue(rows)
 
-  const {
-    data: activeAccountsData,
-    isLoading: isAccountsLoading,
-    isError: isAccountsError,
-  } = useActiveAccounts()
+  const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
   const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
   const setSelectedAccountId = useStockTradingStore((s) => s.setSelectedAccountId)
 
@@ -182,12 +178,9 @@ export function StockTradingPage() {
       <MarketDataGrid
         rows={deferredRows}
         feedStatus={feedStatus}
-        onBuy={
-          selectedAccountId
-            ? (ticker, companyName, priceSnapshot) =>
-                setBuyContext({ ticker, companyName, priceSnapshot })
-            : undefined
-        }
+        onBuy={selectedAccountId
+          ? (ticker, companyName, priceSnapshot) => setBuyContext({ ticker, companyName, priceSnapshot })
+          : undefined}
       />
 
       {buyContext && selectedAccountId && (

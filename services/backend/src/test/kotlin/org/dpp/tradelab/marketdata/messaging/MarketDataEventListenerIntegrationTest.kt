@@ -12,10 +12,11 @@ import java.util.UUID
 
 /**
  * Integration tests verifying that Spring Application Events emitted by [AssetSubscriptionService]
- * are correctly received and processed by [MarketDataFeedService]'s @EventListener methods.
+ * are correctly received by [MarketDataEventListener] and processed by [MarketDataFeedService]'s
+ * `handle*` methods.
  *
- * Uses the full Spring Boot context with H2 in-memory database so that event publication
- * and routing is exercised end-to-end.
+ * Uses the full Spring Boot context with H2 in-memory database so that event publication,
+ * routing, and listener delegation are exercised end-to-end.
  */
 @SpringBootTest
 class MarketDataEventListenerIntegrationTest(
@@ -36,7 +37,7 @@ class MarketDataEventListenerIntegrationTest(
         marketDataFeedService.userToTickers.clear()
     }
 
-    test("bulkAdd_emitsAssetSubscribedEvent_marketDataFeedService_updatesLookupMaps") {
+    test("bulkAdd_emitsAssetSubscribedEvent_listenerDelegates_marketDataFeedServiceUpdatesLookupMaps") {
         assetSubscriptionService.bulkAdd(userId, listOf("AAPL", "MSFT"))
 
         marketDataFeedService.tickerToUsers["AAPL"]?.contains(userId) shouldBe true
@@ -45,7 +46,7 @@ class MarketDataEventListenerIntegrationTest(
         marketDataFeedService.userToTickers[userId]?.contains("MSFT") shouldBe true
     }
 
-    test("bulkRemove_emitsAssetUnsubscribedEvent_marketDataFeedService_updatesLookupMaps") {
+    test("bulkRemove_emitsAssetUnsubscribedEvent_listenerDelegates_marketDataFeedServiceUpdatesLookupMaps") {
         // First subscribe
         assetSubscriptionService.bulkAdd(userId, listOf("AAPL", "GOOGL"))
 

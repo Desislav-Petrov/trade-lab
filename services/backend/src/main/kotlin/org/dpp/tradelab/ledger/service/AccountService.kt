@@ -5,6 +5,7 @@ import org.dpp.tradelab.ledger.exception.UserNotFoundException
 import org.dpp.tradelab.ledger.messaging.AccountOpenedEvent
 import org.dpp.tradelab.ledger.messaging.AccountToppedUpEvent
 import org.dpp.tradelab.ledger.model.Account
+import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.AssetType
 import org.dpp.tradelab.ledger.model.Currency
 import org.dpp.tradelab.ledger.model.EntryType
@@ -98,4 +99,9 @@ class AccountService(
     @Transactional(readOnly = true)
     fun listAccountsByUser(userId: UUID): List<Account> =
         accountRepository.findAllByUserId(userId)
+
+    @Transactional(readOnly = true)
+    fun listActiveAccountsByUser(userId: UUID): List<Account> =
+        accountRepository.findAllByUserIdAndStatus(userId, AccountStatus.ACTIVE)
+            .sortedBy { it.createdAt }
 }

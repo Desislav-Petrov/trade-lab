@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { StockTradingPage } from './StockTradingPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
+import { useStockTradingStore } from '../hooks/useStockTradingStore'
 import type { UserProfile } from '../../user/types/user'
 import type { SubscriptionResponse } from '../../marketdata/types/subscription'
+import type { AccountListResponse } from '../../ledger/types/account'
 
 vi.mock('../../marketdata/hooks/useSubscriptions', () => ({
   useSubscriptions: vi.fn(),
@@ -20,8 +22,63 @@ vi.mock('../../marketdata/hooks/useMarketDataFeed', () => ({
   useMarketDataFeed: vi.fn(() => ({ rows: [], feedStatus: 'connecting' })),
 }))
 
+vi.mock('../../ledger/hooks/useLedger', () => ({
+  useActiveAccounts: vi.fn(),
+}))
+
+vi.mock('../components/AccountSelector', () => ({
+  AccountSelector: ({
+    accounts,
+    selectedAccountId,
+    onSelect,
+    isLoading,
+    isError,
+  }: {
+    accounts: { id: string; name: string; currency: string }[]
+    selectedAccountId: string | null
+    onSelect: (id: string) => void
+    isLoading: boolean
+    isError: boolean
+  }) => {
+    if (isLoading) return createElement('p', { 'data-testid': 'account-selector-loading' }, 'Loading accounts…')
+    if (isError) return createElement('p', { role: 'alert', 'data-testid': 'account-selector-error' }, 'Could not load accounts.')
+    if (accounts.length === 0) return createElement('p', { 'data-testid': 'account-selector-empty' }, 'No accounts available. Open an account first.')
+    return createElement(
+      'select',
+      {
+        'data-testid': 'account-selector',
+        value: selectedAccountId ?? '',
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onSelect(e.target.value),
+      },
+      accounts.map((a) =>
+        createElement('option', { key: a.id, value: a.id }, `${a.name} (${a.currency})`),
+      ),
+    )
+  },
+}))
+
 vi.mock('../components/MarketDataGrid', () => ({
-  MarketDataGrid: () => createElement('div', { 'data-testid': 'market-data-grid' }),
+  MarketDataGrid: ({
+    onBuy,
+  }: {
+    rows: unknown[]
+    feedStatus: string
+    onBuy?: (ticker: string, companyName: string, priceSnapshot: string) => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'market-data-grid' },
+      onBuy
+        ? createElement(
+            'button',
+            {
+              onClick: () => onBuy('AAPL', 'Apple Inc.', '180.000'),
+              'data-testid': 'trigger-buy',
+            },
+            'Trigger Buy',
+          )
+        : null,
+    ),
 }))
 
 vi.mock('../components/SubscriptionList', () => ({
@@ -102,17 +159,49 @@ vi.mock('../components/RemoveTickerBar', () => ({
     ),
 }))
 
+vi.mock('../components/BuyPanel', () => ({
+  BuyPanel: ({
+    ticker,
+    companyName,
+    priceSnapshot,
+    accountId,
+    userId,
+    onClose,
+  }: {
+    ticker: string
+    companyName: string
+    priceSnapshot: string
+    accountId: string
+    userId: string
+    onClose: () => void
+  }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'buy-panel' },
+      createElement('span', { 'data-testid': 'buy-panel-ticker' }, ticker),
+      createElement('span', { 'data-testid': 'buy-panel-company' }, companyName),
+      createElement('span', { 'data-testid': 'buy-panel-price' }, priceSnapshot),
+      createElement('span', { 'data-testid': 'buy-panel-account' }, accountId),
+      createElement('span', { 'data-testid': 'buy-panel-userid' }, userId),
+      createElement('button', { onClick: onClose, 'data-testid': 'buy-panel-close' }, 'Close'),
+    ),
+}))
+
 import {
   useSubscriptions,
   useBulkAddSubscriptions,
   useBulkRemoveSubscriptions,
   useSupportedTickers,
 } from '../../marketdata/hooks/useSubscriptions'
+import { useActiveAccounts } from '../../ledger/hooks/useLedger'
+import { useMarketDataFeed } from '../../marketdata/hooks/useMarketDataFeed'
 
 const mockUseSubscriptions = vi.mocked(useSubscriptions)
 const mockUseBulkAddSubscriptions = vi.mocked(useBulkAddSubscriptions)
 const mockUseBulkRemoveSubscriptions = vi.mocked(useBulkRemoveSubscriptions)
 const mockUseSupportedTickers = vi.mocked(useSupportedTickers)
+const mockUseActiveAccounts = vi.mocked(useActiveAccounts)
+const mockUseMarketDataFeed = vi.mocked(useMarketDataFeed)
 
 const mockProfile: UserProfile = {
   userId: 'u1',
@@ -127,6 +216,25 @@ const mockProfile: UserProfile = {
 const mockSubscriptions: SubscriptionResponse[] = [
   { ticker: 'AAPL', companyName: 'Apple Inc.' },
   { ticker: 'MSFT', companyName: 'Microsoft Corporation' },
+]
+
+const mockActiveAccounts = [
+  {
+    id: 'acc-1',
+    name: 'My USD Account',
+    currency: 'USD',
+    balance: 100,
+    status: 'ACTIVE',
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'acc-2',
+    name: 'My GBP Account',
+    currency: 'GBP',
+    balance: 200,
+    status: 'ACTIVE',
+    createdAt: '2026-01-02T00:00:00Z',
+  },
 ]
 
 function renderPage(initialPath = '/trade') {
@@ -158,6 +266,9 @@ function setupMocks(overrides: {
   addIsPending?: boolean
   removeIsPending?: boolean
   removeError?: Error | null
+  activeAccounts?: typeof mockActiveAccounts
+  isAccountsLoading?: boolean
+  isAccountsError?: boolean
 } = {}) {
   mockUseSubscriptions.mockReturnValue({
     data: overrides.subscriptions !== undefined ? overrides.subscriptions : mockSubscriptions,
@@ -186,12 +297,21 @@ function setupMocks(overrides: {
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof useSupportedTickers>)
+
+  const accounts = overrides.activeAccounts !== undefined ? overrides.activeAccounts : mockActiveAccounts
+  mockUseActiveAccounts.mockReturnValue({
+    data: { accounts } as AccountListResponse,
+    isLoading: overrides.isAccountsLoading ?? false,
+    isError: overrides.isAccountsError ?? false,
+  } as unknown as ReturnType<typeof useActiveAccounts>)
 }
 
 describe('StockTradingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     act(() => useSessionStore.getState().clearSession())
+    act(() => useStockTradingStore.getState().clearSelectedAccountId())
+    mockUseMarketDataFeed.mockReturnValue({ rows: [], feedStatus: 'connecting' })
   })
 
   it('StockTradingPage - no session - redirects to /login', () => {
@@ -248,9 +368,7 @@ describe('StockTradingPage', () => {
     setupMocks({ removeMutate })
     renderPage()
 
-    // Select AAPL via SubscriptionList toggle
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
-    // Now click remove
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
 
     expect(removeMutate).toHaveBeenCalledWith(
@@ -269,11 +387,142 @@ describe('StockTradingPage', () => {
     setupMocks({ removeMutate })
     renderPage()
 
-    // Select AAPL
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getAllByRole('alert').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Ticker not found in subscriptions.')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - AccountSelector rendered - account selector is present on the page', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks()
+    renderPage()
+    expect(screen.getByTestId('account-selector')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - accounts returned with no prior selection - sets first account as default', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-1')
+    })
+  })
+
+  it('StockTradingPage - accounts returned with prior selection - does not change existing selection', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-2'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
+    })
+  })
+
+  it('StockTradingPage - no accounts returned - selectedAccountId remains null', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [] })
+    renderPage()
+
+    await waitFor(() => {
+      expect(useStockTradingStore.getState().selectedAccountId).toBeNull()
+    })
+  })
+
+  it('StockTradingPage - user selects different account - selectedAccountId updates in store', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    const select = screen.getByTestId('account-selector')
+    fireEvent.change(select, { target: { value: 'acc-2' } })
+
+    expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
+  })
+
+  it('StockTradingPage - accounts loading - forwards isLoading to AccountSelector', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [], isAccountsLoading: true })
+    renderPage()
+    expect(screen.getByTestId('account-selector-loading')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - accounts error - forwards isError to AccountSelector', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [], isAccountsError: true })
+    renderPage()
+    expect(screen.getByTestId('account-selector-error')).toBeInTheDocument()
+  })
+
+  it('StockTradingPage - account selected and onBuy triggered - BuyPanel renders with correct props including userId', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    const triggerBtn = screen.getByTestId('trigger-buy')
+    fireEvent.click(triggerBtn)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('buy-panel')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('buy-panel-ticker')).toHaveTextContent('AAPL')
+    expect(screen.getByTestId('buy-panel-company')).toHaveTextContent('Apple Inc.')
+    expect(screen.getByTestId('buy-panel-price')).toHaveTextContent('180.000')
+    expect(screen.getByTestId('buy-panel-account')).toHaveTextContent('acc-1')
+    expect(screen.getByTestId('buy-panel-userid')).toHaveTextContent('u1')
+  })
+
+  it('StockTradingPage - BuyPanel onClose - removes BuyPanel from DOM', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    fireEvent.click(screen.getByTestId('trigger-buy'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('buy-panel')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('buy-panel-close'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('buy-panel')).not.toBeInTheDocument()
+    })
+  })
+
+  it('StockTradingPage - no account selected - MarketDataGrid does not receive onBuy', () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    setupMocks({ activeAccounts: [] })
+    renderPage()
+
+    expect(screen.queryByTestId('trigger-buy')).not.toBeInTheDocument()
+  })
+
+  it('StockTradingPage - live feed connected with rows - MarketDataGrid remains mounted and receives deferred rows', () => {
+    mockUseMarketDataFeed.mockReturnValue({
+      rows: [
+        {
+          ticker: 'AAPL',
+          companyName: 'Apple Inc.',
+          currentPrice: 180.5,
+          open: 179.0,
+          dayLow: 178.0,
+          fiftyTwoWeekHigh: 200.0,
+        },
+      ],
+      feedStatus: 'connected',
+    })
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
+    setupMocks({ activeAccounts: mockActiveAccounts })
+    renderPage()
+
+    expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
+    expect(screen.getByTestId('trigger-buy')).toBeInTheDocument()
   })
 })

@@ -1,16 +1,17 @@
 package org.dpp.tradelab.marketdata.service
 
 import jakarta.annotation.PostConstruct
+import org.dpp.tradelab.marketdata.api.MarketDataApi
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
-import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -23,22 +24,26 @@ import java.util.concurrent.ConcurrentHashMap
  * are created as [ConcurrentHashMap.newKeySet()] to ensure thread-safe mutations.
  *
  * Prices are serialised to exactly 3 decimal places in all outbound JSON messages.
+ *
+ * Event handling entry-points ([handleAssetSubscribed], [handleAssetUnsubscribed]) are
+ * called by [org.dpp.tradelab.marketdata.messaging.MarketDataEventListener] — they must
+ * not be annotated with `@EventListener` directly.
  */
 @Service
 class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val priceFeedGenerator: PriceFeedGenerator,
     private val supportedTickerConfig: SupportedTickerConfig
-) {
+) : MarketDataApi {
 
-    // ── Internal state ─────────────────────────────────────────────────────────────
+    // ── Internal state ──────────────────────────────────────────────────
 
     internal val snapshotCache: ConcurrentHashMap<String, MarketDataSnapshot> = ConcurrentHashMap()
     internal val tickerToUsers: ConcurrentHashMap<String, MutableSet<UUID>> = ConcurrentHashMap()
     internal val userToTickers: ConcurrentHashMap<UUID, MutableSet<String>> = ConcurrentHashMap()
     internal val activeSessions: ConcurrentHashMap<UUID, WebSocketSession> = ConcurrentHashMap()
 
-    // ── Startup initialisation ───────────────────────────────────────────────────────
+    // ── Startup initialisation ───────────────────────────────────────────────
 
     @PostConstruct
     fun init() {
@@ -78,7 +83,7 @@ class MarketDataFeedService(
         }
     }
 
-    // ── Scheduled dispatch ─────────────────────────────────────────────────────
+    // ── Scheduled dispatch ────────────────────────────────────────────
 
     @Scheduled(fixedDelay = 250)
     fun dispatchTicks() {
@@ -95,7 +100,7 @@ class MarketDataFeedService(
         }
     }
 
-    // ── Session management ────────────────────────────────────────────────────
+    // ── Session management ────────────────────────────────────────────
 
     fun registerSession(userId: UUID, session: WebSocketSession) {
         activeSessions[userId] = session
@@ -105,14 +110,40 @@ class MarketDataFeedService(
         activeSessions.remove(userId)
     }
 
-    // ── Snapshot query ────────────────────────────────────────────────────────
+    // ── Snapshot query ────────────────────────────────────────────
 
     fun getSnapshotForUser(userId: UUID): List<MarketDataSnapshot> {
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }
     }
 
-    // ── WebSocket message senders ───────────────────────────────────────────────
+    // ── MarketDataApi implementation ────────────────────────────────────────
+
+    override fun getCurrentPrice(ticker: String): BigDecimal {
+        val snapshot = snapshotCache[ticker.uppercase()]
+            ?: throw IllegalStateException(
+                "No cache entry for ticker '$ticker'. " +
+                    "The cache should be fully seeded at startup — this is a programming error."
+            )
+        return snapshot.currentPrice
+    }
+
+    // ── MarketDataApi.isTickerSupported implementation ────────────────────
+    override fun isTickerSupported(ticker: String): Boolean =
+        supportedTickerConfig.resolve(ticker) != null
+
+    // ── MarketDataApi.getPrices implementation ────────────────────────────────
+    override fun getPrices(tickers: List<String>): Map<String, BigDecimal> {
+        if (tickers.isEmpty()) {
+            return emptyMap()
+        }
+        return tickers.mapNotNull { ticker ->
+            val snapshot = snapshotCache[ticker.uppercase()]
+            snapshot?.let { ticker.uppercase() to it.currentPrice }
+        }.toMap()
+    }
+
+    // ── WebSocket message senders ──────────────────────────────────────────────
 
     fun sendTick(session: WebSocketSession, snapshot: MarketDataSnapshot) {
         val json = buildTickJson(snapshot)
@@ -124,10 +155,9 @@ class MarketDataFeedService(
         session.sendMessage(TextMessage(json))
     }
 
-    // ── Event listeners ──────────────────────────────────────────────────────────
+    // ── Event handlers (called by MarketDataEventListener) ───────────────────────
 
-    @EventListener
-    fun onAssetSubscribed(event: AssetSubscribedEvent) {
+    fun handleAssetSubscribed(event: AssetSubscribedEvent) {
         event.tickers.forEach { ticker ->
             tickerToUsers
                 .getOrPut(ticker) { ConcurrentHashMap.newKeySet() }
@@ -146,15 +176,14 @@ class MarketDataFeedService(
         }
     }
 
-    @EventListener
-    fun onAssetUnsubscribed(event: AssetUnsubscribedEvent) {
+    fun handleAssetUnsubscribed(event: AssetUnsubscribedEvent) {
         event.tickers.forEach { ticker ->
             tickerToUsers[ticker]?.remove(event.userId)
             userToTickers[event.userId]?.remove(ticker)
         }
     }
 
-    // ── JSON building helpers ────────────────────────────────────────────────────
+    // ── JSON building helpers ──────────────────────────────────────────────
 
     private fun buildTickJson(snapshot: MarketDataSnapshot): String {
         return """{"type":"TICK","data":${snapshotToJson(snapshot)}}"""

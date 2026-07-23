@@ -80,6 +80,38 @@ val generateMarketdataApi = tasks.register<GenerateTask>("generateMarketdataApi"
     ))
 }
 
+val generateStocktradingApi = tasks.register<GenerateTask>("generateStocktradingApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/stocktrading-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/stocktrading")
+    apiPackage.set("org.dpp.tradelab.stocktrading.generated.api")
+    modelPackage.set("org.dpp.tradelab.stocktrading.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
+val generatePortfolioApi = tasks.register<GenerateTask>("generatePortfolioApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/portfolio-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/portfolio")
+    apiPackage.set("org.dpp.tradelab.portfolio.generated.api")
+    modelPackage.set("org.dpp.tradelab.portfolio.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 // Wire generated sources into the compile classpath
 // Exclude the org.openapitools scaffolding that the generator always emits
 sourceSets {
@@ -88,13 +120,15 @@ sourceSets {
             srcDir("${layout.buildDirectory.get()}/generated/user/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/ledger/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/stocktrading/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/portfolio/src/main/kotlin")
             exclude("org/openapitools/**")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi)
+    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────────────
@@ -114,8 +148,9 @@ dependencies {
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.boot:spring-boot-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")
+    testImplementation("org.springframework.boot:spring-boot-jpa-test")
+    testImplementation("org.springframework.boot:spring-boot-data-jpa-test")
     testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
     testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation("io.kotest.extensions:kotest-extensions-spring:1.3.0")
