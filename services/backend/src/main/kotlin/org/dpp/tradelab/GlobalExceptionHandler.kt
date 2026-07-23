@@ -20,8 +20,10 @@ import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
+import org.dpp.tradelab.user.exception.UserSettingsNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -53,6 +55,16 @@ class GlobalExceptionHandler {
     fun handleUserNotActive(ex: UserNotActiveException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, "Account unavailable", listOf(ex.message ?: "This account is suspended or closed and cannot be used to log in.")))
+
+    @ExceptionHandler(UserSettingsNotFoundException::class)
+    fun handleUserSettingsNotFound(ex: UserSettingsNotFoundException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ErrorResponse(404, "Settings not found", listOf(ex.message ?: "User settings not found.")))
+
+    @ExceptionHandler(InvalidFeedTypeException::class)
+    fun handleInvalidFeedType(ex: InvalidFeedTypeException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, "Invalid feed type", listOf(ex.message ?: "The provided feed type is not supported.")))
 
     @ExceptionHandler(InvalidCurrencyException::class)
     fun handleInvalidCurrency(ex: InvalidCurrencyException): ResponseEntity<ErrorResponse> =

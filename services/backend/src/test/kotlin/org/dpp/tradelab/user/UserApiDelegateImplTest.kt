@@ -4,12 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import org.dpp.tradelab.user.exception.DuplicateEmailException
+import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
+import org.dpp.tradelab.user.exception.UserSettingsNotFoundException
+import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.model.User
+import org.dpp.tradelab.user.model.UserSettings
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.service.UserService
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -18,6 +23,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -43,6 +49,24 @@ class UserApiDelegateImplTest(
             "address" to "123 Main St",
             "email" to "jane@example.com"
         )
+
+        fun makeUserWithSettings(id: UUID = validId): User {
+            val user = User(
+                id = id,
+                firstName = "Jane",
+                lastName = "Doe",
+                address = "123 Main St",
+                email = "jane@example.com",
+                status = UserStatus.ACTIVE,
+                createdAt = Instant.parse("2026-01-01T00:00:00Z")
+            )
+            user.settings = UserSettings(
+                id = UUID.randomUUID(),
+                userId = id,
+                feedType = FeedType.SYNTHETIC
+            ).also { it.updatedAt = Instant.parse("2026-01-01T00:00:00Z") }
+            return user
+        }
 
         test("registerUser_validRequest_returns201WithUserId") {
             whenever(userService.registerUser(any(), any(), any(), any())).thenReturn(validId)
@@ -113,15 +137,7 @@ class UserApiDelegateImplTest(
         }
 
         test("getUserById_existingUser_returns200WithUserResponse") {
-            val user = User(
-                id = validId,
-                firstName = "Jane",
-                lastName = "Doe",
-                address = "123 Main St",
-                email = "jane@example.com",
-                status = UserStatus.ACTIVE,
-                createdAt = Instant.parse("2026-01-01T00:00:00Z")
-            )
+            val user = makeUserWithSettings(validId)
             whenever(userService.getUserById(validId)).thenReturn(user)
 
             mockMvc.perform(get("/api/v1/users/$validId"))
@@ -133,11 +149,61 @@ class UserApiDelegateImplTest(
                 .andExpect(jsonPath("$.status").value("active"))
         }
 
+        test("getUserById_existingUser_returnsSettingsInResponse") {
+            val user = makeUserWithSettings(validId)
+            whenever(userService.getUserById(validId)).thenReturn(user)
+
+            mockMvc.perform(get("/api/v1/users/$validId"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.settings.feedType").value("SYNTHETIC"))
+                .andExpect(jsonPath("$.settings.updatedAt").exists())
+        }
+
         test("getUserById_unknownId_returns404") {
             whenever(userService.getUserById(validId))
                 .thenThrow(UserNotFoundException(validId))
 
             mockMvc.perform(get("/api/v1/users/$validId"))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.status").value(404))
+        }
+
+        test("updateUserSettings_validRequest_returns200WithSettings") {
+            val settings = UserSettings(
+                id = UUID.randomUUID(),
+                userId = validId,
+                feedType = FeedType.REAL
+            ).also { it.updatedAt = Instant.parse("2026-01-01T00:00:00Z") }
+            whenever(userService.updateUserSettings(eq(validId), eq(FeedType.REAL))).thenReturn(settings)
+
+            mockMvc.perform(
+                patch("/api/v1/users/$validId/settings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"feedType": "REAL"}""")
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.feedType").value("REAL"))
+                .andExpect(jsonPath("$.updatedAt").exists())
+        }
+
+        test("updateUserSettings_invalidFeedType_returns400") {
+            mockMvc.perform(
+                patch("/api/v1/users/$validId/settings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"feedType": "UNKNOWN_VALUE"}""")
+            )
+                .andExpect(status().isBadRequest)
+        }
+
+        test("updateUserSettings_settingsNotFound_returns404") {
+            whenever(userService.updateUserSettings(eq(validId), any()))
+                .thenThrow(UserSettingsNotFoundException(validId))
+
+            mockMvc.perform(
+                patch("/api/v1/users/$validId/settings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"feedType": "SYNTHETIC"}""")
+            )
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.status").value(404))
         }

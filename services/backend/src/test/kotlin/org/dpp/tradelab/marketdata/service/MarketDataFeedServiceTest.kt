@@ -1,7 +1,6 @@
 package org.dpp.tradelab.marketdata.service
 
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
@@ -10,6 +9,10 @@ import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
 import org.dpp.tradelab.marketdata.model.AssetSubscription
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
+import org.dpp.tradelab.user.api.UserSettingsApi
+import org.dpp.tradelab.user.api.UserSettingsDto
+import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
+import org.dpp.tradelab.user.model.FeedType
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
@@ -29,8 +32,9 @@ class MarketDataFeedServiceTest : FunSpec({
     val repository = mock<AssetSubscriptionRepository>()
     val priceFeedGenerator = mock<PriceFeedGenerator>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
+    val userSettingsApi = mock<UserSettingsApi>()
 
-    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig)
+    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
 
     val userId = UUID.randomUUID()
     val aaplSnapshot = MarketDataSnapshot(
@@ -69,7 +73,7 @@ class MarketDataFeedServiceTest : FunSpec({
     }
 
     beforeEach {
-        reset(repository, priceFeedGenerator, supportedTickerConfig)
+        reset(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
     }
 
     // ── @PostConstruct seeding ──────────────────────────────────────────────────────────
@@ -80,7 +84,6 @@ class MarketDataFeedServiceTest : FunSpec({
             "MSFT" to "Microsoft Corporation"
         )
         whenever(supportedTickerConfig.getAll()).thenReturn(supportedTickers)
-        // Alternate which ticker is returned on each call to eventually cover both
         var callCount = 0
         whenever(priceFeedGenerator.generateTick()).thenAnswer {
             callCount++
@@ -110,6 +113,30 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers[userId]!!.contains("AAPL") shouldBe true
     }
 
+    // ── resolveFeedType ────────────────────────────────────────────────────────
+
+    test("resolvesFeedType_cacheMiss_callsApiAndPopulatesCache") {
+        val service = buildService()
+        val dto = UserSettingsDto(userId = userId, feedType = FeedType.REAL)
+        whenever(userSettingsApi.getUserSettings(userId)).thenReturn(dto)
+
+        val result = service.resolveFeedType(userId)
+
+        result shouldBe FeedType.REAL
+        service.feedTypeCache[userId] shouldBe FeedType.REAL
+        verify(userSettingsApi).getUserSettings(userId)
+    }
+
+    test("resolvesFeedType_cacheHit_doesNotCallApi") {
+        val service = buildService()
+        service.feedTypeCache[userId] = FeedType.REAL
+
+        val result = service.resolveFeedType(userId)
+
+        result shouldBe FeedType.REAL
+        verify(userSettingsApi, never()).getUserSettings(any())
+    }
+
     // ── dispatchTicks ─────────────────────────────────────────────────────────────
 
     test("dispatchTicks_dispatchesOnlyToSubscribedConnectedUsers") {
@@ -125,6 +152,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.registerSession(userId, session)
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
+        service.feedTypeCache[userId] = FeedType.SYNTHETIC
 
         service.dispatchTicks()
 
@@ -147,7 +175,6 @@ class MarketDataFeedServiceTest : FunSpec({
 
         val session = mockSession(otherUserId)
         service.registerSession(otherUserId, session)
-        // otherUserId is NOT subscribed to AAPL
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
@@ -165,12 +192,50 @@ class MarketDataFeedServiceTest : FunSpec({
 
         val service = buildService()
 
-        // userId subscribed to AAPL but has NO session registered
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
         // Should not throw
         service.dispatchTicks()
+    }
+
+    test("dispatchTick_cacheMiss_fallsBackToSynthetic") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+        // API returns null to simulate missing settings — expect SYNTHETIC fallback
+        whenever(userSettingsApi.getUserSettings(userId)).thenReturn(null)
+
+        val service = buildService()
+
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
+        // Intentionally no feedTypeCache entry for userId
+
+        // Should dispatch despite cache miss (falls back to SYNTHETIC)
+        service.dispatchTicks()
+
+        val captor = argumentCaptor<TextMessage>()
+        verify(session).sendMessage(captor.capture())
+        captor.firstValue.payload.contains("\"type\":\"TICK\"") shouldBe true
+    }
+
+    // ── handleUserSettingsChanged ──────────────────────────────────────────────
+
+    test("handleUserSettingsChanged_updatesCache") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
+        whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        service.feedTypeCache[userId] = FeedType.SYNTHETIC
+
+        val event = UserSettingsChangedEvent(userId = userId, feedType = FeedType.REAL, updatedAt = Instant.now())
+        service.handleUserSettingsChanged(event)
+
+        service.feedTypeCache[userId] shouldBe FeedType.REAL
     }
 
     // ── onAssetSubscribed ──────────────────────────────────────────────────────────
@@ -206,14 +271,12 @@ class MarketDataFeedServiceTest : FunSpec({
 
         val service = buildService()
         service.snapshotCache["MSFT"] = msftSnapshot
-        // No session registered for userId
 
         val event = AssetSubscribedEvent(userId = userId, tickers = listOf("MSFT"), timestamp = Instant.now())
         service.handleAssetSubscribed(event)
 
         service.tickerToUsers["MSFT"]!!.contains(userId) shouldBe true
         service.userToTickers[userId]!!.contains("MSFT") shouldBe true
-        // No exception; no session to send to
     }
 
     // ── onAssetUnsubscribed ───────────────────────────────────────────────────────
@@ -245,7 +308,6 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
-        // No session registered - should not throw
         val event = AssetUnsubscribedEvent(userId = userId, tickers = listOf("AAPL"), timestamp = Instant.now())
         service.handleAssetUnsubscribed(event)
     }
@@ -268,7 +330,6 @@ class MarketDataFeedServiceTest : FunSpec({
 
         service.removeSession(userId)
 
-        // After removeSession, dispatchTicks should NOT send anything to that session
         service.dispatchTicks()
 
         verify(session, never()).sendMessage(any<TextMessage>())
@@ -339,7 +400,6 @@ class MarketDataFeedServiceTest : FunSpec({
         json.contains("\"dayHigh\":155.000") shouldBe true
         json.contains("\"dayLow\":147.500") shouldBe true
         json.contains("\"fiftyTwoWeekHigh\":200.000") shouldBe true
-        // Verify field order: dayLow before dayHigh before fiftyTwoWeekHigh
         val dayLowIdx = json.indexOf("\"dayLow\"")
         val dayHighIdx = json.indexOf("\"dayHigh\"")
         val fiftyTwoWeekHighIdx = json.indexOf("\"fiftyTwoWeekHigh\"")

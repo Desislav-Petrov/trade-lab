@@ -25,6 +25,10 @@ import java.util.UUID
  * [_isNew] is annotated [@Transient][Transient] so JPA ignores it, and the
  * property getter is renamed via [@get:JvmName] so that the explicit
  * [getId] override does not clash with the Kotlin-generated property accessor.
+ *
+ * [settings] is a non-persisted convenience field populated by the service layer
+ * after loading the [User] — it carries the associated [UserSettings] for
+ * in-process use without a JPA relationship.
  */
 @Entity
 @Table(name = "users")
@@ -61,6 +65,9 @@ class User(
     @Transient
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
+
+    @Transient
+    lateinit var settings: UserSettings
 
     override fun getId(): UUID = id
 

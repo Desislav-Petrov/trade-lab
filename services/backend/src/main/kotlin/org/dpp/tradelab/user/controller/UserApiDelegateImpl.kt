@@ -1,11 +1,15 @@
 package org.dpp.tradelab.user.controller
 
+import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.generated.api.UsersApiDelegate
 import org.dpp.tradelab.user.generated.model.LoginResponse
 import org.dpp.tradelab.user.generated.model.RegisterUserRequest
 import org.dpp.tradelab.user.generated.model.RegisterUserResponse
+import org.dpp.tradelab.user.generated.model.UpdateUserSettingsRequest
 import org.dpp.tradelab.user.generated.model.UserEmailsResponse
 import org.dpp.tradelab.user.generated.model.UserResponse
+import org.dpp.tradelab.user.generated.model.UserSettingsResponse
+import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -35,6 +39,7 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
 
     override fun getUserById(userId: UUID): ResponseEntity<UserResponse> {
         val user = userService.getUserById(userId)
+        val settings = user.settings
         val status = when (user.status) {
             org.dpp.tradelab.user.model.UserStatus.ACTIVE -> UserResponse.Status.ACTIVE
             org.dpp.tradelab.user.model.UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED
@@ -48,7 +53,31 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
                 address = user.address,
                 email = user.email,
                 status = status,
-                createdAt = OffsetDateTime.ofInstant(user.createdAt, ZoneOffset.UTC)
+                createdAt = OffsetDateTime.ofInstant(user.createdAt, ZoneOffset.UTC),
+                settings = UserSettingsResponse(
+                    feedType = UserSettingsResponse.FeedType.valueOf(settings.feedType.name),
+                    updatedAt = OffsetDateTime.ofInstant(settings.updatedAt!!, ZoneOffset.UTC)
+                )
+            )
+        )
+    }
+
+    override fun updateUserSettings(
+        userId: UUID,
+        updateUserSettingsRequest: UpdateUserSettingsRequest
+    ): ResponseEntity<UserSettingsResponse> {
+        val feedType = updateUserSettingsRequest.feedType?.let { feedTypeStr ->
+            try {
+                FeedType.valueOf(feedTypeStr.value)
+            } catch (e: IllegalArgumentException) {
+                throw InvalidFeedTypeException(feedTypeStr.value)
+            }
+        }
+        val settings = userService.updateUserSettings(userId, feedType)
+        return ResponseEntity.ok(
+            UserSettingsResponse(
+                feedType = UserSettingsResponse.FeedType.valueOf(settings.feedType.name),
+                updatedAt = OffsetDateTime.ofInstant(settings.updatedAt!!, ZoneOffset.UTC)
             )
         )
     }
