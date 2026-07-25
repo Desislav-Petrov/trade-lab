@@ -50,7 +50,7 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
                 userId = user.id,
                 firstName = user.firstName,
                 lastName = user.lastName,
-                address = user.address,
+                address = user.address ?: "",
                 email = user.email,
                 status = status,
                 createdAt = OffsetDateTime.ofInstant(user.createdAt, ZoneOffset.UTC),
