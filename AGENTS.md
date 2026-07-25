@@ -36,5 +36,5 @@ architectural choices — the answer may already exist.
 - If something is unclear, surface it — don't assume
 - Whenever you modify any file, check whether related docs (domain, standards, agent instructions) need updating and do it in the same pass
 - Always create a branch, never commit to main and then raise a PR. 
-- Always run tests before raising the PR
+- ALWAYS run full gradlew build before raising the PR ! NEVER submit a PR before doing that!
 - Always FOLLOW ALL instructions !
