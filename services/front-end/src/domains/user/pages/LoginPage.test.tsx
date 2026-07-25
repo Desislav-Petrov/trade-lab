@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { LoginResponse } from '../types/user'
 import { LoginPage } from './LoginPage'
 import * as useFetchUserProfileModule from '../hooks/useFetchUserProfile'
+import * as oidcApiModule from '../api/oidcApi'
 
 vi.mock('../components/LoginForm', () => ({
   LoginForm: ({ onSuccess }: { onSuccess?: (data: LoginResponse) => void }) =>
@@ -29,7 +30,30 @@ function renderPage(initialPath = '/login', state?: Record<string, unknown>) {
       { client: queryClient },
       createElement(
         MemoryRouter,
-        { initialEntries: [{ pathname: initialPath, state: state ?? null }] },
+        { initialEntries: [{ pathname: initialPath, search: initialPath.includes('?') ? initialPath.split('?')[1] : '', state: state ?? null }] },
+        createElement(
+          Routes,
+          null,
+          createElement(Route, { path: '/login', element: createElement(LoginPage) }),
+          createElement(Route, {
+            path: '/profile',
+            element: createElement('div', null, 'Profile Page'),
+          }),
+        ),
+      ),
+    ),
+  )
+}
+
+function renderPageWithSearch(search: string) {
+  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(
+        MemoryRouter,
+        { initialEntries: [`/login${search}`] },
         createElement(
           Routes,
           null,
@@ -57,6 +81,11 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /log in/i })).toBeInTheDocument()
   })
 
+  it('LoginPage - renders - displays Login with Google button', () => {
+    renderPage()
+    expect(screen.getByRole('button', { name: /login with google/i })).toBeInTheDocument()
+  })
+
   it('LoginPage - with banner state - displays success banner', () => {
     renderPage('/login', { banner: 'Account created. Please log in.' })
     expect(screen.getByRole('status')).toBeInTheDocument()
@@ -66,6 +95,30 @@ describe('LoginPage', () => {
   it('LoginPage - without banner state - does not render banner', () => {
     renderPage()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('LoginPage - error=oidc_failed query param - shows oidc error banner', () => {
+    renderPageWithSearch('?error=oidc_failed')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(/authentication failed/i)).toBeInTheDocument()
+  })
+
+  it('LoginPage - error=server_error query param - shows server error banner', () => {
+    renderPageWithSearch('?error=server_error')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+  })
+
+  it('LoginPage - no error query param - does not show error banner', () => {
+    renderPage()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('LoginPage - google button click - calls redirectToGoogleLogin', () => {
+    const redirectSpy = vi.spyOn(oidcApiModule, 'redirectToGoogleLogin').mockReturnValue(undefined)
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /login with google/i }))
+    expect(redirectSpy).toHaveBeenCalledTimes(1)
   })
 
   it('LoginPage - profile fetch succeeds - navigates to /profile', async () => {
