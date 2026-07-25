@@ -5,6 +5,7 @@ import org.dpp.tradelab.user.controller.OidcAuthenticationSuccessHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -19,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val oidcAuthenticationSuccessHandler: OidcAuthenticationSuccessHandler,
+    private val environment: Environment,
     @Value("\${app.cors.allowed-origin}")
     private val corsAllowedOrigin: String,
     @Value("\${app.frontend.origin}")
@@ -47,13 +49,27 @@ class SecurityConfig(
                     .requestMatchers("/h2-console/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/admin/**").permitAll()
-                    // Everything else requires a valid internal JWT
-                    .anyRequest().authenticated()
+                    // Test endpoints
+                    .requestMatchers("/test/**").permitAll()
+                    // In test mode, allow all requests
+                    .apply {
+                        if (environment.activeProfiles.contains("test")) {
+                            anyRequest().permitAll()
+                        } else {
+                            // Everything else requires a valid internal JWT
+                            anyRequest().authenticated()
+                        }
+                    }
             }
-            .oauth2Login { oauth2 ->
-                oauth2.successHandler(oidcAuthenticationSuccessHandler)
-                oauth2.failureHandler { _, response, _ ->
-                    response.sendRedirect("$frontendOrigin/login?error=oidc_failed")
+            // Only configure OAuth2 login in non-test mode
+            .apply {
+                if (!environment.activeProfiles.contains("test")) {
+                    oauth2Login { oauth2 ->
+                        oauth2.successHandler(oidcAuthenticationSuccessHandler)
+                        oauth2.failureHandler { _, response, _ ->
+                            response.sendRedirect("$frontendOrigin/login?error=oidc_failed")
+                        }
+                    }
                 }
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)

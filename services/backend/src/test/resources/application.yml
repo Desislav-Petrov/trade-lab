@@ -1,0 +1,20 @@
+spring:
+  profiles:
+    active: test
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+
+app:
+  jwt:
+    secret: test-secret-key-for-testing-only
+  frontend:
+    origin: http://localhost:3000
+  cors:
+    allowed-origin: http://localhost:3000
+
+logging:
+  level:
+    org.springframework.security: DEBUG

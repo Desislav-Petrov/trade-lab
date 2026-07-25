@@ -26,6 +26,7 @@ import java.util.UUID
 class ExternalIdentityProvider(
     @Id
     @Column(nullable = false, updatable = false)
+    @get:JvmName("getIdValue")
     val id: UUID,
 
     @Column(nullable = false, updatable = false)

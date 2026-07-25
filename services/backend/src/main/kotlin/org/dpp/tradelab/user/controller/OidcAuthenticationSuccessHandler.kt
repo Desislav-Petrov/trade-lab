@@ -25,7 +25,7 @@ class OidcAuthenticationSuccessHandler(
     ) {
         try {
             val oidcUser = authentication.principal as OidcUser
-            val subId = oidcUser.subject
+            val subId = oidcUser.subject ?: throw IllegalArgumentException("Subject not provided by provider")
             val email = oidcUser.email ?: throw IllegalArgumentException("Email not provided by provider")
             val firstName = oidcUser.givenName ?: "User"
             val lastName = oidcUser.familyName ?: ""
