@@ -5,6 +5,7 @@ import org.dpp.tradelab.user.controller.OidcAuthenticationSuccessHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
@@ -19,7 +20,9 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val oidcAuthenticationSuccessHandler: OidcAuthenticationSuccessHandler,
     @Value("\${app.cors.allowed-origin}")
-    private val corsAllowedOrigin: String
+    private val corsAllowedOrigin: String,
+    @Value("\${app.frontend.origin}")
+    private val frontendOrigin: String
 ) {
 
     @Bean
@@ -27,17 +30,31 @@ class SecurityConfig(
         http
             .csrf { it.disable() }
             .cors { it.configurationSource(corsConfigurationSource()) }
+            .headers { headers ->
+                headers.frameOptions { it.disable() }   // needed for H2 console iframe
+            }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/api/v1/users/register").permitAll()
-                    .requestMatchers("/api/v1/users").permitAll()
+                    // Registration — public
+                    .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                    // Legacy login and email list — kept public for testing
+                    .requestMatchers(HttpMethod.POST, "/api/v1/users/login").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/users/emails").permitAll()
+                    // OAuth2 dance endpoints
                     .requestMatchers("/oauth2/authorization/**").permitAll()
                     .requestMatchers("/login/oauth2/code/**").permitAll()
+                    // Infrastructure — H2 console, actuator, Spring Boot Admin
+                    .requestMatchers("/h2-console/**").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/admin/**").permitAll()
+                    // Everything else requires a valid internal JWT
                     .anyRequest().authenticated()
             }
             .oauth2Login { oauth2 ->
                 oauth2.successHandler(oidcAuthenticationSuccessHandler)
-                oauth2.failureUrl("/login?error=oidc_failed")
+                oauth2.failureHandler { _, response, _ ->
+                    response.sendRedirect("$frontendOrigin/login?error=oidc_failed")
+                }
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 

@@ -6,6 +6,7 @@ import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -21,6 +22,7 @@ class DuplicateEmailTestController {
     }
 }
 
+@WithMockUser
 @SpringBootTest
 @AutoConfigureMockMvc
 class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
@@ -31,9 +33,9 @@ class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
         test("handleDuplicateEmail_duplicateEmailException_returns409WithErrorBody") {
             mockMvc.perform(get("/test/duplicate-email"))
                 .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.error").value("Email already registered"))
-                .andExpect(jsonPath("$.details[0]").value("An account with this email already exists."))
+                .andExpect(jsonPath("\$.status").value(409))
+                .andExpect(jsonPath("\$.error").value("Email already registered"))
+                .andExpect(jsonPath("\$.details[0]").value("An account with this email already exists."))
         }
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -29,6 +30,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+@WithMockUser
 @SpringBootTest
 @AutoConfigureMockMvc
 class LedgerApiDelegateImplTopUpTest(
@@ -79,11 +81,11 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.accountId").value(accountId.toString()))
-                .andExpect(jsonPath("$.newBalance").value(1100.0))
-                .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.ledgerEntryId").value(entryId.toString()))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty)
+                .andExpect(jsonPath("\$.accountId").value(accountId.toString()))
+                .andExpect(jsonPath("\$.newBalance").value(1100.0))
+                .andExpect(jsonPath("\$.currency").value("USD"))
+                .andExpect(jsonPath("\$.ledgerEntryId").value(entryId.toString()))
+                .andExpect(jsonPath("\$.timestamp").isNotEmpty)
         }
 
         test("topUpAccount_accountNotFound_returns404") {
@@ -96,7 +98,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(404))
         }
 
         test("topUpAccount_accountNotActive_returns403") {
@@ -109,7 +111,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("topUpAccount_illegalArgument_returns400") {
@@ -122,7 +124,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("\$.status").value(400))
         }
     }
 }

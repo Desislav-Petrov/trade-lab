@@ -8,6 +8,7 @@ import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -40,6 +41,7 @@ class AccountOwnershipTestController {
     }
 }
 
+@WithMockUser
 @SpringBootTest
 @AutoConfigureMockMvc
 class LedgerExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
@@ -50,25 +52,25 @@ class LedgerExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
         test("handleAccountNotFound_accountNotFoundException_returns404WithErrorBody") {
             mockMvc.perform(get("/test/account-not-found"))
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Account not found"))
-                .andExpect(jsonPath("$.details[0]").value("Account not found: 00000000-0000-0000-0000-000000000001"))
+                .andExpect(jsonPath("\$.status").value(404))
+                .andExpect(jsonPath("\$.error").value("Account not found"))
+                .andExpect(jsonPath("\$.details[0]").value("Account not found: 00000000-0000-0000-0000-000000000001"))
         }
 
         test("handleAccountNotActive_accountNotActiveException_returns403WithErrorBody") {
             mockMvc.perform(get("/test/account-not-active"))
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.error").value("Account not available"))
-                .andExpect(jsonPath("$.details[0]").value("Account 00000000-0000-0000-0000-000000000002 is not available for this operation"))
+                .andExpect(jsonPath("\$.status").value(403))
+                .andExpect(jsonPath("\$.error").value("Account not available"))
+                .andExpect(jsonPath("\$.details[0]").value("Account 00000000-0000-0000-0000-000000000002 is not available for this operation"))
         }
 
         test("handleAccountOwnership_accountOwnershipException_returns403WithErrorBody") {
             mockMvc.perform(get("/test/account-ownership"))
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.error").value("Account ownership violation"))
-                .andExpect(jsonPath("$.details[0]").value("Account 00000000-0000-0000-0000-000000000003 does not belong to the requesting user"))
+                .andExpect(jsonPath("\$.status").value(403))
+                .andExpect(jsonPath("\$.error").value("Account ownership violation"))
+                .andExpect(jsonPath("\$.details[0]").value("Account 00000000-0000-0000-0000-000000000003 does not belong to the requesting user"))
         }
     }
 }

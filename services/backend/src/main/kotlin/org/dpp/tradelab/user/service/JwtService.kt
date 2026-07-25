@@ -1,7 +1,6 @@
 package org.dpp.tradelab.user.service
 
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
 import org.dpp.tradelab.user.exception.InvalidTokenException
 import org.springframework.beans.factory.annotation.Value
@@ -15,31 +14,31 @@ class JwtService(
     @Value("\${app.jwt.secret}")
     private val jwtSecret: String
 ) {
-    private val signingKey = Keys.hmacShaKeyFor(jwtSecret.toByteArray())
+    private val signingKey by lazy { Keys.hmacShaKeyFor(jwtSecret.toByteArray()) }
     private val issuer = "trade-platform"
-    private val expirationSeconds = 86400L // 24 hours
+    private val expirationSeconds = 86400L
 
     fun issueToken(userId: UUID): String {
-        val now = Date.from(Instant.now())
-        val expiryDate = Date(now.time + expirationSeconds * 1000)
+        val now = Instant.now()
+        val expiry = now.plusSeconds(expirationSeconds)
 
         return Jwts.builder()
             .subject(userId.toString())
             .issuer(issuer)
-            .issuedAt(now)
-            .expiration(expiryDate)
-            .signWith(signingKey, SignatureAlgorithm.HS256)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiry))
+            .signWith(signingKey)
             .compact()
     }
 
     fun validateAndExtractUserId(token: String): UUID {
         return try {
-            val claims = Jwts.parserBuilder()
-                .setSigningKey(signingKey)
+            val claims = Jwts.parser()
+                .verifyWith(signingKey)
                 .requireIssuer(issuer)
                 .build()
-                .parseClaimsJws(token)
-                .body
+                .parseSignedClaims(token)
+                .payload
 
             UUID.fromString(claims.subject)
         } catch (e: Exception) {

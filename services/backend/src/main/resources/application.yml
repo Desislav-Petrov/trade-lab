@@ -21,12 +21,21 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
+            # In production supply GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET via environment variables.
+            # Defaults below allow the application context to start in local/test environments
+            # without real Google credentials; OAuth2 login will not function until real values are set.
+            client-id: ${GOOGLE_CLIENT_ID:not-configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
             scope: openid,email,profile
         provider:
           google:
-            issuer-uri: https://accounts.google.com
+            # Explicit URIs avoid an HTTP call to Google's OIDC discovery endpoint on startup.
+            # These match the standard Google OAuth2 provider endpoints.
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
 
 management:
   endpoints:

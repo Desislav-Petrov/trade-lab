@@ -1,12 +1,14 @@
 package org.dpp.tradelab.user.service
 
 import org.dpp.tradelab.user.exception.OidcAuthenticationException
+import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.ExternalIdentityProvider
 import org.dpp.tradelab.user.model.ProviderType
 import org.dpp.tradelab.user.model.User
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.ExternalIdentityProviderRepository
 import org.dpp.tradelab.user.repository.UserRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -17,7 +19,8 @@ class OidcAuthService(
     private val userRepository: UserRepository,
     private val externalIdentityProviderRepository: ExternalIdentityProviderRepository,
     private val userSettingsService: UserSettingsService,
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -29,24 +32,24 @@ class OidcAuthService(
         lastName: String
     ): String {
         return try {
-            // Look up provider
-            val provider = externalIdentityProviderRepository.findByProviderTypeAndSubId(providerType, subId)
+            val providerOpt = externalIdentityProviderRepository.findByProviderTypeAndSubId(providerType, subId)
 
-            if (provider.isPresent) {
-                // Provider found: update lastAccessedAt and issue JWT
-                val existingProvider = provider.get()
-                existingProvider.lastAccessedAt = Instant.now()
-                externalIdentityProviderRepository.save(existingProvider)
-                jwtService.issueToken(existingProvider.userId)
+            if (providerOpt.isPresent) {
+                // Known provider — update lastAccessedAt and issue JWT
+                val provider = providerOpt.get()
+                provider.lastAccessedAt = Instant.now()
+                externalIdentityProviderRepository.save(provider)
+                jwtService.issueToken(provider.userId)
             } else {
-                // Provider not found: check if user exists by email
+                // Unknown provider — find or create user
                 val userByEmail = userRepository.findByEmail(email)
+                val user: User
 
-                val user = if (userByEmail.isPresent) {
-                    // User found: link provider to existing user
-                    userByEmail.get()
+                if (userByEmail.isPresent) {
+                    // Existing user: link this provider to their profile
+                    user = userByEmail.get()
                 } else {
-                    // User not found: create new user
+                    // New user: create profile, settings, and emit event
                     val newUser = User(
                         id = UUID.randomUUID(),
                         firstName = firstName,
@@ -55,12 +58,18 @@ class OidcAuthService(
                         email = email,
                         status = UserStatus.ACTIVE
                     )
-                    val savedUser = userRepository.save(newUser)
-                    userSettingsService.createDefaultSettings(savedUser.id)
-                    savedUser
+                    user = userRepository.save(newUser)
+                    userSettingsService.createDefaultSettings(user.id)
+                    eventPublisher.publishEvent(
+                        UserRegisteredEvent(
+                            userId = user.id,
+                            email = user.email,
+                            timestamp = Instant.now()
+                        )
+                    )
                 }
 
-                // Create external identity provider record
+                // Create the provider record regardless of new/existing user
                 val newProvider = ExternalIdentityProvider(
                     id = UUID.randomUUID(),
                     userId = user.id,
@@ -71,9 +80,10 @@ class OidcAuthService(
                 )
                 externalIdentityProviderRepository.save(newProvider)
 
-                // Issue JWT
                 jwtService.issueToken(user.id)
             }
+        } catch (e: OidcAuthenticationException) {
+            throw e
         } catch (e: Exception) {
             throw OidcAuthenticationException("OIDC callback handling failed: ${e.message}", e)
         }
