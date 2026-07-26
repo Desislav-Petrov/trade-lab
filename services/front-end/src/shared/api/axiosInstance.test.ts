@@ -44,13 +44,11 @@ describe('axiosInstance', () => {
       const lastHandler = interceptor.handlers[interceptor.handlers.length - 1]
 
       const mockConfig = {
-        headers: {
-          set: vi.fn(),
-        },
+        headers: {} as Record<string, string>,
       }
       lastHandler.fulfilled(mockConfig)
 
-      expect(mockConfig.headers.set).toHaveBeenCalledWith('Authorization', 'Bearer test-jwt-token')
+      expect(mockConfig.headers['Authorization']).toBe('Bearer test-jwt-token')
     })
 
     it('axiosInstance - no session in localStorage - does not attach Authorization header', async () => {
@@ -62,13 +60,11 @@ describe('axiosInstance', () => {
       const lastHandler = interceptor.handlers[interceptor.handlers.length - 1]
 
       const mockConfig = {
-        headers: {
-          set: vi.fn(),
-        },
+        headers: {} as Record<string, string>,
       }
       lastHandler.fulfilled(mockConfig)
 
-      expect(mockConfig.headers.set).not.toHaveBeenCalled()
+      expect(mockConfig.headers['Authorization']).toBeUndefined()
     })
   })
 })
