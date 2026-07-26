@@ -25,10 +25,10 @@ class OidcAuthenticationSuccessHandler(
     ) {
         try {
             val oidcUser = authentication.principal as OidcUser
-            val subId = oidcUser.subject ?: throw IllegalArgumentException("Subject not provided by provider")
-            val email = oidcUser.email ?: throw IllegalArgumentException("Email not provided by provider")
-            val firstName = oidcUser.givenName ?: "User"
-            val lastName = oidcUser.familyName ?: ""
+            val subId: String = oidcUser.subject ?: throw IllegalArgumentException("Subject not provided by provider")
+            val email: String = oidcUser.email ?: throw IllegalArgumentException("Email not provided by provider")
+            val firstName: String = oidcUser.givenName ?: "User"
+            val lastName: String = oidcUser.familyName ?: ""
 
             val jwt = oidcAuthService.handleCallback(
                 providerType = ProviderType.GOOGLE,
