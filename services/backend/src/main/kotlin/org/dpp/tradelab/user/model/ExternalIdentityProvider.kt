@@ -50,8 +50,6 @@ class ExternalIdentityProvider(
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
 
-    override fun getId(): UUID = id
-
     override fun isNew(): Boolean = _isNew
 
     override fun equals(other: Any?): Boolean {
