@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { SESSION_STORAGE_KEY } from '../../domains/user/types/user'
 
 // axiosInstance is a module singleton — we need to import it fresh for each test
