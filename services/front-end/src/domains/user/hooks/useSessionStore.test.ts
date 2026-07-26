@@ -11,7 +11,7 @@ const mockResponse: UserResponse = {
   userId: 'u1',
   firstName: 'Jane',
   lastName: 'Doe',
-  address: '123 Main St',
+  address: null,
   email: 'jane@example.com',
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
