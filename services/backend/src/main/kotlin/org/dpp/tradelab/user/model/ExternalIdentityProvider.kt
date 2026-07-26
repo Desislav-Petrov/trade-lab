@@ -14,6 +14,8 @@ import java.util.UUID
 /**
  * Maps an external identity provider account to a platform User.
  * Created on first OIDC authentication with a provider.
+ *
+ * See decisions/2026-07-26-external-identity-provider-constraints.md for constraint rationale.
  */
 @Entity
 @Table(
@@ -26,7 +28,6 @@ import java.util.UUID
 class ExternalIdentityProvider(
     @Id
     @Column(nullable = false, updatable = false)
-    @get:JvmName("getIdValue")
     val id: UUID,
 
     @Column(nullable = false, updatable = false)
