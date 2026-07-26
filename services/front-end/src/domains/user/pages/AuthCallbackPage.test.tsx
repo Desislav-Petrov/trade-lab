@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes, Navigate } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { createElement } from 'react'
 import { AuthCallbackPage } from './AuthCallbackPage'
 import * as userApi from '../api/userApi'
