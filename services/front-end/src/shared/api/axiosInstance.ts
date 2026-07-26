@@ -22,7 +22,7 @@ axiosInstance.interceptors.request.use((config) => {
     if (raw) {
       const session = JSON.parse(raw) as Session
       if (session.accessToken) {
-        config.headers.set('Authorization', `Bearer ${session.accessToken}`)
+        config.headers['Authorization'] = `Bearer ${session.accessToken}`
       }
     }
   } catch {
