@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { act } from '@testing-library/react'
 import { useSessionStore } from './useSessionStore'
-import type { UserResponse } from '../types/user'
+import type { UserProfile, UserResponse } from '../types/user'
 import { SESSION_STORAGE_KEY } from '../types/user'
 
 const JWT_PAYLOAD = btoa(JSON.stringify({ sub: 'u1', exp: 9999999999, iss: 'trade-platform' }))
@@ -29,12 +29,32 @@ describe('useSessionStore', () => {
     expect(session).toBeNull()
   })
 
+  it('useSessionStore - initial state - backward compat user and settings are null', () => {
+    const { user, settings, loggedInAt } = useSessionStore.getState()
+    expect(user).toBeNull()
+    expect(settings).toBeNull()
+    expect(loggedInAt).toBeNull()
+  })
+
   it('useSessionStore - establishSession - stores user, token, and loggedInAt', () => {
     act(() => useSessionStore.getState().establishSession(mockResponse, VALID_TOKEN))
     const { session } = useSessionStore.getState()
     expect(session?.userId).toBe('u1')
     expect(session?.accessToken).toBe(VALID_TOKEN)
     expect(session?.loggedInAt).not.toBeNull()
+  })
+
+  it('useSessionStore - establishSession - populates backward compat user field', () => {
+    act(() => useSessionStore.getState().establishSession(mockResponse, VALID_TOKEN))
+    const { user } = useSessionStore.getState()
+    expect(user?.userId).toBe('u1')
+    expect(user?.firstName).toBe('Jane')
+  })
+
+  it('useSessionStore - establishSession - populates backward compat settings field', () => {
+    act(() => useSessionStore.getState().establishSession(mockResponse, VALID_TOKEN))
+    const { settings } = useSessionStore.getState()
+    expect(settings?.feedType).toBe('SYNTHETIC')
   })
 
   it('useSessionStore - establishSession - persists session to localStorage', () => {
@@ -78,20 +98,32 @@ describe('useSessionStore', () => {
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull()
   })
 
+  it('useSessionStore - clearSession - clears backward compat properties', () => {
+    act(() => useSessionStore.getState().establishSession(mockResponse, VALID_TOKEN))
+    act(() => useSessionStore.getState().clearSession())
+
+    const { user, settings, loggedInAt } = useSessionStore.getState()
+    expect(user).toBeNull()
+    expect(settings).toBeNull()
+    expect(loggedInAt).toBeNull()
+  })
+
   it('useSessionStore - updateSettings - replaces settings in store and localStorage', () => {
     act(() => useSessionStore.getState().establishSession(mockResponse, VALID_TOKEN))
     act(() =>
       useSessionStore.getState().updateSettings({ feedType: 'REAL', updatedAt: '2026-06-01T00:00:00Z' }),
     )
 
-    const { session } = useSessionStore.getState()
+    const { session, settings } = useSessionStore.getState()
     expect(session?.settings).toEqual({ feedType: 'REAL', updatedAt: '2026-06-01T00:00:00Z' })
+    expect(settings).toEqual({ feedType: 'REAL', updatedAt: '2026-06-01T00:00:00Z' })
   })
 
   it('useSessionStore - setSession (legacy) - populates session without breaking', () => {
     act(() => useSessionStore.getState().setSession(mockResponse))
-    const { session } = useSessionStore.getState()
+    const { session, user } = useSessionStore.getState()
     expect(session?.userId).toBe('u1')
     expect(session?.loggedInAt).not.toBeNull()
+    expect(user?.userId).toBe('u1')
   })
 })
