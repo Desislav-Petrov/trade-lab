@@ -1,0 +1,47 @@
+name: Create Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version (X.Y.Z)'
+        required: true
+        type: string
+
+jobs:
+  create-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Please use semantic versioning format: X.Y.Z (e.g., 1.0.0)"
+            exit 1
+          fi
+          echo "✅ Version format valid: $VERSION"
+
+      - name: Create git tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          TAG="v${VERSION}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          echo "✅ Created tag: $TAG"
+
+      - name: Push tag to repository
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          TAG="v${VERSION}"
+          git push origin "$TAG"
+          echo "✅ Pushed tag: $TAG"
+          echo "🚀 Release pipeline will be triggered automatically"
