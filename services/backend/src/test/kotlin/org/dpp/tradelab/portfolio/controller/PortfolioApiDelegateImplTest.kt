@@ -15,6 +15,7 @@ import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpStatus
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -89,7 +90,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("\$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.NOT_FOUND.value()))
         }
 
         test("getHoldings_accountNotOwned_returns403") {
@@ -102,7 +103,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("\$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.FORBIDDEN.value()))
         }
 
         test("getHoldings_priceDataUnavailable_returns502") {
@@ -115,7 +116,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isBadGateway)
-                .andExpect(jsonPath("\$.status").value(502))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_GATEWAY.value()))
         }
 
         test("getHoldings_balanceDataUnavailable_returns502") {
@@ -128,7 +129,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isBadGateway)
-                .andExpect(jsonPath("\$.status").value(502))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_GATEWAY.value()))
         }
     }
 }
