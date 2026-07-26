@@ -16,7 +16,7 @@ class UserSettingsService(
         val settings = UserSettings(
             id = UUID.randomUUID(),
             userId = userId,
-            feedType = FeedType.SYNTHETIC
+            feedType = FeedType.getDefault()
         )
         return userSettingsRepository.save(settings)
     }
