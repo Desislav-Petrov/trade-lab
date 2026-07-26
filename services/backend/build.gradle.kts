@@ -7,6 +7,7 @@ plugins {
     id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.openapi.generator") version "7.13.0"
+    id("com.google.cloud.tools.jib") version "3.4.0"
 }
 
 group = "org.dpp.tradelab"
@@ -27,6 +28,40 @@ kotlin {
 
 repositories {
     mavenCentral()
+}
+
+// ── Jib Docker configuration ───────────────────────────────────────────────────
+val imageVersion = project.findProperty("imageVersion")?.toString() ?: "latest"
+
+jib {
+    from {
+        image = "eclipse-temurin:21-jre-alpine"
+    }
+    to {
+        image = "ghcr.io/desislav-petrov/trade-lab-backend"
+        tags = setOf(imageVersion, "latest")
+    }
+    container {
+        jvmFlags = listOf(
+            "-Xmx512m",
+            "-XX:+UseG1GC",
+            "-XX:MaxGCPauseMillis=200"
+        )
+        ports = listOf("8080")
+        labels = mapOf(
+            "org.opencontainers.image.version" to imageVersion,
+            "org.opencontainers.image.revision" to (System.getenv("VCS_REF") ?: "unknown"),
+            "org.opencontainers.image.created" to System.currentTimeMillis().toString()
+        )
+    }
+    extraDirectories {
+        paths {
+            path {
+                setFrom("${layout.projectDirectory}/src/main/docker")
+                into = "/app"
+            }
+        }
+    }
 }
 
 // ── OpenAPI generation ───────────────────────────────────────────────────────
