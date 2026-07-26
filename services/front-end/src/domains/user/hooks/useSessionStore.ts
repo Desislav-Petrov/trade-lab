@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Session, UserResponse } from '../types/user'
+import type { Session, UserProfile, UserResponse } from '../types/user'
 import { SESSION_STORAGE_KEY } from '../types/user'
 import type { UserSettingsResponse } from '../types/userSettings'
 
@@ -33,6 +33,10 @@ function loadSessionFromStorage(): Session | null {
 
 interface SessionState {
   session: Session | null
+  // Backward compatibility: derive user and settings from session
+  user: UserProfile | null
+  settings: UserSettingsResponse | null
+  loggedInAt: string | null
   establishSession: (response: UserResponse, accessToken: string) => void
   restoreSession: () => void
   clearSession: () => void
@@ -43,6 +47,9 @@ interface SessionState {
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   session: null,
+  user: null,
+  settings: null,
+  loggedInAt: null,
 
   establishSession: (response: UserResponse, accessToken: string) => {
     const { settings, ...profile } = response
@@ -53,13 +60,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       loggedInAt: new Date().toISOString(),
     }
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession))
-    set({ session: newSession })
+    set({
+      session: newSession,
+      user: profile,
+      settings: newSession.settings,
+      loggedInAt: newSession.loggedInAt,
+    })
   },
 
   restoreSession: () => {
     const restored = loadSessionFromStorage()
     if (restored) {
-      set({ session: restored })
+      const { settings, ...profile } = restored
+      set({
+        session: restored,
+        user: profile,
+        settings,
+        loggedInAt: restored.loggedInAt,
+      })
     } else {
       localStorage.removeItem(SESSION_STORAGE_KEY)
     }
@@ -67,7 +85,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   clearSession: () => {
     localStorage.removeItem(SESSION_STORAGE_KEY)
-    set({ session: null })
+    set({
+      session: null,
+      user: null,
+      settings: null,
+      loggedInAt: null,
+    })
   },
 
   updateSettings: (settings: UserSettingsResponse) => {
@@ -75,7 +98,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!current) return
     const updated = { ...current, settings }
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated))
-    set({ session: updated })
+    set({
+      session: updated,
+      settings: updated.settings,
+    })
   },
 
   // Legacy — kept for backward compat. Sets session without an accessToken.
@@ -89,6 +115,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       accessToken: existingToken,
       loggedInAt: new Date().toISOString(),
     }
-    set({ session: newSession })
+    set({
+      session: newSession,
+      user: profile,
+      settings: newSession.settings,
+      loggedInAt: newSession.loggedInAt,
+    })
   },
 }))
