@@ -6,6 +6,7 @@ import org.dpp.tradelab.user.exception.InvalidTokenException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Date
 import java.util.UUID
 
@@ -14,12 +15,12 @@ class JwtService(
     @Value("\${app.jwt.secret}")
     private val jwtSecret: String
 ) {
-    private val signingKey by lazy { Keys.hmacShaKeyFor(jwtSecret.toByteArray()) }
+    private val signingKey = Keys.hmacShaKeyFor(jwtSecret.toByteArray())
     private val issuer = "trade-platform"
     private val expirationSeconds = 86400L
 
     fun issueToken(userId: UUID): String {
-        val now = Instant.now()
+        val now = Instant.now(java.time.Clock.systemUTC())
         val expiry = now.plusSeconds(expirationSeconds)
 
         return Jwts.builder()
