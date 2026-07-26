@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { act } from '@testing-library/react'
 import { useSessionStore } from './useSessionStore'
-import type { UserProfile, UserResponse } from '../types/user'
+import type { UserResponse } from '../types/user'
 import { SESSION_STORAGE_KEY } from '../types/user'
 
 const JWT_PAYLOAD = btoa(JSON.stringify({ sub: 'u1', exp: 9999999999, iss: 'trade-platform' }))
