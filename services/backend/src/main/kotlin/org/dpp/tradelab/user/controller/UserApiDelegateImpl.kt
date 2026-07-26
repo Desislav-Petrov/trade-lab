@@ -45,12 +45,13 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
             org.dpp.tradelab.user.model.UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED
             org.dpp.tradelab.user.model.UserStatus.CLOSED -> UserResponse.Status.CLOSED
         }
+        val addressOrEmpty: String = user.address ?: ""
         return ResponseEntity.ok(
             UserResponse(
                 userId = user.id,
                 firstName = user.firstName,
                 lastName = user.lastName,
-                address = user.address ?: "",
+                address = addressOrEmpty,
                 email = user.email,
                 status = status,
                 createdAt = OffsetDateTime.ofInstant(user.createdAt, ZoneOffset.UTC),
