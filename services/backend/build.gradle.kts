@@ -29,6 +29,14 @@ repositories {
     mavenCentral()
 }
 
+// ── Version management ────────────────────────────────────────────────────────
+val jwtVersion = "0.12.6"
+val springBootAdminVersion = "4.1.1"
+val kotestVersion = "5.9.1"
+val kotestSpringVersion = "1.3.0"
+val mockitoKotlinVersion = "5.4.0"
+val swaggerVersion = "2.2.28"
+
 // ── OpenAPI generation ───────────────────────────────────────────────────────
 // One task per domain. Add a new task block for each new domain YAML.
 
@@ -143,23 +151,22 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("io.swagger.core.v3:swagger-annotations:2.2.28")
-    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
-    // Spring Boot Admin version must mirror Spring Boot major.minor (4.1.x → SB 4.1.x)
-    implementation("de.codecentric:spring-boot-admin-starter-server:4.1.1")
-    implementation("de.codecentric:spring-boot-admin-starter-client:4.1.1")
+    implementation("io.swagger.core.v3:swagger-annotations:$swaggerVersion")
+    implementation("io.jsonwebtoken:jjwt-api:$jwtVersion")
+    implementation("de.codecentric:spring-boot-admin-starter-server:$springBootAdminVersion")
+    implementation("de.codecentric:spring-boot-admin-starter-client:$springBootAdminVersion")
     runtimeOnly("com.h2database:h2")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jwtVersion")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-data-jpa-test")
-    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
-    testImplementation("io.kotest:kotest-assertions-core:5.9.1")
-    testImplementation("io.kotest.extensions:kotest-extensions-spring:1.3.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
+    testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
+    testImplementation("io.kotest.extensions:kotest-extensions-spring:$kotestSpringVersion")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
 }
 
 tasks.withType<Test> {
