@@ -3,7 +3,6 @@ package org.dpp.tradelab.user.service
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.user.exception.OidcAuthenticationException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.ExternalIdentityProvider
@@ -14,9 +13,9 @@ import org.dpp.tradelab.user.repository.ExternalIdentityProviderRepository
 import org.dpp.tradelab.user.repository.UserRepository
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -42,6 +41,16 @@ class OidcAuthServiceTest : FunSpec() {
     )
 
     init {
+        beforeTest {
+            reset(
+                userRepository,
+                externalIdentityProviderRepository,
+                userSettingsService,
+                jwtService,
+                eventPublisher
+            )
+        }
+
         test("handleCallback_knownProvider_returnsJwtWithoutCreatingUser") {
             val providerId = UUID.randomUUID()
             val userId = UUID.randomUUID()
