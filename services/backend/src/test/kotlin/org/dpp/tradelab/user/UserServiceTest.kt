@@ -190,7 +190,7 @@ class UserServiceTest : FunSpec({
         val eventCaptor = argumentCaptor<UserSettingsChangedEvent>()
         verify(eventPublisher).publishEvent(eventCaptor.capture())
         eventCaptor.firstValue.userId shouldBe validId
-        eventCaptor.firstValue.feedType shouldBe FeedType.REAL // saved.feedType after mutation
+        eventCaptor.firstValue.feedType shouldBe FeedType.REAL
     }
 
     test("updateUserSettings_settingsNotFound_throwsUserSettingsNotFoundException") {
@@ -230,7 +230,7 @@ class UserServiceTest : FunSpec({
 
     test("loginUser_activeUser_returnsUser") {
         val user = makeUser()
-        whenever(userRepository.findByEmail("jane@example.com")).thenReturn(user)
+        whenever(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user))
 
         val result = userService.loginUser("jane@example.com")
 
@@ -238,7 +238,7 @@ class UserServiceTest : FunSpec({
     }
 
     test("loginUser_unknownEmail_throwsUserNotFoundException") {
-        whenever(userRepository.findByEmail("ghost@example.com")).thenReturn(null)
+        whenever(userRepository.findByEmail("ghost@example.com")).thenReturn(Optional.empty())
 
         shouldThrow<UserNotFoundException> {
             userService.loginUser("ghost@example.com")
@@ -247,7 +247,7 @@ class UserServiceTest : FunSpec({
 
     test("loginUser_suspendedUser_throwsUserNotActiveException") {
         val user = makeUser(status = UserStatus.SUSPENDED)
-        whenever(userRepository.findByEmail("sus@example.com")).thenReturn(user)
+        whenever(userRepository.findByEmail("sus@example.com")).thenReturn(Optional.of(user))
 
         shouldThrow<UserNotActiveException> {
             userService.loginUser("sus@example.com")
@@ -256,7 +256,7 @@ class UserServiceTest : FunSpec({
 
     test("loginUser_closedUser_throwsUserNotActiveException") {
         val user = makeUser(status = UserStatus.CLOSED)
-        whenever(userRepository.findByEmail("clo@example.com")).thenReturn(user)
+        whenever(userRepository.findByEmail("clo@example.com")).thenReturn(Optional.of(user))
 
         shouldThrow<UserNotActiveException> {
             userService.loginUser("clo@example.com")

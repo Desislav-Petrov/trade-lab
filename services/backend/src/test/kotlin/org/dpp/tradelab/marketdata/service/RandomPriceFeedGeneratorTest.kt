@@ -49,15 +49,11 @@ class RandomPriceFeedGeneratorTest : FunSpec({
     test("generateTick_seedPrice_isBetween200And400Inclusive") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         val generator = freshGenerator()
-        // Collect enough first-tick prices to verify seed range
-        val seenPrices = mutableListOf<BigDecimal>()
-        repeat(50) {
-            generator.generateTick().forEach { seenPrices.add(it.currentPrice) }
-        }
-        seenPrices.forEach { price ->
-            price shouldBeGreaterThanOrEqualTo BigDecimal("200.000")
-            price shouldBeLessThanOrEqualTo BigDecimal("400.000")
-        }
+        // Only the first tick is the seed — guaranteed to be in [200, 400].
+        // Subsequent ticks drift ±0.5–1.5% per step and are NOT bounded by this range.
+        val seedTick = generator.generateTick().first()
+        seedTick.currentPrice shouldBeGreaterThanOrEqualTo BigDecimal("200.000")
+        seedTick.currentPrice shouldBeLessThanOrEqualTo BigDecimal("400.000")
     }
 
     test("generateTick_open_equalsFirstSeedPriceAndNeverChanges") {

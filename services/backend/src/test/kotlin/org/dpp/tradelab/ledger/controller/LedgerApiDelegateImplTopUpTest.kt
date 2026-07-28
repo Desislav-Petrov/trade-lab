@@ -29,6 +29,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class LedgerApiDelegateImplTopUpTest(
@@ -79,11 +80,11 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.accountId").value(accountId.toString()))
-                .andExpect(jsonPath("$.newBalance").value(1100.0))
-                .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.ledgerEntryId").value(entryId.toString()))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty)
+                .andExpect(jsonPath("\$.accountId").value(accountId.toString()))
+                .andExpect(jsonPath("\$.newBalance").value(1100.0))
+                .andExpect(jsonPath("\$.currency").value("USD"))
+                .andExpect(jsonPath("\$.ledgerEntryId").value(entryId.toString()))
+                .andExpect(jsonPath("\$.timestamp").isNotEmpty)
         }
 
         test("topUpAccount_accountNotFound_returns404") {
@@ -96,7 +97,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(404))
         }
 
         test("topUpAccount_accountNotActive_returns403") {
@@ -109,7 +110,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("topUpAccount_illegalArgument_returns400") {
@@ -122,7 +123,7 @@ class LedgerApiDelegateImplTopUpTest(
                     .content(validRequestBody)
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("\$.status").value(400))
         }
     }
 }

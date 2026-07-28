@@ -26,6 +26,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class LedgerApiDelegateImplGetTransactionsTest(
@@ -77,16 +78,16 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "0")
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.transactions").isArray)
-                .andExpect(jsonPath("$.transactions[0].id").value(entryId.toString()))
-                .andExpect(jsonPath("$.transactions[0].type").value("CREDIT"))
-                .andExpect(jsonPath("$.transactions[0].assetType").value("CASH"))
-                .andExpect(jsonPath("$.transactions[0].amount").value(1000.0))
-                .andExpect(jsonPath("$.transactions[0].currency").value("USD"))
-                .andExpect(jsonPath("$.transactions[0].description").value("Initial deposit"))
-                .andExpect(jsonPath("$.page").value(0))
-                .andExpect(jsonPath("$.totalPages").value(1))
-                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("\$.transactions").isArray)
+                .andExpect(jsonPath("\$.transactions[0].id").value(entryId.toString()))
+                .andExpect(jsonPath("\$.transactions[0].type").value("CREDIT"))
+                .andExpect(jsonPath("\$.transactions[0].assetType").value("CASH"))
+                .andExpect(jsonPath("\$.transactions[0].amount").value(1000.0))
+                .andExpect(jsonPath("\$.transactions[0].currency").value("USD"))
+                .andExpect(jsonPath("\$.transactions[0].description").value("Initial deposit"))
+                .andExpect(jsonPath("\$.page").value(0))
+                .andExpect(jsonPath("\$.totalPages").value(1))
+                .andExpect(jsonPath("\$.totalCount").value(1))
         }
 
         test("getAccountTransactions_stockEntry_returns200WithTickerAndShares") {
@@ -99,10 +100,10 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "0")
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.transactions[0].type").value("DEBIT"))
-                .andExpect(jsonPath("$.transactions[0].assetType").value("STOCK_BUY"))
-                .andExpect(jsonPath("$.transactions[0].ticker").value("AAPL"))
-                .andExpect(jsonPath("$.transactions[0].shares").value(2.5))
+                .andExpect(jsonPath("\$.transactions[0].type").value("DEBIT"))
+                .andExpect(jsonPath("\$.transactions[0].assetType").value("STOCK_BUY"))
+                .andExpect(jsonPath("\$.transactions[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.transactions[0].shares").value(2.5))
         }
 
         test("getAccountTransactions_emptyPage_returns200WithEmptyList") {
@@ -115,9 +116,9 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "0")
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.transactions").isArray)
-                .andExpect(jsonPath("$.transactions").isEmpty)
-                .andExpect(jsonPath("$.totalCount").value(0))
+                .andExpect(jsonPath("\$.transactions").isArray)
+                .andExpect(jsonPath("\$.transactions").isEmpty)
+                .andExpect(jsonPath("\$.totalCount").value(0))
         }
 
         test("getAccountTransactions_accountNotFound_returns404") {
@@ -130,7 +131,7 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "0")
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(404))
         }
 
         test("getAccountTransactions_wrongOwner_returns403") {
@@ -143,13 +144,10 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "0")
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("getAccountTransactions_pageParam_passedThrough") {
-            // Use any() for Int params to avoid Mockito primitive boxing issues.
-            // totalElements=75 is strictly greater than offset+content (50+1=51)
-            // so PageImpl does not silently inflate the value.
             whenever(ledgerService.getTransactions(eq(accountId), eq(userId), any(), any()))
                 .thenReturn(PageImpl(listOf(cashEntry), PageRequest.of(2, 25), 75))
 
@@ -159,8 +157,8 @@ class LedgerApiDelegateImplGetTransactionsTest(
                     .param("page", "2")
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.page").value(2))
-                .andExpect(jsonPath("$.totalCount").value(75))
+                .andExpect(jsonPath("\$.page").value(2))
+                .andExpect(jsonPath("\$.totalCount").value(75))
         }
     }
 }

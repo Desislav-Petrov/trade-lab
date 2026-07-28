@@ -21,6 +21,8 @@ import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.InvalidFeedTypeException
+import org.dpp.tradelab.user.exception.InvalidTokenException
+import org.dpp.tradelab.user.exception.OidcAuthenticationException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
 import org.dpp.tradelab.user.exception.UserSettingsNotFoundException
@@ -40,6 +42,16 @@ class GlobalExceptionHandler {
         val details = ex.bindingResult.fieldErrors.map { "${it.field} ${it.defaultMessage}" }
         return ResponseEntity.badRequest().body(ErrorResponse(400, "Validation failed", details))
     }
+
+    @ExceptionHandler(InvalidTokenException::class)
+    fun handleInvalidToken(ex: InvalidTokenException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ErrorResponse(401, "Unauthorized", listOf(ex.message ?: "Invalid or expired token")))
+
+    @ExceptionHandler(OidcAuthenticationException::class)
+    fun handleOidcAuthenticationException(ex: OidcAuthenticationException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ErrorResponse(500, "Authentication error", listOf(ex.message ?: "An error occurred during authentication")))
 
     @ExceptionHandler(DuplicateEmailException::class)
     fun handleDuplicateEmail(ex: DuplicateEmailException): ResponseEntity<ErrorResponse> =

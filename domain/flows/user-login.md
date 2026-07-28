@@ -2,7 +2,9 @@
 
 ## Overview
 
-Allows a guest to identify themselves and establish a session as a registered user. In this initial implementation, the system presents a list of available email addresses and the guest selects one — no password or credential check is performed. After the backend establishes a session, the frontend fetches the full user profile and caches it in a client-side session store. Authentication will be introduced in a future iteration to replace the email selection step.
+Allows a guest to identify themselves and establish a session as a registered user. In this implementation, the system presents a list of available email addresses and the guest selects one — no password or credential check is performed.
+
+> **Note:** This email-selection flow is retained for local testing only. The primary authentication path is `domain/flows/oidc-login`. In the OIDC flow the email-select step is replaced by Google authentication and a JWT is returned.
 
 ## Actors
 
@@ -44,7 +46,7 @@ Allows a guest to identify themselves and establish a session as a registered us
 ## Error Cases
 
 | Scenario | Condition | Outcome |
-|----------|-----------|---------|
+|----------|-----------|----------|
 | No active users | No users with `active` status exist | Flow halts at step 2; system returns an empty list and surfaces an informational message. |
 | User not found | Selected email does not resolve to a user record | Flow halts at step 4; system returns an error. |
 | User not active | Resolved user has `status` of `suspended` or `closed` | Flow halts at step 4; system returns an error indicating the account is unavailable. |
@@ -54,7 +56,3 @@ Allows a guest to identify themselves and establish a session as a registered us
 
 - **User**: Read at step 2 to populate the email list, and at step 4 to resolve the selected email to a full user record. Read again at step 8 to populate the client session.
 - **Session**: Written at step 9 with the full user profile.
-
-## Notes
-
-> **Temporary implementation.** The email selection step (steps 2–3) is a placeholder. Once authentication is introduced, it will be replaced with a credential submission and verification step. Steps 5 onwards are expected to remain unchanged.

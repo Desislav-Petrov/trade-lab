@@ -44,8 +44,8 @@ class User(
     @Column(nullable = false)
     val lastName: String,
 
-    @Column(nullable = false)
-    val address: String,
+    @Column(nullable = true)
+    val address: String?,
 
     @Column(nullable = false, unique = true)
     val email: String,

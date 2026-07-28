@@ -21,6 +21,7 @@ class DuplicateEmailTestController {
     }
 }
 
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
@@ -31,9 +32,9 @@ class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
         test("handleDuplicateEmail_duplicateEmailException_returns409WithErrorBody") {
             mockMvc.perform(get("/test/duplicate-email"))
                 .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.error").value("Email already registered"))
-                .andExpect(jsonPath("$.details[0]").value("An account with this email already exists."))
+                .andExpect(jsonPath("\$.status").value(409))
+                .andExpect(jsonPath("\$.error").value("Email already registered"))
+                .andExpect(jsonPath("\$.details[0]").value("An account with this email already exists."))
         }
     }
 }
