@@ -15,9 +15,15 @@ import java.util.UUID
 
 @Component
 class JwtAuthenticationFilter(
-    private val jwtService: JwtService,
-    private val objectMapper: ObjectMapper
+    private val jwtService: JwtService
 ) : OncePerRequestFilter() {
+
+    // ObjectMapper is not injected as a Spring bean because this filter is instantiated
+    // during security context creation, before Jackson auto-configuration has run in
+    // some test slices. A private companion instance is safe — ObjectMapper is thread-safe.
+    companion object {
+        private val objectMapper = ObjectMapper()
+    }
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -37,7 +43,7 @@ class JwtAuthenticationFilter(
             response.status = HttpServletResponse.SC_UNAUTHORIZED
             response.contentType = "application/json"
             val errorResponse = mapOf(
-                "status" to 401,
+                "status" to HttpServletResponse.SC_UNAUTHORIZED,
                 "error" to "Unauthorized",
                 "details" to listOf("Invalid or expired token")
             )
