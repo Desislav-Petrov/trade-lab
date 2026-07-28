@@ -15,7 +15,12 @@ import java.util.UUID
  * Maps an external identity provider account to a platform User.
  * Created on first OIDC authentication with a provider.
  *
- * See decisions/2026-07-26-external-identity-provider-constraints.md for constraint rationale.
+ * @get:JvmName renames the Kotlin-generated property accessor so that the
+ * explicit getId() override (required by Persistable) does not clash with it
+ * at the JVM level. This mirrors the same pattern used on User.kt.
+ *
+ * See decisions/2026-07-26-external-identity-provider-constraints.md for
+ * unique constraint rationale.
  */
 @Entity
 @Table(
@@ -28,6 +33,7 @@ import java.util.UUID
 class ExternalIdentityProvider(
     @Id
     @Column(nullable = false, updatable = false)
+    @get:JvmName("getIdValue")
     val id: UUID,
 
     @Column(nullable = false, updatable = false)
@@ -50,6 +56,8 @@ class ExternalIdentityProvider(
     private val _isNew: Boolean = true
 ) : Persistable<UUID> {
 
+    override fun getId(): UUID = id
+
     override fun isNew(): Boolean = _isNew
 
     override fun equals(other: Any?): Boolean {
@@ -60,5 +68,6 @@ class ExternalIdentityProvider(
 
     override fun hashCode(): Int = id.hashCode()
 
-    override fun toString(): String = "ExternalIdentityProvider(id=$id, userId=$userId, providerType=$providerType, subId=$subId)"
+    override fun toString(): String =
+        "ExternalIdentityProvider(id=$id, userId=$userId, providerType=$providerType, subId=$subId)"
 }
