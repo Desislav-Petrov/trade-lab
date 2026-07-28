@@ -3,6 +3,7 @@ import { RootLayout } from './layouts/RootLayout'
 import { LoginPage } from '../domains/user/pages/LoginPage'
 import { RegistrationPage } from '../domains/user/pages/RegistrationPage'
 import { ProfilePage } from '../domains/user/pages/ProfilePage'
+import { AuthCallbackPage } from '../domains/user/pages/AuthCallbackPage'
 import { AccountsPage } from '../domains/ledger/pages/AccountsPage'
 import { TransactionListPage } from '../domains/ledger/pages/TransactionListPage'
 import { StockTradingPage } from '../domains/stocktrading/pages/StockTradingPage'
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/login" replace /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegistrationPage /> },
+      { path: '/auth/callback', element: <AuthCallbackPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/accounts', element: <AccountsPage /> },
       { path: '/accounts/:accountId/transactions', element: <TransactionListPage /> },

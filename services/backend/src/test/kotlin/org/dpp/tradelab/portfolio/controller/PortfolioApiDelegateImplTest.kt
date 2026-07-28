@@ -15,6 +15,7 @@ import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpStatus
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -22,6 +23,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.math.BigDecimal
 import java.util.UUID
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -66,16 +68,16 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.holdings").isArray)
-                .andExpect(jsonPath("$.holdings[0].ticker").value("AAPL"))
-                .andExpect(jsonPath("$.holdings[0].quantity").value(2.0))
-                .andExpect(jsonPath("$.holdings[0].currentPrice").value(150.0))
-                .andExpect(jsonPath("$.holdings[0].currentValue").value(300.0))
-                .andExpect(jsonPath("$.holdings[0].unrealisedPnL").value(10.0))
-                .andExpect(jsonPath("$.holdings[0].portfolioPercent").value(37.5))
-                .andExpect(jsonPath("$.cash.balance").value(500.0))
-                .andExpect(jsonPath("$.cash.currency").value("USD"))
-                .andExpect(jsonPath("$.cash.portfolioPercent").value(62.5))
+                .andExpect(jsonPath("\$.holdings").isArray)
+                .andExpect(jsonPath("\$.holdings[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.holdings[0].quantity").value(2.0))
+                .andExpect(jsonPath("\$.holdings[0].currentPrice").value(150.0))
+                .andExpect(jsonPath("\$.holdings[0].currentValue").value(300.0))
+                .andExpect(jsonPath("\$.holdings[0].unrealisedPnL").value(10.0))
+                .andExpect(jsonPath("\$.holdings[0].portfolioPercent").value(37.5))
+                .andExpect(jsonPath("\$.cash.balance").value(500.0))
+                .andExpect(jsonPath("\$.cash.currency").value("USD"))
+                .andExpect(jsonPath("\$.cash.portfolioPercent").value(62.5))
         }
 
         test("getHoldings_accountNotFound_returns404") {
@@ -88,7 +90,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.NOT_FOUND.value()))
         }
 
         test("getHoldings_accountNotOwned_returns403") {
@@ -101,7 +103,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.FORBIDDEN.value()))
         }
 
         test("getHoldings_priceDataUnavailable_returns502") {
@@ -114,7 +116,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isBadGateway)
-                .andExpect(jsonPath("$.status").value(502))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_GATEWAY.value()))
         }
 
         test("getHoldings_balanceDataUnavailable_returns502") {
@@ -127,7 +129,7 @@ class PortfolioApiDelegateImplTest(
                     .param("userId", userId.toString())
             )
                 .andExpect(status().isBadGateway)
-                .andExpect(jsonPath("$.status").value(502))
+                .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_GATEWAY.value()))
         }
     }
 }

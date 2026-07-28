@@ -31,7 +31,7 @@ class UserService(
     override fun existsById(userId: UUID): Boolean = userRepository.existsById(userId)
 
     @Transactional
-    fun registerUser(firstName: String, lastName: String, address: String, email: String): UUID {
+    fun registerUser(firstName: String, lastName: String, address: String?, email: String): UUID {
         if (userRepository.existsByEmail(email)) {
             throw DuplicateEmailException("An account with this email already exists.")
         }
@@ -106,7 +106,7 @@ class UserService(
     @Transactional(readOnly = true)
     fun loginUser(email: String): User {
         val user = userRepository.findByEmail(email)
-            ?: throw UserNotFoundException(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+            .orElseThrow { UserNotFoundException(UUID.fromString("00000000-0000-0000-0000-000000000000")) }
         if (user.status != UserStatus.ACTIVE) {
             throw UserNotActiveException(email)
         }

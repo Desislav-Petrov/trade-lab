@@ -95,13 +95,13 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("FILLED"))
-                .andExpect(jsonPath("$.orderId").value(orderId.toString()))
-                .andExpect(jsonPath("$.ticker").value("AAPL"))
-                .andExpect(jsonPath("$.executionPrice").value(183.0))
-                .andExpect(jsonPath("$.totalCost").exists())
-                .andExpect(jsonPath("$.side").value("BUY"))
-                .andExpect(jsonPath("$.rejectionReason").doesNotExist())
+                .andExpect(jsonPath("\$.status").value("FILLED"))
+                .andExpect(jsonPath("\$.orderId").value(orderId.toString()))
+                .andExpect(jsonPath("\$.ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.executionPrice").value(183.0))
+                .andExpect(jsonPath("\$.totalCost").exists())
+                .andExpect(jsonPath("\$.side").value("BUY"))
+                .andExpect(jsonPath("\$.rejectionReason").doesNotExist())
         }
 
         test("placeOrder_sellFilledOrder_returns200WithTotalProceeds") {
@@ -130,9 +130,9 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(sellRequestBody))
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("FILLED"))
-                .andExpect(jsonPath("$.side").value("SELL"))
-                .andExpect(jsonPath("$.totalProceeds").exists())
+                .andExpect(jsonPath("\$.status").value("FILLED"))
+                .andExpect(jsonPath("\$.side").value("SELL"))
+                .andExpect(jsonPath("\$.totalProceeds").exists())
         }
 
         test("placeOrder_sellRejectedOrder_returns200WithQuantityExceedsHolding") {
@@ -161,8 +161,8 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(sellRequestBody))
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("REJECTED"))
-                .andExpect(jsonPath("$.rejectionReason").value("Quantity exceeds holding"))
+                .andExpect(jsonPath("\$.status").value("REJECTED"))
+                .andExpect(jsonPath("\$.rejectionReason").value("Quantity exceeds holding"))
         }
 
         test("placeOrder_rejectedOrder_returns200WithRejectedResponse") {
@@ -176,10 +176,10 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("REJECTED"))
-                .andExpect(jsonPath("$.rejectionReason").value("Insufficient funds"))
-                .andExpect(jsonPath("$.executionPrice").doesNotExist())
-                .andExpect(jsonPath("$.totalCost").doesNotExist())
+                .andExpect(jsonPath("\$.status").value("REJECTED"))
+                .andExpect(jsonPath("\$.rejectionReason").value("Insufficient funds"))
+                .andExpect(jsonPath("\$.executionPrice").doesNotExist())
+                .andExpect(jsonPath("\$.totalCost").doesNotExist())
         }
 
         test("placeOrder_tickerNotFound_returns400") {
@@ -193,7 +193,7 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("\$.status").value(400))
         }
 
         test("placeOrder_accountNotFound_returns404") {
@@ -207,7 +207,7 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("\$.status").value(404))
         }
 
         test("placeOrder_accountNotOwned_returns403") {
@@ -221,7 +221,7 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("placeOrder_accountNotActive_returns403") {
@@ -235,7 +235,7 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("\$.status").value(403))
         }
 
         test("placeOrder_duplicateIdempotencyKey_returns409") {
@@ -249,7 +249,7 @@ class StocktradingApiDelegateImplTest(
                     .content(objectMapper.writeValueAsString(buildValidRequestBody()))
             )
                 .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("\$.status").value(409))
         }
 
         test("placeOrder_missingIdempotencyKeyHeader_returns400") {
