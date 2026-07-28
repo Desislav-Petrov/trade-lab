@@ -1,18 +1,29 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { LoginForm } from '../components/LoginForm'
 import { useFetchUserProfile } from '../hooks/useFetchUserProfile'
+import { LoginWithGoogleButton } from '../components/LoginWithGoogleButton'
+import { redirectToGoogleLogin } from '../api/oidcApi'
 import type { LoginResponse } from '../types/user'
 
 interface LocationState {
   banner?: string
 }
 
+const OIDC_ERROR_MESSAGES: Record<string, string> = {
+  oidc_failed: 'Authentication failed. Please try again.',
+  server_error: 'Something went wrong. Please try again.',
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const banner = (location.state as LocationState | null)?.banner ?? null
   const [profileError, setProfileError] = useState(false)
+
+  const errorCode = searchParams.get('error')
+  const oidcError = errorCode ? (OIDC_ERROR_MESSAGES[errorCode] ?? null) : null
 
   const fetchProfile = useFetchUserProfile({
     onSuccess: () => navigate('/profile'),
@@ -22,6 +33,10 @@ export function LoginPage() {
   function handleSuccess(data: LoginResponse) {
     setProfileError(false)
     fetchProfile.mutate(data.userId)
+  }
+
+  function handleGoogleLogin() {
+    redirectToGoogleLogin()
   }
 
   return (
@@ -38,6 +53,25 @@ export function LoginPage() {
             {banner}
           </p>
         )}
+
+        {oidcError && (
+          <p
+            role="alert"
+            className="mb-4 border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
+          >
+            {oidcError}
+          </p>
+        )}
+
+        <div className="mb-6">
+          <LoginWithGoogleButton onClick={handleGoogleLogin} />
+        </div>
+
+        <div className="mb-4 flex items-center gap-2">
+          <hr className="flex-1 border-[var(--color-border)]" />
+          <span className="text-xs text-[var(--color-text-muted)]">or continue with email</span>
+          <hr className="flex-1 border-[var(--color-border)]" />
+        </div>
 
         <LoginForm onSuccess={handleSuccess} />
 
