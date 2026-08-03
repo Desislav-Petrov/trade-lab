@@ -2,9 +2,15 @@
 
 ## Overview
 
-Covers the full lifecycle of the real-time market data WebSocket connection between the frontend and the backend Market Data service. When a user opens the Stock Trading page, the frontend establishes a persistent WebSocket connection identified by `userId`. The backend immediately pushes a snapshot of the latest cached price data for all of the user's subscribed tickers. It then continues to push live updates as the price feed generator emits ticks. The connection is kept open for the duration of the user's visit to the page and torn down on navigation away. Subscription changes made mid-session (via the REST subscription flows) are reflected in the live feed automatically without reconnection.
+Covers the full lifecycle of the real-time market data WebSocket connection between the frontend and the backend Market Data service. When a user opens the Stock Trading page, the frontend establishes a persistent WebSocket connection identified by `userId`. The backend immediately pushes a snapshot of the latest cached price data for all of the user's subscribed tickers. It then continues to push live updates as the price feed generates ticks. The connection is kept open for the duration of the user's visit to the page and torn down on navigation away. Subscription changes made mid-session (via the REST subscription flows) are reflected in the live feed automatically without reconnection.
 
 Feed type routing (synthetic vs real) is determined per user from the in-memory feed-type cache at connection time and on every tick dispatch. See `domain/flows/market-data-feed-routing.md` for the full feed-routing lifecycle.
+
+Two feed adapters run independently and write to the same shared `MarketDataSnapshot` cache:
+- **Synthetic** (`SyntheticPriceFeedAdapter`): generates ticks for 1–10 random tickers every 250 ms.
+- **Real** (`FinnhubPriceFeedAdapter`): polls Finnhub once per second, cycling tickers round-robin over the supported universe. See `domain/flows/finnhub-price-feed.md`.
+
+Tick dispatch to connected users is driven by whichever adapter produces a tick. The feed-type cache determines which ticks are forwarded to which users.
 
 ---
 
@@ -20,8 +26,8 @@ The frontend opens a WebSocket connection when the Stock Trading page mounts and
 ### Preconditions
 - The user has an active session (is logged in).
 - The user's subscriptions have been loaded (Flow A of `manage-asset-subscriptions`).
-- The backend in-memory `MarketDataSnapshot` cache is fully seeded.
-- The backend in-memory feed-type cache is fully seeded (see `market-data-feed-routing` Flow A).
+- The backend in-memory `MarketDataSnapshot` cache is fully seeded (synthetic seed at startup).
+- The backend in-memory feed-type cache entry for this user is populated or will be lazily loaded (see `market-data-feed-routing` Flow A).
 
 ### Steps
 
@@ -29,8 +35,8 @@ The frontend opens a WebSocket connection when the Stock Trading page mounts and
 |---|-------|--------|-------------|
 | 1 | Guest Browser | Open WebSocket connection | On mount of the Stock Trading page, opens a WebSocket connection to `ws://.../api/v1/market-data/feed?userId={userId}`. |
 | 2 | System | Authenticate connection | Reads `userId` from the query parameter. Looks up the user's subscription list from the in-memory subscription lookup. Rejects with close code `4401` if `userId` is missing or does not resolve to a known user. |
-| 3 | System | Read feed type | Looks up the user's `feedType` from the in-memory feed-type cache. Defaults to `SYNTHETIC` if no entry is found. |
-| 4 | System | Build snapshot | Reads the `MarketDataSnapshot` cache entries for every ticker the user is subscribed to. Uses the feed type determined at step 3 to select the data source (both resolve to synthetic in this iteration). |
+| 3 | System | Read feed type | Looks up the user's `feedType` from the in-memory feed-type cache (lazy-loaded if absent). Defaults to `SYNTHETIC` if no entry can be resolved. |
+| 4 | System | Build snapshot | Reads the `MarketDataSnapshot` cache entries for every ticker the user is subscribed to. The snapshot is sourced from the shared cache regardless of feed type. |
 | 5 | System | Push snapshot message | Sends a single WebSocket message of type `SNAPSHOT` containing an array of `MarketDataUpdate` items — one per subscribed ticker — to the connected client. |
 | 6 | Guest Browser | Render grid | Receives the `SNAPSHOT` message. Populates the market data grid with one row per ticker. Each row displays: `ticker`, `companyName`, `currentPrice`, `open`, `dayLow`, `fiftyTwoWeekHigh`. |
 
@@ -51,30 +57,30 @@ The frontend opens a WebSocket connection when the Stock Trading page mounts and
 
 ## Flow B — Receive Live Price Update
 
-The backend pushes a `TICK` message to the connected client each time the price feed generator emits data for a ticker the user is subscribed to. Before dispatching, the backend checks the user's feed type from the in-memory feed-type cache to select the correct data source.
+The backend pushes a `TICK` message to connected clients each time a feed adapter emits data for a ticker a user is subscribed to. Before dispatching, the backend checks the user's feed type from the in-memory feed-type cache to determine whether to forward the tick to that user.
 
 ### Actors
-- **System**: The price feed generator and WebSocket dispatch component.
+- **System**: The price feed adapter (synthetic or Finnhub) and WebSocket dispatch component.
 - **Guest Browser**: The React frontend receiving and applying updates to the grid.
 
 ### Preconditions
 - A WebSocket connection is established (Flow A has completed).
-- The price feed generator is running and emits ticks every 250 ms for 1–10 randomly selected tickers.
+- At least one feed adapter is running and producing ticks.
 
 ### Steps
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | System | Generate tick | Price feed generator selects between 1 and 10 tickers at random and produces new randomised price values for each. |
-| 2 | System | Update snapshot cache | Overwrites the `MarketDataSnapshot` cache entry for each affected ticker with the new values and updates `updatedAt`. |
+| 1 | System | Generate tick | A feed adapter produces new price values for one or more tickers. **Synthetic:** selects 1–10 tickers at random every 250 ms. **Real (Finnhub):** selects the next ticker in round-robin order once per second. |
+| 2 | System | Update snapshot cache | Overwrites the `MarketDataSnapshot` cache entry for each affected ticker with the new values and updates `updatedAt`. The cache is shared between both adapters. |
 | 3 | System | Resolve subscribers | For each affected ticker, looks up the set of `userId` values subscribed to that ticker from the in-memory subscription lookup. |
-| 4 | System | Check feed type per user | For each connected subscriber, reads the user's `feedType` from the in-memory feed-type cache. In this iteration both `SYNTHETIC` and `REAL` use synthetic data. See `market-data-feed-routing` Flow C. |
-| 5 | System | Dispatch TICK messages | For each connected `userId` that is subscribed to an affected ticker, sends a WebSocket message of type `TICK` containing the updated `MarketDataUpdate` item for that ticker. A single dispatch cycle may send multiple `TICK` messages to the same connection if the user is subscribed to more than one of the affected tickers. |
+| 4 | System | Check feed type per user | For each connected subscriber, reads `feedType` from the in-memory feed-type cache. Ticks from the synthetic adapter are dispatched only to users with `feedType = SYNTHETIC` (or cache miss). Ticks from the Finnhub adapter are dispatched only to users with `feedType = REAL`. |
+| 5 | System | Dispatch TICK messages | For each eligible connected `userId` subscribed to an affected ticker, sends a WebSocket message of type `TICK` containing the updated `MarketDataUpdate` item for that ticker. |
 | 6 | Guest Browser | Update grid row | Receives each `TICK` message. Finds the grid row matching the `ticker` field and updates the price columns in place without re-rendering the entire grid. |
 
 ### Postconditions
-- The `MarketDataSnapshot` cache reflects the latest generated values.
-- The grid row for each affected ticker shows updated price data within one tick cycle (≤ 250 ms latency from generation to display).
+- The `MarketDataSnapshot` cache reflects the latest values from whichever adapter last wrote.
+- Each user's grid reflects data from their chosen feed type.
 
 ### Error Cases
 
@@ -184,7 +190,7 @@ The WebSocket connection is torn down when the user navigates away from the Stoc
 | Type | Direction | Description |
 |------|-----------|-------------|
 | `SNAPSHOT` | Server → Client | Sent once on connect. Contains an array of `MarketDataUpdate` items for all subscribed tickers. |
-| `TICK` | Server → Client | Sent on each feed update. Contains one `MarketDataUpdate` item for a single ticker. Also sent immediately when a new subscription is added mid-session. |
+| `TICK` | Server → Client | Sent on each feed update eligible for the user's feed type. Contains one `MarketDataUpdate` item for a single ticker. Also sent immediately when a new subscription is added mid-session. |
 
 ### MarketDataUpdate payload
 
@@ -195,13 +201,13 @@ The WebSocket connection is torn down when the user navigates away from the Stoc
 | currentPrice | number | Latest price in USD, 3 decimal places |
 | open | number | Opening price in USD, 3 decimal places |
 | dayLow | number | Day low in USD, 3 decimal places |
-| fiftyTwoWeekHigh | number | 52-week high in USD, 3 decimal places |
+| fiftyTwoWeekHigh | number | 52-week high in USD, 3 decimal places (equals `dayHigh` on real feed path) |
 
 ---
 
 ## Domain Models Involved
 
-- **MarketDataSnapshot**: Read in Flows A, B, and C to build snapshot and tick payloads; written in Flow B when the feed generator emits a tick.
+- **MarketDataSnapshot**: Shared in-memory cache written by both feed adapters. Read in Flows A, B, and C to build snapshot and tick payloads.
 - **AssetSubscription**: The in-memory subscription lookup (keyed by ticker → list of userIds, and by userId → list of tickers) is built from `AssetSubscription` records at startup and kept current via `AssetSubscribedEvent` and `AssetUnsubscribedEvent`.
-- **UserSettings**: The in-memory feed-type cache (keyed by userId → feedType) is seeded from `UserSettings` rows at startup and kept current via `UserSettingsChangedEvent`. Consulted at connection time (Flow A step 3) and on every tick dispatch (Flow B step 4).
+- **UserSettings**: The in-memory feed-type cache (keyed by userId → feedType) is lazily loaded from `UserSettings` at first connection and kept current via `UserSettingsChangedEvent`. Consulted at connection time (Flow A step 3) and on every tick dispatch (Flow B step 4).
 - **Session**: `userId` is taken from the WebSocket query parameter and must match a known user.
