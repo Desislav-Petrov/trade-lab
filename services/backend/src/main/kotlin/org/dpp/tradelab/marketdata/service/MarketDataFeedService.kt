@@ -113,7 +113,22 @@ class MarketDataFeedService(
                 val session = activeSessions[userId] ?: return@forEach
                 if (session.isOpen) {
                     val feedType = resolveFeedType(userId)
-                    // In this iteration both SYNTHETIC and REAL serve synthetic data
+                    if (feedType == FeedType.SYNTHETIC) {
+                        sendTick(session, snapshot)
+                    }
+                }
+            }
+        }
+    }
+
+    fun dispatchFinnhubTick(snapshot: MarketDataSnapshot) {
+        snapshotCache[snapshot.ticker] = snapshot
+        val subscribedUsers = tickerToUsers[snapshot.ticker] ?: return
+        subscribedUsers.forEach { userId ->
+            val session = activeSessions[userId] ?: return@forEach
+            if (session.isOpen) {
+                val feedType = resolveFeedType(userId)
+                if (feedType == FeedType.REAL) {
                     sendTick(session, snapshot)
                 }
             }
@@ -134,7 +149,6 @@ class MarketDataFeedService(
 
     fun getSnapshotForUser(userId: UUID): List<MarketDataSnapshot> {
         val feedType = resolveFeedType(userId)
-        // In this iteration both SYNTHETIC and REAL serve synthetic data
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }
     }

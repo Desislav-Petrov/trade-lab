@@ -15,6 +15,9 @@ app:
   cors:
     allowed-origin: http://localhost:3000
 
+finnhub:
+  api-key: demo
+
 logging:
   level:
     org.springframework.security: DEBUG

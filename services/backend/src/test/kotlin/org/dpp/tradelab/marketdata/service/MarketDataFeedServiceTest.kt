@@ -406,4 +406,93 @@ class MarketDataFeedServiceTest : FunSpec({
         (dayLowIdx < dayHighIdx) shouldBe true
         (dayHighIdx < fiftyTwoWeekHighIdx) shouldBe true
     }
+
+    // ── dispatchTicks feed-type routing (BE-5) ───────────────────────────────
+
+    test("dispatchTicks_syntheticUser_receivesSyntheticTick") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        service.feedTypeCache[userId] = FeedType.SYNTHETIC
+
+        service.dispatchTicks()
+
+        val captor = argumentCaptor<TextMessage>()
+        verify(session).sendMessage(captor.capture())
+        captor.firstValue.payload.contains("\"ticker\":\"AAPL\"") shouldBe true
+    }
+
+    test("dispatchTicks_realUser_doesNotReceiveSyntheticTick") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        service.feedTypeCache[userId] = FeedType.REAL
+
+        service.dispatchTicks()
+
+        verify(session, never()).sendMessage(any<TextMessage>())
+    }
+
+    test("dispatchFinnhubTick_realUser_receivesRealTick") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        service.feedTypeCache[userId] = FeedType.REAL
+
+        service.dispatchFinnhubTick(aaplSnapshot)
+
+        val captor = argumentCaptor<TextMessage>()
+        verify(session).sendMessage(captor.capture())
+        captor.firstValue.payload.contains("\"ticker\":\"AAPL\"") shouldBe true
+    }
+
+    test("dispatchFinnhubTick_syntheticUser_doesNotReceiveRealTick") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        service.feedTypeCache[userId] = FeedType.SYNTHETIC
+
+        service.dispatchFinnhubTick(aaplSnapshot)
+
+        verify(session, never()).sendMessage(any<TextMessage>())
+    }
+
+    test("dispatchTicks_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+        whenever(userSettingsApi.getUserSettings(userId)).thenReturn(null)
+
+        val service = buildService()
+        val session = mockSession(userId)
+        service.registerSession(userId, session)
+        service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
+        // Intentionally no feedTypeCache entry
+
+        service.dispatchTicks()
+
+        val captor = argumentCaptor<TextMessage>()
+        verify(session).sendMessage(captor.capture())
+        captor.firstValue.payload.contains("\"type\":\"TICK\"") shouldBe true
+    }
 })
