@@ -150,3 +150,19 @@ The dev server proxies all `/api` requests to the backend at `http://localhost:8
 | `pnpm run lint` | Run Oxlint |
 | `pnpm run format` | Format source files with Oxfmt |
 | `pnpm run format:check` | Check formatting with Oxfmt without writing |
+
+---
+
+## Creating a Release
+
+Releases are fully automated via GitHub Actions. To publish a new version:
+
+1. Open [GitHub Actions](https://github.com/Desislav-Petrov/trade-lab/actions) and select the **"Create Version"** workflow.
+2. Click **"Run workflow"**, enter a semantic version (e.g. `1.0.0`), and click **"Run"**.
+3. The pipeline will automatically build backend and frontend Docker images, push them to GHCR, and create a GitHub release.
+
+Docker images are published to:
+- `ghcr.io/desislav-petrov/trade-lab-backend:vX.Y.Z`
+- `ghcr.io/desislav-petrov/trade-lab-frontend:vX.Y.Z`
+
+For the full guide (local validation, troubleshooting, commit conventions) see **[RELEASE.md](RELEASE.md)**.
