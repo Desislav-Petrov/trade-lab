@@ -2,7 +2,7 @@
 
 ## Overview
 
-Describes how the Market Data domain determines which type of feed (synthetic or real) to deliver to each connected user, and how it keeps that determination current as users change their settings. Feed routing is based on an in-memory cache keyed by `userId → feedType`. The cache is populated **lazily** — an entry is loaded from the User domain `api/` interface on first WebSocket connection for a given user, not at application startup. Subsequent lookups hit the cache directly. The cache is kept current by consuming `UserSettingsChangedEvent`. No database query is made per-tick. In this iteration, selecting `REAL` stores the preference but the backend serves synthetic data for all users because no real feed integration exists yet.
+Describes how the Market Data domain determines which type of feed (synthetic or real) to deliver to each connected user, and how it keeps that determination current as users change their settings. Feed routing is based on an in-memory cache keyed by `userId → feedType`. The cache is populated **lazily** — an entry is loaded from the User domain `api/` interface on first WebSocket connection for a given user, not at application startup. Subsequent lookups hit the cache directly. The cache is kept current by consuming `UserSettingsChangedEvent`. No database query is made per-tick.
 
 ---
 
@@ -27,7 +27,7 @@ When a user opens a WebSocket connection, the backend checks the in-memory cache
 | 2 | System (Market Data) | Check cache | Looks up `userId` in the in-memory feed-type cache. |
 | 3a | System (Market Data) | Cache hit — use cached value | If an entry exists for `userId`, use `feedTypeCache[userId]` as the feed type. Continue to step 4. |
 | 3b | System (Market Data) | Cache miss — lazy load | If no entry exists, calls `userSettingsApi.getUserSettings(userId)` (User domain `api/` interface). Writes the returned `feedType` into `feedTypeCache[userId]`. If the User domain returns no settings (unexpected), defaults to `SYNTHETIC` and logs a WARN. |
-| 4 | System (Market Data) | Build and dispatch snapshot | Uses the resolved feed type to determine the data source for the snapshot. In this iteration both `SYNTHETIC` and `REAL` use synthetic data. Dispatches the `SNAPSHOT` message. |
+| 4 | System (Market Data) | Build and dispatch snapshot | Uses the resolved feed type to select the data source for the snapshot. `SYNTHETIC` reads from the synthetic snapshot cache. `REAL` reads from the same shared snapshot cache, which is kept current by the Finnhub polling scheduler (see `domain/flows/finnhub-price-feed.md`). Dispatches the `SNAPSHOT` message. |
 
 ### Postconditions
 
@@ -77,7 +77,7 @@ During tick dispatch (Market Data WebSocket Feed Flow B), the system checks the 
 
 ### Actors
 
-- **System (Market Data)**: The price feed generator, feed-routing logic, and WebSocket dispatch component.
+- **System (Market Data)**: The price feed adapter, feed-routing logic, and WebSocket dispatch component.
 
 ### Preconditions
 
@@ -88,14 +88,15 @@ During tick dispatch (Market Data WebSocket Feed Flow B), the system checks the 
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | System (Market Data) | Generate tick | Price feed generator produces new price values (synthetic in this iteration). |
+| 1 | System (Market Data) | Generate tick | A `MarketDataFeedAdapter` implementation (synthetic or Finnhub) produces new price values for one or more tickers and writes them to the shared `MarketDataSnapshot` cache. |
 | 2 | System (Market Data) | Resolve feed type for user | For each connected user subscribed to an affected ticker, looks up `feedType` in the in-memory feed-type cache. Defaults to `SYNTHETIC` on cache miss; logs a WARN. |
-| 3a | System (Market Data) | Dispatch synthetic tick | If `feedType` is `SYNTHETIC` (or cache miss): uses synthetically generated price values to build the `TICK` message and dispatches it. |
-| 3b | System (Market Data) | Dispatch real tick _(future)_ | If `feedType` is `REAL`: in this iteration, falls back to synthetic data. In a future iteration, reads from a real market data source. |
+| 3a | System (Market Data) | Dispatch synthetic tick | If `feedType` is `SYNTHETIC` (or cache miss): uses synthetically generated price values from the snapshot cache to build the `TICK` message and dispatches it. |
+| 3b | System (Market Data) | Dispatch real tick | If `feedType` is `REAL`: reads the latest values for the affected ticker from the shared snapshot cache (written by the `FinnhubPriceFeedAdapter` polling scheduler) and dispatches the `TICK` message. |
 
 ### Postconditions
 
-- Each connected user receives tick data sourced according to their feed-type preference (both resolve to synthetic in this iteration).
+- Each connected user receives tick data sourced according to their feed-type preference.
+- Users with `feedType = REAL` receive Finnhub-sourced data once the Finnhub scheduler has emitted a tick for that ticker. Until the first Finnhub tick arrives for a given ticker, the value in the shared cache is the synthetic seed value.
 
 ### Error Cases
 
@@ -114,5 +115,5 @@ During tick dispatch (Market Data WebSocket Feed Flow B), the system checks the 
 ## Domain Models Involved
 
 - **UserSettings**: Fetched lazily at first WebSocket connection per user via `UserSettingsApi`. Not read per-tick.
-- **MarketDataSnapshot**: Used as the data source for synthetic feed ticks and snapshots.
+- **MarketDataSnapshot**: Shared in-memory cache written by both feed adapters. Used as the data source for all tick and snapshot dispatches.
 - **Session**: `userId` is taken from the WebSocket query parameter and used as the cache key for feed-type lookup.
