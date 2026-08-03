@@ -5,6 +5,8 @@ export interface FeedTypeSelectorProps {
   onFeedTypeChange: (feedType: FeedType) => void
   isPending: boolean
   isError: boolean
+  /** HTTP status code of the last failed mutation, or null if no error. */
+  errorStatus: number | null
 }
 
 export function FeedTypeSelector({
@@ -12,10 +14,18 @@ export function FeedTypeSelector({
   onFeedTypeChange,
   isPending,
   isError,
+  errorStatus,
 }: FeedTypeSelectorProps) {
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     onFeedTypeChange(event.target.value as FeedType)
   }
+
+  const errorMessage =
+    isError
+      ? errorStatus === 400
+        ? 'Invalid feed type selected.'
+        : 'Failed to save. Please try again.'
+      : null
 
   return (
     <div>
@@ -53,9 +63,9 @@ export function FeedTypeSelector({
           </span>
         )}
       </div>
-      {isError && (
+      {errorMessage && (
         <p className="mt-1 text-xs text-red-500" role="alert">
-          Failed to save. Please try again.
+          {errorMessage}
         </p>
       )}
     </div>

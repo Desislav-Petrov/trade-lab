@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement, type ReactNode } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { usePatchUserSettings } from './usePatchUserSettings'
 import { useSessionStore } from './useSessionStore'
 import type { UserResponse } from '../types/user'
@@ -9,6 +10,12 @@ import type { UserResponse } from '../types/user'
 vi.mock('../api/userSettingsApi', () => ({
   patchUserSettings: vi.fn(),
 }))
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 import { patchUserSettings } from '../api/userSettingsApi'
 const mockPatchUserSettings = vi.mocked(patchUserSettings)
@@ -29,7 +36,11 @@ function createWrapper() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client: queryClient }, children)
+    createElement(
+      MemoryRouter,
+      {},
+      createElement(QueryClientProvider, { client: queryClient }, children),
+    )
 }
 
 describe('usePatchUserSettings', () => {
@@ -39,7 +50,7 @@ describe('usePatchUserSettings', () => {
     act(() => useSessionStore.getState().setSession(mockUserResponse))
   })
 
-  it('usePatchUserSettings - success - updates session store settings', async () => {
+  it('usePatchUserSettings - REAL success - updates session store settings', async () => {
     const updatedSettings = { feedType: 'REAL' as const, updatedAt: '2026-06-01T00:00:00Z' }
     mockPatchUserSettings.mockResolvedValueOnce(updatedSettings)
 
@@ -47,18 +58,72 @@ describe('usePatchUserSettings', () => {
       wrapper: createWrapper(),
     })
 
-    act(() => {
-      result.current.mutate({ feedType: 'REAL' })
-    })
+    act(() => { result.current.mutate({ feedType: 'REAL' }) })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(useSessionStore.getState().settings).toEqual(updatedSettings)
     expect(mockPatchUserSettings).toHaveBeenCalledWith('u1', { feedType: 'REAL' })
+    expect(result.current.errorStatus).toBeNull()
   })
 
-  it('usePatchUserSettings - error - exposes error state', async () => {
-    const error = Object.assign(new Error('Server error'), {
+  it('usePatchUserSettings - SYNTHETIC success - updates session store settings', async () => {
+    const updatedSettings = { feedType: 'SYNTHETIC' as const, updatedAt: '2026-06-02T00:00:00Z' }
+    mockPatchUserSettings.mockResolvedValueOnce(updatedSettings)
+
+    const { result } = renderHook(() => usePatchUserSettings('u1'), {
+      wrapper: createWrapper(),
+    })
+
+    act(() => { result.current.mutate({ feedType: 'SYNTHETIC' }) })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(useSessionStore.getState().settings?.feedType).toBe('SYNTHETIC')
+    expect(result.current.errorStatus).toBeNull()
+  })
+
+  it('usePatchUserSettings - 401 error - redirects to /login', async () => {
+    const error = Object.assign(new Error('Unauthorized'), {
+      isAxiosError: true,
+      response: { status: 401 },
+    })
+    mockPatchUserSettings.mockRejectedValueOnce(error)
+
+    const { result } = renderHook(() => usePatchUserSettings('u1'), {
+      wrapper: createWrapper(),
+    })
+
+    act(() => { result.current.mutate({ feedType: 'REAL' }) })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
+    expect(useSessionStore.getState().settings?.feedType).toBe('SYNTHETIC')
+  })
+
+  it('usePatchUserSettings - 400 error - exposes errorStatus 400, store unchanged', async () => {
+    const error = Object.assign(new Error('Bad Request'), {
+      isAxiosError: true,
+      response: { status: 400 },
+    })
+    mockPatchUserSettings.mockRejectedValueOnce(error)
+
+    const { result } = renderHook(() => usePatchUserSettings('u1'), {
+      wrapper: createWrapper(),
+    })
+
+    act(() => { result.current.mutate({ feedType: 'REAL' }) })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.errorStatus).toBe(400)
+    expect(useSessionStore.getState().settings?.feedType).toBe('SYNTHETIC')
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('usePatchUserSettings - 500 error - exposes errorStatus 500, store unchanged', async () => {
+    const error = Object.assign(new Error('Server Error'), {
       isAxiosError: true,
       response: { status: 500 },
     })
@@ -68,16 +133,31 @@ describe('usePatchUserSettings', () => {
       wrapper: createWrapper(),
     })
 
-    act(() => {
-      result.current.mutate({ feedType: 'REAL' })
-    })
+    act(() => { result.current.mutate({ feedType: 'REAL' }) })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 
-    expect(result.current.error).toBeTruthy()
-    expect(useSessionStore.getState().settings).toEqual({
-      feedType: 'SYNTHETIC',
-      updatedAt: '2026-01-01T00:00:00Z',
+    expect(result.current.errorStatus).toBe(500)
+    expect(useSessionStore.getState().settings?.feedType).toBe('SYNTHETIC')
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('usePatchUserSettings - 403 error - exposes errorStatus 403, no redirect', async () => {
+    const error = Object.assign(new Error('Forbidden'), {
+      isAxiosError: true,
+      response: { status: 403 },
     })
+    mockPatchUserSettings.mockRejectedValueOnce(error)
+
+    const { result } = renderHook(() => usePatchUserSettings('u1'), {
+      wrapper: createWrapper(),
+    })
+
+    act(() => { result.current.mutate({ feedType: 'REAL' }) })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.errorStatus).toBe(403)
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 })

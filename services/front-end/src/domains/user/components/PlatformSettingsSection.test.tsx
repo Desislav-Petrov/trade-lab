@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { act, createElement } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { PlatformSettingsSection } from './PlatformSettingsSection'
 import { useSessionStore } from '../hooks/useSessionStore'
 import type { UserResponse } from '../types/user'
@@ -31,9 +32,13 @@ function renderSection() {
   })
   return render(
     createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(PlatformSettingsSection, {}),
+      MemoryRouter,
+      {},
+      createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(PlatformSettingsSection, {}),
+      ),
     ),
   )
 }
@@ -51,6 +56,7 @@ describe('PlatformSettingsSection', () => {
       isError: false,
       isSuccess: false,
       error: null,
+      errorStatus: null,
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
@@ -69,6 +75,7 @@ describe('PlatformSettingsSection', () => {
       isError: false,
       isSuccess: false,
       error: null,
+      errorStatus: null,
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
@@ -87,12 +94,45 @@ describe('PlatformSettingsSection', () => {
       isError: false,
       isSuccess: true,
       error: null,
+      errorStatus: null,
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
     renderSection()
 
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
+  })
+
+  it('PlatformSettingsSection - shows 400 error message on invalid feed type', () => {
+    mockUsePatchUserSettings.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error('Bad Request'),
+      errorStatus: 400,
+    })
+    act(() => useSessionStore.getState().setSession(mockUserResponse))
+
+    renderSection()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid feed type selected.')
+  })
+
+  it('PlatformSettingsSection - shows generic error message on 500', () => {
+    mockUsePatchUserSettings.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error('Server Error'),
+      errorStatus: 500,
+    })
+    act(() => useSessionStore.getState().setSession(mockUserResponse))
+
+    renderSection()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to save. Please try again.')
   })
 
   it('PlatformSettingsSection - renders nothing when settings is null', () => {
@@ -102,6 +142,7 @@ describe('PlatformSettingsSection', () => {
       isError: false,
       isSuccess: false,
       error: null,
+      errorStatus: null,
     })
 
     const { container } = renderSection()
