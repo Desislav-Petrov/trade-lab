@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: Finnhub Quote API
+  description: Trimmed Finnhub OpenAPI spec — GET /quote endpoint only
+  version: 1.0.0
+servers:
+  - url: https://finnhub.io/api/v1
+paths:
+  /quote:
+    get:
+      summary: Get real-time quote data for US stocks
+      operationId: getQuote
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Symbol of the company (e.g. AAPL)
+      responses:
+        '200':
+          description: Successful response with quote data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+components:
+  schemas:
+    QuoteResponse:
+      type: object
+      properties:
+        c:
+          type: number
+          nullable: true
+          description: Current price
+        h:
+          type: number
+          nullable: true
+          description: High price of the day
+        l:
+          type: number
+          nullable: true
+          description: Low price of the day
+        o:
+          type: number
+          nullable: true
+          description: Open price of the day
+        d:
+          type: number
+          nullable: true
+          description: Change
+        dp:
+          type: number
+          nullable: true
+          description: Percent change
+        pc:
+          type: number
+          nullable: true
+          description: Previous close price

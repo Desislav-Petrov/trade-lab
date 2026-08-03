@@ -73,3 +73,6 @@ app:
     origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+
+finnhub:
+  api-key: ${FINNHUB_API_KEY:demo}

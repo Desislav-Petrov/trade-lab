@@ -120,8 +120,26 @@ val generatePortfolioApi = tasks.register<GenerateTask>("generatePortfolioApi") 
     ))
 }
 
+val generateFinnhubApi = tasks.register<GenerateTask>("generateFinnhubApi") {
+    generatorName.set("kotlin")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/finnhub-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/finnhub")
+    apiPackage.set("org.dpp.tradelab.marketdata.generated.finnhub.api")
+    modelPackage.set("org.dpp.tradelab.marketdata.generated.finnhub.model")
+    library.set("jvm-spring-restclient")
+    configOptions.set(mapOf(
+        "serializationLibrary" to "jackson",
+        "gradleBuildFile" to "false",
+        "enumPropertyNaming" to "UPPERCASE",
+        "useSpringBoot3" to "true"
+    ))
+}
+
 // Wire generated sources into the compile classpath
-// Exclude the org.openapitools scaffolding that the generator always emits
+// Exclude the server-side scaffolding (HomeController, Application, SpringDocConfiguration)
+// that the kotlin-spring generator always emits at the org.openapitools package root.
+// Also exclude the Finnhub client infrastructure and api — FinnhubPriceFeedAdapter
+// uses Spring RestClient directly; only the QuoteResponse model is needed.
 sourceSets {
     main {
         kotlin {
@@ -130,13 +148,15 @@ sourceSets {
             srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/stocktrading/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/portfolio/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/finnhub/src/main/kotlin")
             exclude("org/openapitools/**")
+            exclude("org/dpp/tradelab/marketdata/generated/finnhub/api/**")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi)
+    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateFinnhubApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────────────
