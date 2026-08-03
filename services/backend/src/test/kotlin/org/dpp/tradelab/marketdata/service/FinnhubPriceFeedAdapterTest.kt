@@ -3,12 +3,14 @@ package org.dpp.tradelab.marketdata.service
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.marketdata.generated.finnhub.model.QuoteResponse
+import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
-import org.mockito.kotlin.any
+import org.dpp.tradelab.user.model.FeedType
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 
 class FinnhubPriceFeedAdapterTest : FunSpec({
@@ -17,20 +19,20 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
         tickerList: List<String> = listOf("AAPL"),
         names: Map<String, String> = mapOf("AAPL" to "Apple Inc."),
         supplier: (String) -> QuoteResponse? = { null }
-    ): Pair<MarketDataFeedService, FinnhubPriceFeedAdapter> {
-        val marketDataFeedService = mock<MarketDataFeedService>()
-        val adapter = FinnhubPriceFeedAdapter(marketDataFeedService, "demo")
+    ): Pair<ApplicationEventPublisher, FinnhubPriceFeedAdapter> {
+        val publisher = mock<ApplicationEventPublisher>()
+        val adapter = FinnhubPriceFeedAdapter(publisher, "demo")
         adapter.init()
         adapter.tickers = tickerList
         adapter.companyNames = names
         adapter.cursor.set(0)
         adapter.quoteSupplier = supplier
-        return marketDataFeedService to adapter
+        return publisher to adapter
     }
 
     test("init_loadsTickersFromCsvAndInitialisesRoundRobinCursorAtZero") {
-        val marketDataFeedService = mock<MarketDataFeedService>()
-        val adapter = FinnhubPriceFeedAdapter(marketDataFeedService, "demo")
+        val publisher = mock<ApplicationEventPublisher>()
+        val adapter = FinnhubPriceFeedAdapter(publisher, "demo")
         adapter.init()
 
         adapter.tickers.isEmpty() shouldBe false
@@ -38,7 +40,7 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
         adapter.cursor.get() shouldBe 0
     }
 
-    test("fetchAndDispatch_successfulResponse_dispatchesMappedSnapshotWithAllFiveFields") {
+    test("fetchAndDispatch_successfulResponse_publishesMarketDataTickEventWithFeedTypeReal") {
         val quoteResponse = QuoteResponse(
             c = BigDecimal("182.500"),
             o = BigDecimal("180.000"),
@@ -46,7 +48,7 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
             l = BigDecimal("179.000"),
             d = null, dp = null, pc = null
         )
-        val (service, adapter) = buildAdapter(
+        val (publisher, adapter) = buildAdapter(
             tickerList = listOf("AAPL"),
             names = mapOf("AAPL" to "Apple Inc."),
             supplier = { quoteResponse }
@@ -54,9 +56,11 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
 
         adapter.fetchAndDispatch()
 
-        val captor = argumentCaptor<MarketDataSnapshot>()
-        verify(service).dispatchFinnhubTick(captor.capture())
-        val snapshot = captor.firstValue
+        val captor = argumentCaptor<MarketDataTickEvent>()
+        verify(publisher).publishEvent(captor.capture())
+        val event = captor.firstValue
+        event.feedType shouldBe FeedType.REAL
+        val snapshot = event.snapshot
         snapshot.ticker shouldBe "AAPL"
         snapshot.companyName shouldBe "Apple Inc."
         snapshot.currentPrice shouldBe BigDecimal("182.500")
@@ -66,20 +70,20 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
         snapshot.fiftyTwoWeekHigh shouldBe BigDecimal("185.000")
     }
 
-    test("fetchAndDispatch_apiFails_doesNotDispatchAndCacheUnchanged") {
-        val (service, adapter) = buildAdapter(
+    test("fetchAndDispatch_apiFails_doesNotPublishEvent") {
+        val (publisher, adapter) = buildAdapter(
             supplier = { throw RuntimeException("Finnhub API error") }
         )
 
         adapter.fetchAndDispatch()
 
-        verify(service, never()).dispatchFinnhubTick(any())
+        verify(publisher, never()).publishEvent(org.mockito.kotlin.any<MarketDataTickEvent>())
     }
 
     test("fetchAndDispatch_missingCompanyName_setsEmptyStringAndLogsWarn") {
         val quoteResponse = QuoteResponse(c = BigDecimal("50.000"), o = BigDecimal("49.000"),
             h = BigDecimal("51.000"), l = BigDecimal("48.000"), d = null, dp = null, pc = null)
-        val (service, adapter) = buildAdapter(
+        val (publisher, adapter) = buildAdapter(
             tickerList = listOf("UNKWN"),
             names = emptyMap(),
             supplier = { quoteResponse }
@@ -87,9 +91,9 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
 
         adapter.fetchAndDispatch()
 
-        val captor = argumentCaptor<MarketDataSnapshot>()
-        verify(service).dispatchFinnhubTick(captor.capture())
-        captor.firstValue.companyName shouldBe ""
+        val captor = argumentCaptor<MarketDataTickEvent>()
+        verify(publisher).publishEvent(captor.capture())
+        captor.firstValue.snapshot.companyName shouldBe ""
     }
 
     test("fetchAndDispatch_roundRobinWraps_cyclesThroughAllTickers") {

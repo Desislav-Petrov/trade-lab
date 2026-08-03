@@ -6,6 +6,7 @@ import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
+import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
 import org.dpp.tradelab.marketdata.model.AssetSubscription
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
@@ -137,13 +138,11 @@ class MarketDataFeedServiceTest : FunSpec({
         verify(userSettingsApi, never()).getUserSettings(any())
     }
 
-    // ── dispatchTicks ─────────────────────────────────────────────────────────────
+    // ── handleMarketDataTick ─────────────────────────────────────────────────────────────
 
-    test("dispatchTicks_dispatchesOnlyToSubscribedConnectedUsers") {
+    test("handleMarketDataTick_syntheticEvent_dispatchesOnlyToSubscribedSyntheticUsers") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick())
-            .thenReturn(listOf(aaplSnapshot))
-            .thenReturn(listOf(aaplSnapshot))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -154,7 +153,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
         service.feedTypeCache[userId] = FeedType.SYNTHETIC
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         val captor = argumentCaptor<TextMessage>()
         verify(session).sendMessage(captor.capture())
@@ -163,12 +162,10 @@ class MarketDataFeedServiceTest : FunSpec({
         payload.contains("\"ticker\":\"AAPL\"") shouldBe true
     }
 
-    test("dispatchTicks_doesNotDispatchToUnsubscribedUser") {
+    test("handleMarketDataTick_doesNotDispatchToUnsubscribedUser") {
         val otherUserId = UUID.randomUUID()
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick())
-            .thenReturn(listOf(aaplSnapshot))
-            .thenReturn(listOf(aaplSnapshot))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -178,16 +175,14 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         verify(session, never()).sendMessage(any<TextMessage>())
     }
 
-    test("dispatchTicks_doesNotDispatchToUserWithNoActiveSession") {
+    test("handleMarketDataTick_doesNotDispatchToUserWithNoActiveSession") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick())
-            .thenReturn(listOf(aaplSnapshot))
-            .thenReturn(listOf(aaplSnapshot))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -196,10 +191,10 @@ class MarketDataFeedServiceTest : FunSpec({
         service.userToTickers.getOrPut(userId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add("AAPL")
 
         // Should not throw
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
     }
 
-    test("dispatchTick_cacheMiss_fallsBackToSynthetic") {
+    test("handleMarketDataTick_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -215,7 +210,7 @@ class MarketDataFeedServiceTest : FunSpec({
         // Intentionally no feedTypeCache entry for userId
 
         // Should dispatch despite cache miss (falls back to SYNTHETIC)
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         val captor = argumentCaptor<TextMessage>()
         verify(session).sendMessage(captor.capture())
@@ -316,9 +311,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("removeSession_stopsDispatchToUser") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick())
-            .thenReturn(listOf(aaplSnapshot))
-            .thenReturn(listOf(aaplSnapshot))
+        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -330,7 +323,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
         service.removeSession(userId)
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         verify(session, never()).sendMessage(any<TextMessage>())
     }
@@ -407,9 +400,9 @@ class MarketDataFeedServiceTest : FunSpec({
         (dayHighIdx < fiftyTwoWeekHighIdx) shouldBe true
     }
 
-    // ── dispatchTicks feed-type routing (BE-5) ───────────────────────────────
+    // ── handleMarketDataTick feed-type routing ───────────────────────────────
 
-    test("dispatchTicks_syntheticUser_receivesSyntheticTick") {
+    test("handleMarketDataTick_syntheticUser_receivesSyntheticTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -420,14 +413,14 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.feedTypeCache[userId] = FeedType.SYNTHETIC
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         val captor = argumentCaptor<TextMessage>()
         verify(session).sendMessage(captor.capture())
         captor.firstValue.payload.contains("\"ticker\":\"AAPL\"") shouldBe true
     }
 
-    test("dispatchTicks_realUser_doesNotReceiveSyntheticTick") {
+    test("handleMarketDataTick_realUser_doesNotReceiveSyntheticTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -438,12 +431,12 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.feedTypeCache[userId] = FeedType.REAL
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         verify(session, never()).sendMessage(any<TextMessage>())
     }
 
-    test("dispatchFinnhubTick_realUser_receivesRealTick") {
+    test("handleMarketDataTick_realUser_receivesRealTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -454,14 +447,14 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.feedTypeCache[userId] = FeedType.REAL
 
-        service.dispatchFinnhubTick(aaplSnapshot)
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.REAL))
 
         val captor = argumentCaptor<TextMessage>()
         verify(session).sendMessage(captor.capture())
         captor.firstValue.payload.contains("\"ticker\":\"AAPL\"") shouldBe true
     }
 
-    test("dispatchFinnhubTick_syntheticUser_doesNotReceiveRealTick") {
+    test("handleMarketDataTick_syntheticUser_doesNotReceiveRealTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -472,12 +465,12 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         service.feedTypeCache[userId] = FeedType.SYNTHETIC
 
-        service.dispatchFinnhubTick(aaplSnapshot)
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.REAL))
 
         verify(session, never()).sendMessage(any<TextMessage>())
     }
 
-    test("dispatchTicks_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
+    test("handleMarketDataTick_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
         whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
@@ -489,7 +482,7 @@ class MarketDataFeedServiceTest : FunSpec({
         service.tickerToUsers.getOrPut("AAPL") { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(userId)
         // Intentionally no feedTypeCache entry
 
-        service.dispatchTicks()
+        service.handleMarketDataTick(MarketDataTickEvent(snapshot = aaplSnapshot, feedType = FeedType.SYNTHETIC))
 
         val captor = argumentCaptor<TextMessage>()
         verify(session).sendMessage(captor.capture())

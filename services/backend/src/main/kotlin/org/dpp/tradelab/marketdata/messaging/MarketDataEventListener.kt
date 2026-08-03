@@ -25,4 +25,8 @@ class MarketDataEventListener(
     @EventListener
     fun onAssetUnsubscribed(event: AssetUnsubscribedEvent) =
         marketDataFeedService.handleAssetUnsubscribed(event)
+
+    @EventListener
+    fun onMarketDataTick(event: MarketDataTickEvent) =
+        marketDataFeedService.handleMarketDataTick(event)
 }

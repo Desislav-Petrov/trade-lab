@@ -2,9 +2,12 @@ package org.dpp.tradelab.marketdata.service
 
 import jakarta.annotation.PostConstruct
 import org.dpp.tradelab.marketdata.generated.finnhub.model.QuoteResponse
+import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
+import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.io.ClassPathResource
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -19,16 +22,15 @@ import java.util.concurrent.atomic.AtomicInteger
  * On startup ([PostConstruct]) the supported ticker universe is loaded from the classpath
  * CSV file and a round-robin cursor is initialised at 0. Every second the cursor advances
  * (wrapping at the end of the list) and the current ticker is fetched from Finnhub.
- * The response is mapped to a [MarketDataSnapshot] and pushed into the shared
- * [MarketDataFeedService] cache so that users with [org.dpp.tradelab.user.model.FeedType.REAL]
- * receive the updated tick.
+ * The response is mapped to a [MarketDataSnapshot] and published to the Spring application
+ * event bus via [emitSnapshotEvent] so that users with [FeedType.REAL] receive the updated tick.
  *
  * Any Finnhub API failure is silently dropped — the cache is not modified and the cursor
  * still advances on the next invocation.
  */
 @Component
 class FinnhubPriceFeedAdapter(
-    private val marketDataFeedService: MarketDataFeedService,
+    private val eventPublisher: ApplicationEventPublisher,
     @Value("\${finnhub.api-key}") private val apiKey: String
 ) : MarketDataFeedAdapter {
 
@@ -112,6 +114,10 @@ class FinnhubPriceFeedAdapter(
             updatedAt = Instant.now()
         )
 
-        marketDataFeedService.dispatchFinnhubTick(snapshot)
+        emitSnapshotEvent(snapshot)
+    }
+
+    override fun emitSnapshotEvent(snapshot: MarketDataSnapshot) {
+        eventPublisher.publishEvent(MarketDataTickEvent(snapshot = snapshot, feedType = FeedType.REAL))
     }
 }

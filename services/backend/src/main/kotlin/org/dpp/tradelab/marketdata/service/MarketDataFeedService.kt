@@ -5,6 +5,7 @@ import org.dpp.tradelab.marketdata.api.MarketDataApi
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.dpp.tradelab.marketdata.messaging.AssetSubscribedEvent
 import org.dpp.tradelab.marketdata.messaging.AssetUnsubscribedEvent
+import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.marketdata.repository.AssetSubscriptionRepository
 import org.dpp.tradelab.marketdata.exception.UnsupportedTickerException
@@ -12,7 +13,6 @@ import org.dpp.tradelab.user.api.UserSettingsApi
 import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
 import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Central service managing the in-memory snapshot cache, per-user subscription lookups,
- * active WebSocket session registry, feed-type cache, and the scheduled price-tick dispatcher.
+ * active WebSocket session registry, feed-type cache, and the price-tick dispatcher.
  *
  * Thread safety: all maps are [ConcurrentHashMap]. The nested [MutableSet] instances
  * are created as [ConcurrentHashMap.newKeySet()] to ensure thread-safe mutations.
@@ -31,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
  * Prices are serialised to exactly 3 decimal places in all outbound JSON messages.
  *
  * Event handling entry-points ([handleAssetSubscribed], [handleAssetUnsubscribed],
- * [handleUserSettingsChanged]) are called by dedicated listener classes — they must
- * not be annotated with `@EventListener` directly.
+ * [handleUserSettingsChanged], [handleMarketDataTick]) are called by dedicated listener
+ * classes — they must not be annotated with `@EventListener` directly.
  */
 @Service
 class MarketDataFeedService(
@@ -101,34 +101,17 @@ class MarketDataFeedService(
                 }
         }
 
-    // ── Scheduled dispatch ────────────────────────────────────────────
+    // ── Market data tick handler (called by MarketDataEventListener) ──────────
 
-    @Scheduled(fixedDelay = 250)
-    fun dispatchTicks() {
-        val ticks = priceFeedGenerator.generateTick()
-        ticks.forEach { snapshot ->
-            snapshotCache[snapshot.ticker] = snapshot
-            val subscribedUsers = tickerToUsers[snapshot.ticker] ?: return@forEach
-            subscribedUsers.forEach { userId ->
-                val session = activeSessions[userId] ?: return@forEach
-                if (session.isOpen) {
-                    val feedType = resolveFeedType(userId)
-                    if (feedType == FeedType.SYNTHETIC) {
-                        sendTick(session, snapshot)
-                    }
-                }
-            }
-        }
-    }
-
-    fun dispatchFinnhubTick(snapshot: MarketDataSnapshot) {
+    fun handleMarketDataTick(event: MarketDataTickEvent) {
+        val snapshot = event.snapshot
         snapshotCache[snapshot.ticker] = snapshot
         val subscribedUsers = tickerToUsers[snapshot.ticker] ?: return
         subscribedUsers.forEach { userId ->
             val session = activeSessions[userId] ?: return@forEach
             if (session.isOpen) {
                 val feedType = resolveFeedType(userId)
-                if (feedType == FeedType.REAL) {
+                if (feedType == event.feedType) {
                     sendTick(session, snapshot)
                 }
             }
