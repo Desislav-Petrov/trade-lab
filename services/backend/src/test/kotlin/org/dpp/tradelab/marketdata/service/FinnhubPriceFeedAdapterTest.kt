@@ -4,7 +4,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.marketdata.generated.finnhub.model.QuoteResponse
 import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
-import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.user.model.FeedType
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
@@ -23,7 +22,7 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
     ): Pair<ApplicationEventPublisher, FinnhubPriceFeedAdapter> {
         val publisher = mock<ApplicationEventPublisher>()
         val restClient = mock<RestClient>()
-        val adapter = FinnhubPriceFeedAdapter(publisher, "demo", restClient)
+        val adapter = FinnhubPriceFeedAdapter(publisher, restClient)
         adapter.init()
         adapter.tickers = tickerList
         adapter.companyNames = names
@@ -35,7 +34,7 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
     test("init_loadsTickersFromCsvAndInitialisesRoundRobinCursorAtZero") {
         val publisher = mock<ApplicationEventPublisher>()
         val restClient = mock<RestClient>()
-        val adapter = FinnhubPriceFeedAdapter(publisher, "demo", restClient)
+        val adapter = FinnhubPriceFeedAdapter(publisher, restClient)
         adapter.init()
 
         adapter.tickers.isEmpty() shouldBe false

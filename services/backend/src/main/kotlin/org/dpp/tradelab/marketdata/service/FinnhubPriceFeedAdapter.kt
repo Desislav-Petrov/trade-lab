@@ -7,7 +7,6 @@ import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.io.ClassPathResource
@@ -32,13 +31,14 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * HTTP traffic (method, URI, request body, response status, response body) is logged at
  * DEBUG level by the [org.dpp.tradelab.marketdata.config.FinnhubLoggingInterceptor] which
- * is wired into the injected [RestClient] bean.
+ * is wired into the injected [RestClient] bean. The API key is owned by
+ * [org.dpp.tradelab.marketdata.config.FinnhubRestClientConfig] and applied as a default
+ * header on the client — this class has no knowledge of it.
  */
 @Component
 @ConditionalOnProperty(name = ["app.features.enable-real-data"], havingValue = "true")
 class FinnhubPriceFeedAdapter(
     private val eventPublisher: ApplicationEventPublisher,
-    @Value("\${finnhub.api-key}") private val apiKey: String,
     @Qualifier("finnhubRestClient") private val restClient: RestClient
 ) : MarketDataFeedAdapter {
 
