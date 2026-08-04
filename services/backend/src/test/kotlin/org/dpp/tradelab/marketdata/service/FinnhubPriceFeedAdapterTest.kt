@@ -4,13 +4,13 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.marketdata.generated.finnhub.model.QuoteResponse
 import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
-import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.user.model.FeedType
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.web.client.RestClient
 import java.math.BigDecimal
 
 class FinnhubPriceFeedAdapterTest : FunSpec({
@@ -21,7 +21,8 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
         supplier: (String) -> QuoteResponse? = { null }
     ): Pair<ApplicationEventPublisher, FinnhubPriceFeedAdapter> {
         val publisher = mock<ApplicationEventPublisher>()
-        val adapter = FinnhubPriceFeedAdapter(publisher, "demo")
+        val restClient = mock<RestClient>()
+        val adapter = FinnhubPriceFeedAdapter(publisher, restClient)
         adapter.init()
         adapter.tickers = tickerList
         adapter.companyNames = names
@@ -32,7 +33,8 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
 
     test("init_loadsTickersFromCsvAndInitialisesRoundRobinCursorAtZero") {
         val publisher = mock<ApplicationEventPublisher>()
-        val adapter = FinnhubPriceFeedAdapter(publisher, "demo")
+        val restClient = mock<RestClient>()
+        val adapter = FinnhubPriceFeedAdapter(publisher, restClient)
         adapter.init()
 
         adapter.tickers.isEmpty() shouldBe false
@@ -107,15 +109,15 @@ class FinnhubPriceFeedAdapterTest : FunSpec({
         )
         adapter.cursor.set(0)
 
-        // First call: index 0 → AAPL, cursor becomes 1
+        // First call: index 0 -> AAPL, cursor becomes 1
         adapter.fetchAndDispatch()
         adapter.cursor.get() shouldBe 1
 
-        // Second call: index 1 → MSFT, cursor wraps to 0
+        // Second call: index 1 -> MSFT, cursor wraps to 0
         adapter.fetchAndDispatch()
         adapter.cursor.get() shouldBe 0
 
-        // Third call: index 0 → AAPL again, cursor becomes 1
+        // Third call: index 0 -> AAPL again, cursor becomes 1
         adapter.fetchAndDispatch()
         adapter.cursor.get() shouldBe 1
 
