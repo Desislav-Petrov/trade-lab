@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearch } from '@tanstack/react-router'
 import { fetchUserById } from '../api/userApi'
 import { useSessionStore } from '../hooks/useSessionStore'
 
@@ -18,14 +18,14 @@ export interface AuthCallbackHandlerProps {
 }
 
 export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
-  const [searchParams] = useSearchParams()
+  const search = useSearch({ strict: false }) as Record<string, string | undefined>
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const establishSession = useSessionStore((s) => s.establishSession)
 
   useEffect(() => {
     async function handleCallback() {
-      const token = searchParams.get('token')
+      const token = search?.token ?? null
 
       if (!token) {
         setError('Authentication failed. Please try again.')

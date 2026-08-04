@@ -1,41 +1,56 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act } from 'react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { RootLayout } from './RootLayout'
 
-function renderLayout(initialPath = '/') {
-  return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Routes>
-        <Route element={<RootLayout />}>
-          <Route path="*" element={<div>Page content</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
-  )
+async function renderLayout(initialPath = '/') {
+  const rootRoute = createRootRoute({ component: RootLayout })
+  const catchAllRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '$',
+    component: () => <div>Page content</div>,
+  })
+  const routeTree = rootRoute.addChildren([catchAllRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(<RouterProvider router={router} />)
+  })
+  return result
 }
 
 describe('RootLayout', () => {
-  it('RootLayout - renders - displays topbar', () => {
-    renderLayout()
+  it('RootLayout - renders - displays topbar', async () => {
+    await renderLayout()
 
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
-  it('RootLayout - renders - displays sidebar navigation', () => {
-    renderLayout()
+  it('RootLayout - renders - displays sidebar navigation', async () => {
+    await renderLayout()
 
     expect(screen.getByRole('navigation', { name: /main navigation/i })).toBeInTheDocument()
   })
 
-  it('RootLayout - renders - renders child route content via Outlet', () => {
-    renderLayout()
+  it('RootLayout - renders - renders child route content via Outlet', async () => {
+    await renderLayout()
 
     expect(screen.getByText('Page content')).toBeInTheDocument()
   })
 
-  it('RootLayout - renders - main content region exists', () => {
-    renderLayout()
+  it('RootLayout - renders - main content region exists', async () => {
+    await renderLayout()
 
     expect(screen.getByRole('main')).toBeInTheDocument()
   })

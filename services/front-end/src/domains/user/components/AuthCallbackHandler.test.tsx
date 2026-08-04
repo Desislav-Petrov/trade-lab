@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { createElement } from 'react'
 import { AuthCallbackHandler } from './AuthCallbackHandler'
 import * as userApi from '../api/userApi'
@@ -24,23 +30,22 @@ const mockUserResponse: UserResponse = {
   settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
-function renderWithToken(token: string | null) {
+async function renderWithToken(token: string | null) {
   const search = token ? `?token=${token}` : ''
   const onSuccess = vi.fn()
-  render(
-    createElement(
-      MemoryRouter,
-      { initialEntries: [`/auth/callback${search}`] },
-      createElement(
-        Routes,
-        null,
-        createElement(Route, {
-          path: '/auth/callback',
-          element: createElement(AuthCallbackHandler, { onSuccess }),
-        }),
-      ),
-    ),
-  )
+  const rootRoute = createRootRoute()
+  const callbackRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/auth/callback',
+    component: () => createElement(AuthCallbackHandler, { onSuccess }),
+  })
+  const routeTree = rootRoute.addChildren([callbackRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [`/auth/callback${search}`] }),
+  })
+  await router.load()
+  render(createElement(RouterProvider, { router }))
   return { onSuccess }
 }
 
@@ -50,28 +55,28 @@ describe('AuthCallbackHandler', () => {
     vi.restoreAllMocks()
   })
 
-  it('AuthCallbackHandler - valid token - shows loading indicator initially', () => {
+  it('AuthCallbackHandler - valid token - shows loading indicator initially', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockReturnValue(new Promise(() => {}))
-    renderWithToken(VALID_TOKEN)
+    await renderWithToken(VALID_TOKEN)
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('AuthCallbackHandler - valid token and successful fetch - calls onSuccess', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockResolvedValue(mockUserResponse)
-    const { onSuccess } = renderWithToken(VALID_TOKEN)
+    const { onSuccess } = await renderWithToken(VALID_TOKEN)
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
   })
 
   it('AuthCallbackHandler - valid token and successful fetch - establishes session', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockResolvedValue(mockUserResponse)
-    renderWithToken(VALID_TOKEN)
+    await renderWithToken(VALID_TOKEN)
     await waitFor(() =>
       expect(useSessionStore.getState().session?.accessToken).toBe(VALID_TOKEN),
     )
   })
 
   it('AuthCallbackHandler - missing token - shows error message', async () => {
-    renderWithToken(null)
+    await renderWithToken(null)
     await waitFor(() =>
       expect(screen.getByRole('alert')).toBeInTheDocument(),
     )
@@ -80,14 +85,14 @@ describe('AuthCallbackHandler', () => {
 
   it('AuthCallbackHandler - fetch fails - shows error message', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockRejectedValue(new Error('Network error'))
-    renderWithToken(VALID_TOKEN)
+    await renderWithToken(VALID_TOKEN)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.getByText(/authentication failed/i)).toBeInTheDocument()
   })
 
   it('AuthCallbackHandler - fetch fails - does not call onSuccess', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockRejectedValue(new Error('Network error'))
-    const { onSuccess } = renderWithToken(VALID_TOKEN)
+    const { onSuccess } = await renderWithToken(VALID_TOKEN)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(onSuccess).not.toHaveBeenCalled()
   })

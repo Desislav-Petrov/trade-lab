@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement, type ReactNode } from 'react'
-import { MemoryRouter } from 'react-router-dom'
 import { usePatchUserSettings } from './usePatchUserSettings'
 import { useSessionStore } from './useSessionStore'
 import type { UserResponse } from '../types/user'
@@ -12,8 +11,8 @@ vi.mock('../api/userSettingsApi', () => ({
 }))
 
 const mockNavigate = vi.fn()
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>()
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
@@ -36,11 +35,7 @@ function createWrapper() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return ({ children }: { children: ReactNode }) =>
-    createElement(
-      MemoryRouter,
-      {},
-      createElement(QueryClientProvider, { client: queryClient }, children),
-    )
+    createElement(QueryClientProvider, { client: queryClient }, children)
 }
 
 describe('usePatchUserSettings', () => {
@@ -98,7 +93,7 @@ describe('usePatchUserSettings', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/login', replace: true })
     expect(useSessionStore.getState().settings?.feedType).toBe('SYNTHETIC')
   })
 

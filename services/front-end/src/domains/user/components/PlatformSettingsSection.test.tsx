@@ -2,8 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { act, createElement } from 'react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
 import { PlatformSettingsSection } from './PlatformSettingsSection'
 import { useSessionStore } from '../hooks/useSessionStore'
 import type { UserResponse } from '../types/user'
@@ -26,21 +32,33 @@ const mockUserResponse: UserResponse = {
   settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
-function renderSection() {
+async function renderSection() {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   })
-  return render(
-    createElement(
-      MemoryRouter,
-      {},
+  const rootRoute = createRootRoute()
+  const catchAllRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '$',
+    component: () => createElement(PlatformSettingsSection, {}),
+  })
+  const routeTree = rootRoute.addChildren([catchAllRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
         QueryClientProvider,
         { client: queryClient },
-        createElement(PlatformSettingsSection, {}),
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 describe('PlatformSettingsSection', () => {
@@ -49,7 +67,7 @@ describe('PlatformSettingsSection', () => {
     act(() => useSessionStore.getState().clearSession())
   })
 
-  it('PlatformSettingsSection - renders with current feedType from session', () => {
+  it('PlatformSettingsSection - renders with current feedType from session', async () => {
     mockUsePatchUserSettings.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -60,7 +78,7 @@ describe('PlatformSettingsSection', () => {
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
-    renderSection()
+    await renderSection()
 
     expect(screen.getByText('General Platform Settings')).toBeInTheDocument()
     const select = screen.getByRole('combobox')
@@ -79,7 +97,7 @@ describe('PlatformSettingsSection', () => {
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
-    renderSection()
+    await renderSection()
 
     const user = userEvent.setup()
     await user.selectOptions(screen.getByRole('combobox'), 'REAL')
@@ -87,7 +105,7 @@ describe('PlatformSettingsSection', () => {
     expect(mockMutate).toHaveBeenCalledWith({ feedType: 'REAL' })
   })
 
-  it('PlatformSettingsSection - shows saved confirmation on success', () => {
+  it('PlatformSettingsSection - shows saved confirmation on success', async () => {
     mockUsePatchUserSettings.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -98,12 +116,12 @@ describe('PlatformSettingsSection', () => {
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
-    renderSection()
+    await renderSection()
 
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
   })
 
-  it('PlatformSettingsSection - shows 400 error message on invalid feed type', () => {
+  it('PlatformSettingsSection - shows 400 error message on invalid feed type', async () => {
     mockUsePatchUserSettings.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -114,12 +132,12 @@ describe('PlatformSettingsSection', () => {
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
-    renderSection()
+    await renderSection()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Invalid feed type selected.')
   })
 
-  it('PlatformSettingsSection - shows generic error message on 500', () => {
+  it('PlatformSettingsSection - shows generic error message on 500', async () => {
     mockUsePatchUserSettings.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -130,12 +148,12 @@ describe('PlatformSettingsSection', () => {
     })
     act(() => useSessionStore.getState().setSession(mockUserResponse))
 
-    renderSection()
+    await renderSection()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to save. Please try again.')
   })
 
-  it('PlatformSettingsSection - renders nothing when settings is null', () => {
+  it('PlatformSettingsSection - renders nothing when settings is null', async () => {
     mockUsePatchUserSettings.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -145,7 +163,7 @@ describe('PlatformSettingsSection', () => {
       errorStatus: null,
     })
 
-    const { container } = renderSection()
+    const { container } = await renderSection()
 
     expect(container.firstChild).toBeNull()
   })

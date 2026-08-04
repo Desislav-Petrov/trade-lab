@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { act, createElement } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ProfilePage } from './ProfilePage'
@@ -19,26 +25,38 @@ const mockResponse: UserResponse = {
   settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
-function renderProfilePage() {
+async function renderProfilePage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
+  const rootRoute = createRootRoute()
+  const profileRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/profile',
+    component: ProfilePage,
+  })
+  const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: () => createElement('div', null, 'Login Page'),
+  })
+  const routeTree = rootRoute.addChildren([profileRoute, loginRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: ['/profile'] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
-        MemoryRouter,
-        { initialEntries: ['/profile'] },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, { path: '/profile', element: createElement(ProfilePage) }),
-          createElement(Route, { path: '/login', element: createElement('div', null, 'Login Page') }),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 describe('ProfilePage', () => {
@@ -47,14 +65,14 @@ describe('ProfilePage', () => {
     vi.clearAllMocks()
   })
 
-  it('ProfilePage - redirects to login when no session', () => {
-    renderProfilePage()
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+  it('ProfilePage - redirects to login when no session', async () => {
+    await renderProfilePage()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('ProfilePage - renders Profile Information tab by default', () => {
+  it('ProfilePage - renders Profile Information tab by default', async () => {
     act(() => useSessionStore.getState().setSession(mockResponse))
-    renderProfilePage()
+    await renderProfilePage()
     expect(screen.getByRole('heading', { name: /jane doe/i })).toBeInTheDocument()
     expect(screen.getByText('jane@example.com')).toBeInTheDocument()
     expect(screen.getByText('123 Main St')).toBeInTheDocument()
@@ -62,9 +80,9 @@ describe('ProfilePage', () => {
     expect(screen.getByText(/january 1, 2026/i)).toBeInTheDocument()
   })
 
-  it("ProfilePage - session exists - renders today's date", () => {
+  it("ProfilePage - session exists - renders today's date", async () => {
     act(() => useSessionStore.getState().setSession(mockResponse))
-    renderProfilePage()
+    await renderProfilePage()
     const today = new Date().toLocaleDateString(undefined, {
       weekday: 'long',
       year: 'numeric',
@@ -76,7 +94,7 @@ describe('ProfilePage', () => {
 
   it('ProfilePage - renders Platform Settings tab when selected', async () => {
     act(() => useSessionStore.getState().setSession(mockResponse))
-    renderProfilePage()
+    await renderProfilePage()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /platform settings/i }))
