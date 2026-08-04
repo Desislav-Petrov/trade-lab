@@ -7,6 +7,7 @@ import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.io.ClassPathResource
 import org.springframework.scheduling.annotation.Scheduled
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * still advances on the next invocation.
  */
 @Component
+@ConditionalOnProperty(name = ["app.features.enable-real-data"], havingValue = "true")
 class FinnhubPriceFeedAdapter(
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${finnhub.api-key}") private val apiKey: String

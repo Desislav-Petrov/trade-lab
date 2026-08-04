@@ -16,15 +16,15 @@ import java.util.UUID
 class MarketDataFeedServiceApiTest : FunSpec({
 
     val repository = mock<AssetSubscriptionRepository>()
-    val priceFeedGenerator = mock<PriceFeedGenerator>()
+    val syntheticPriceFeedAdapter = mock<SyntheticPriceFeedAdapter>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
     val userSettingsApi = mock<UserSettingsApi>()
 
     fun buildService(): MarketDataFeedService {
         whenever(repository.findAll()).thenReturn(emptyList())
-        whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(emptyList())
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        return MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
+        return MarketDataFeedService(repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi)
     }
 
     val aaplSnapshot = MarketDataSnapshot(

@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
-    private val priceFeedGenerator: PriceFeedGenerator,
+    private val syntheticPriceFeedAdapter: SyntheticPriceFeedAdapter,
     private val supportedTickerConfig: SupportedTickerConfig,
     private val userSettingsApi: UserSettingsApi
 ) : MarketDataApi {
@@ -69,7 +69,7 @@ class MarketDataFeedService(
         var attempts = 0
         val maxAttempts = allSupported.size * 20 + 100
         while (seededTickers.size < allSupported.size && attempts < maxAttempts) {
-            val ticks = priceFeedGenerator.generateTick()
+            val ticks = syntheticPriceFeedAdapter.generateTick()
             ticks.forEach { snapshot ->
                 if (snapshot.ticker in allSupported) {
                     snapshotCache[snapshot.ticker] = snapshot

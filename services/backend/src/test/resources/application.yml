@@ -8,6 +8,9 @@ spring:
       enabled: true
 
 app:
+  features:
+    enable-synthetic-data: true
+    enable-real-data: true
   jwt:
     secret: test-secret-key-for-testing-only
   frontend:
