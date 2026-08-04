@@ -14,7 +14,7 @@ describe('redirectToGoogleLogin', () => {
     vi.restoreAllMocks()
   })
 
-  it('redirectToGoogleLogin - called - sets window.location.href to Google OAuth2 path', () => {
+  it('redirectToGoogleLogin - called - sets window.location.href to absolute backend OAuth2 URL', () => {
     // Track href assignments by monitoring window property changes
     const hrefAssignments: string[] = []
 
@@ -39,7 +39,10 @@ describe('redirectToGoogleLogin', () => {
 
     redirectToGoogleLogin()
 
-    expect(hrefAssignments).toContain('/oauth2/authorization/google')
+    // Must be an absolute URL pointing to the backend — not a relative path
+    // that would resolve to the Vite dev server (localhost:5173).
+    // VITE_API_BASE_URL defaults to http://localhost:8080 in tests.
+    expect(hrefAssignments[0]).toMatch(/^http:\/\/.+\/oauth2\/authorization\/google$/)
 
     // Restore original location
     Object.defineProperty(window, 'location', {
