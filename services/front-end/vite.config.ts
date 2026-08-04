@@ -8,7 +8,18 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
+        changeOrigin: true,
         ws: true,
+      },
+      // OAuth2 authorization trigger — Spring Security initiates the Google dance
+      '/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      // Google callback — Spring Security receives the authorization code here
+      '/login/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       },
     },
   },
