@@ -67,6 +67,9 @@ info:
     description: Paper trading platform
 
 app:
+  features:
+    enable-synthetic-data: ${ENABLE_SYNTHETIC_DATA:true}
+    enable-real-data: ${ENABLE_REAL_DATA:true}
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-in-production-32c}
   frontend:

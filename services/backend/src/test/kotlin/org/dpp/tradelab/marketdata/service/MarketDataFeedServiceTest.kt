@@ -31,11 +31,11 @@ import java.util.UUID
 class MarketDataFeedServiceTest : FunSpec({
 
     val repository = mock<AssetSubscriptionRepository>()
-    val priceFeedGenerator = mock<PriceFeedGenerator>()
+    val syntheticPriceFeedAdapter = mock<SyntheticPriceFeedAdapter>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
     val userSettingsApi = mock<UserSettingsApi>()
 
-    fun buildService() = MarketDataFeedService(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
+    fun buildService() = MarketDataFeedService(repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi)
 
     val userId = UUID.randomUUID()
     val aaplSnapshot = MarketDataSnapshot(
@@ -74,7 +74,7 @@ class MarketDataFeedServiceTest : FunSpec({
     }
 
     beforeEach {
-        reset(repository, priceFeedGenerator, supportedTickerConfig, userSettingsApi)
+        reset(repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi)
     }
 
     // ── @PostConstruct seeding ──────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ class MarketDataFeedServiceTest : FunSpec({
         )
         whenever(supportedTickerConfig.getAll()).thenReturn(supportedTickers)
         var callCount = 0
-        whenever(priceFeedGenerator.generateTick()).thenAnswer {
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenAnswer {
             callCount++
             if (callCount % 2 == 0) listOf(aaplSnapshot) else listOf(msftSnapshot)
         }
@@ -101,7 +101,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("init_loadsSubscriptionsIntoLookupMaps") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         val subscription = makeSubscription(userId, "AAPL", "Apple Inc.")
         whenever(repository.findAll()).thenReturn(listOf(subscription))
 
@@ -142,7 +142,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_syntheticEvent_dispatchesOnlyToSubscribedSyntheticUsers") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -165,7 +165,7 @@ class MarketDataFeedServiceTest : FunSpec({
     test("handleMarketDataTick_doesNotDispatchToUnsubscribedUser") {
         val otherUserId = UUID.randomUUID()
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -182,7 +182,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_doesNotDispatchToUserWithNoActiveSession") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -196,7 +196,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
         // API returns null to simulate missing settings — expect SYNTHETIC fallback
         whenever(userSettingsApi.getUserSettings(userId)).thenReturn(null)
@@ -221,7 +221,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleUserSettingsChanged_updatesCache") {
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        whenever(priceFeedGenerator.generateTick()).thenReturn(emptyList())
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(emptyList())
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -237,7 +237,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("onAssetSubscribed_updatesLookupMapsAndSendsImmediateTickWhenConnected") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("MSFT" to "Microsoft Corporation"))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(msftSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -261,7 +261,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("onAssetSubscribed_updatesLookupMapsSilentlyWhenDisconnected") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("MSFT" to "Microsoft Corporation"))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(msftSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -278,7 +278,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("onAssetUnsubscribed_removesTickers_fromBothMaps") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -295,7 +295,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("onAssetUnsubscribed_withNoSession_doesNotThrow") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -311,7 +311,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("removeSession_stopsDispatchToUser") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -335,7 +335,7 @@ class MarketDataFeedServiceTest : FunSpec({
             "AAPL" to "Apple Inc.",
             "MSFT" to "Microsoft Corporation"
         ))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot, msftSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot, msftSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -352,7 +352,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("getSnapshotForUser_withNoSubscriptions_returnsEmpty") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -365,7 +365,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("sendTick_jsonPayload_hasCorrectShapeAndPricesTo3dp") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -384,7 +384,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("snapshotToJson_withDayHigh_includesDayHighField") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -404,7 +404,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_syntheticUser_receivesSyntheticTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -422,7 +422,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_realUser_doesNotReceiveSyntheticTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -438,7 +438,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_realUser_receivesRealTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -456,7 +456,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_syntheticUser_doesNotReceiveRealTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
 
         val service = buildService()
@@ -472,7 +472,7 @@ class MarketDataFeedServiceTest : FunSpec({
 
     test("handleMarketDataTick_cacheMiss_fallsBackToSyntheticAndReceivesTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        whenever(priceFeedGenerator.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
         whenever(repository.findAll()).thenReturn(emptyList())
         whenever(userSettingsApi.getUserSettings(userId)).thenReturn(null)
 

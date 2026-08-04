@@ -11,11 +11,13 @@ import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 
-class RandomPriceFeedGeneratorTest : FunSpec({
+class SyntheticPriceFeedAdapterTest : FunSpec({
 
     val supportedTickerConfig = mock<SupportedTickerConfig>()
+    val eventPublisher = mock<ApplicationEventPublisher>()
 
     val allTickers = mapOf(
         "AAPL" to "Apple Inc.",
@@ -35,12 +37,12 @@ class RandomPriceFeedGeneratorTest : FunSpec({
         whenever(supportedTickerConfig.getAll()).thenReturn(allTickers)
     }
 
-    fun freshGenerator() = RandomPriceFeedGenerator(supportedTickerConfig)
+    fun freshAdapter() = SyntheticPriceFeedAdapter(supportedTickerConfig, eventPublisher)
 
     test("generateTick_resultSize_isBetween1And10Inclusive") {
-        val generator = freshGenerator()
+        val adapter = freshAdapter()
         repeat(20) {
-            val result = generator.generateTick()
+            val result = adapter.generateTick()
             result shouldHaveAtLeastSize 1
             result shouldHaveAtMostSize 10
         }
@@ -48,34 +50,34 @@ class RandomPriceFeedGeneratorTest : FunSpec({
 
     test("generateTick_seedPrice_isBetween200And400Inclusive") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
+        val adapter = freshAdapter()
         // Only the first tick is the seed — guaranteed to be in [200, 400].
         // Subsequent ticks drift ±0.5–1.5% per step and are NOT bounded by this range.
-        val seedTick = generator.generateTick().first()
+        val seedTick = adapter.generateTick().first()
         seedTick.currentPrice shouldBeGreaterThanOrEqualTo BigDecimal("200.000")
         seedTick.currentPrice shouldBeLessThanOrEqualTo BigDecimal("400.000")
     }
 
     test("generateTick_open_equalsFirstSeedPriceAndNeverChanges") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        val firstTick = generator.generateTick().first()
+        val adapter = freshAdapter()
+        val firstTick = adapter.generateTick().first()
         val seedOpen = firstTick.open
         // open should equal the first currentPrice
         seedOpen shouldBe firstTick.currentPrice
         // open should remain the same across all subsequent ticks
         repeat(20) {
-            val tick = generator.generateTick().first()
+            val tick = adapter.generateTick().first()
             tick.open shouldBe seedOpen
         }
     }
 
     test("generateTick_subsequentPrice_differsFromPreviousByBetween0dot5AndOneHalfPercent") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        var previous = generator.generateTick().first().currentPrice
+        val adapter = freshAdapter()
+        var previous = adapter.generateTick().first().currentPrice
         repeat(50) {
-            val tick = generator.generateTick().first()
+            val tick = adapter.generateTick().first()
             val ratio = tick.currentPrice.toDouble() / previous.toDouble()
             // ratio should be within [0.985, 1.015]
             assert(ratio >= 0.985 && ratio <= 1.015) {
@@ -87,12 +89,12 @@ class RandomPriceFeedGeneratorTest : FunSpec({
 
     test("generateTick_tickDirection_canGoUpAndDown") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        var previous = generator.generateTick().first().currentPrice
+        val adapter = freshAdapter()
+        var previous = adapter.generateTick().first().currentPrice
         var sawUp = false
         var sawDown = false
         repeat(200) {
-            val current = generator.generateTick().first().currentPrice
+            val current = adapter.generateTick().first().currentPrice
             if (current > previous) sawUp = true
             if (current < previous) sawDown = true
             previous = current
@@ -103,10 +105,10 @@ class RandomPriceFeedGeneratorTest : FunSpec({
 
     test("generateTick_dayLow_isAlwaysLeOrEqualToMinimumEmittedPrice") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        var minPrice = generator.generateTick().first().currentPrice
+        val adapter = freshAdapter()
+        var minPrice = adapter.generateTick().first().currentPrice
         repeat(50) {
-            val tick = generator.generateTick().first()
+            val tick = adapter.generateTick().first()
             if (tick.currentPrice < minPrice) minPrice = tick.currentPrice
             tick.dayLow shouldBeLessThanOrEqualTo minPrice
         }
@@ -114,10 +116,10 @@ class RandomPriceFeedGeneratorTest : FunSpec({
 
     test("generateTick_dayHigh_isAlwaysGeOrEqualToMaximumEmittedPrice") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        var maxPrice = generator.generateTick().first().currentPrice
+        val adapter = freshAdapter()
+        var maxPrice = adapter.generateTick().first().currentPrice
         repeat(50) {
-            val tick = generator.generateTick().first()
+            val tick = adapter.generateTick().first()
             if (tick.currentPrice > maxPrice) maxPrice = tick.currentPrice
             tick.dayHigh shouldBeGreaterThanOrEqualTo maxPrice
         }
@@ -125,19 +127,19 @@ class RandomPriceFeedGeneratorTest : FunSpec({
 
     test("generateTick_fiftyTwoWeekHigh_isAlwaysGeOrEqualToMaximumEmittedPrice") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        var maxPrice = generator.generateTick().first().currentPrice
+        val adapter = freshAdapter()
+        var maxPrice = adapter.generateTick().first().currentPrice
         repeat(50) {
-            val tick = generator.generateTick().first()
+            val tick = adapter.generateTick().first()
             if (tick.currentPrice > maxPrice) maxPrice = tick.currentPrice
             tick.fiftyTwoWeekHigh shouldBeGreaterThanOrEqualTo maxPrice
         }
     }
 
     test("generateTick_priceFields_haveScale3") {
-        val generator = freshGenerator()
+        val adapter = freshAdapter()
         repeat(10) {
-            val result = generator.generateTick()
+            val result = adapter.generateTick()
             result.forEach { snapshot ->
                 snapshot.currentPrice.scale() shouldBe 3
                 snapshot.open.scale() shouldBe 3
@@ -149,33 +151,34 @@ class RandomPriceFeedGeneratorTest : FunSpec({
     }
 
     test("generateTick_updatedAt_isNonNull") {
-        val generator = freshGenerator()
-        val result = generator.generateTick()
+        val adapter = freshAdapter()
+        val result = adapter.generateTick()
         result.forEach { snapshot ->
             snapshot.updatedAt shouldNotBe null
         }
     }
 
     test("generateTick_tickers_areUniqueWithinSingleCall") {
-        val generator = freshGenerator()
+        val adapter = freshAdapter()
         repeat(20) {
-            val result = generator.generateTick()
+            val result = adapter.generateTick()
             result.map { it.ticker }.shouldBeUnique()
         }
     }
 
     test("generateTick_withSingleTicker_returnsExactlyOneTick") {
         whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
-        val generator = freshGenerator()
-        val result = generator.generateTick()
+        val adapter = freshAdapter()
+        val result = adapter.generateTick()
         result shouldHaveAtLeastSize 1
         result shouldHaveAtMostSize 1
     }
 
     test("generateTick_withEmptyTickers_returnsEmpty") {
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        val generator = freshGenerator()
-        val result = generator.generateTick()
+        val adapter = freshAdapter()
+        val result = adapter.generateTick()
         result.size shouldBe 0
     }
 })
+
