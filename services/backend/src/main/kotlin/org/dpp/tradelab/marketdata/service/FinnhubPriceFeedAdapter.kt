@@ -6,6 +6,7 @@ import org.dpp.tradelab.marketdata.messaging.MarketDataTickEvent
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
 import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.ApplicationEventPublisher
@@ -28,12 +29,17 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Any Finnhub API failure is silently dropped — the cache is not modified and the cursor
  * still advances on the next invocation.
+ *
+ * HTTP traffic (method, URI, request body, response status, response body) is logged at
+ * DEBUG level by the [org.dpp.tradelab.marketdata.config.FinnhubLoggingInterceptor] which
+ * is wired into the injected [RestClient] bean.
  */
 @Component
 @ConditionalOnProperty(name = ["app.features.enable-real-data"], havingValue = "true")
 class FinnhubPriceFeedAdapter(
     private val eventPublisher: ApplicationEventPublisher,
-    @Value("\${finnhub.api-key}") private val apiKey: String
+    @Value("\${finnhub.api-key}") private val apiKey: String,
+    @Qualifier("finnhubRestClient") private val restClient: RestClient
 ) : MarketDataFeedAdapter {
 
     private val logger = LoggerFactory.getLogger(FinnhubPriceFeedAdapter::class.java)
@@ -42,12 +48,9 @@ class FinnhubPriceFeedAdapter(
     internal var companyNames: Map<String, String> = emptyMap()
     internal val cursor = AtomicInteger(0)
 
-    // Overridable in tests via reflection or subclassing
+    // Overridable in tests via direct assignment
     internal var quoteSupplier: (String) -> QuoteResponse? = { ticker ->
-        RestClient.builder()
-            .baseUrl("https://finnhub.io/api/v1")
-            .defaultHeader("X-Finnhub-Token", apiKey)
-            .build()
+        restClient
             .get()
             .uri("/quote?symbol={symbol}", ticker)
             .retrieve()
