@@ -8,7 +8,9 @@ export interface PlatformSettingsSectionProps {}
 export function PlatformSettingsSection(_props: PlatformSettingsSectionProps) {
   const user = useSessionStore((s) => s.user)
   const settings = useSessionStore((s) => s.settings)
-  const { mutate, isPending, isError, isSuccess } = usePatchUserSettings(user?.userId ?? '')
+  const { mutate, isPending, isError, isSuccess, errorStatus } = usePatchUserSettings(
+    user?.userId ?? '',
+  )
 
   function handleFeedTypeChange(feedType: FeedType) {
     mutate({ feedType })
@@ -28,6 +30,7 @@ export function PlatformSettingsSection(_props: PlatformSettingsSectionProps) {
         onFeedTypeChange={handleFeedTypeChange}
         isPending={isPending}
         isError={isError}
+        errorStatus={errorStatus}
       />
       {isSuccess && (
         <p className="mt-2 text-xs text-green-600" role="status">
