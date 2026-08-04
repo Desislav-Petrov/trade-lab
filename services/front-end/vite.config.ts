@@ -6,20 +6,13 @@ export default defineConfig({
   plugins: [tailwindcss(), react()],
   server: {
     proxy: {
+      // All /api/* XHR/fetch calls are proxied to the backend.
+      // Note: window.location.href navigations (e.g. OAuth2 redirects) bypass
+      // this proxy — those must use an absolute URL pointing to localhost:8080.
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
-      },
-      // OAuth2 authorization trigger — Spring Security initiates the Google dance
-      '/oauth2': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      // Google callback — Spring Security receives the authorization code here
-      '/login/oauth2': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
       },
     },
   },
