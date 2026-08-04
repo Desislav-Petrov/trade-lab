@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet } from '@tanstack/react-router'
 import { Sidebar } from '../../shared/components/Sidebar'
 import { Topbar } from '../../shared/components/Topbar'
 

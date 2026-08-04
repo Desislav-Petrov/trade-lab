@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { createElement } from 'react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import { createElement, act } from 'react'
 import { AuthCallbackPage } from './AuthCallbackPage'
 import * as userApi from '../api/userApi'
 import type { UserResponse } from '../types/user'
@@ -22,20 +28,30 @@ const mockUserResponse: UserResponse = {
   settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
 }
 
-function renderPage(token: string | null) {
+async function renderPage(token: string | null) {
   const search = token ? `?token=${token}` : ''
-  return render(
-    createElement(
-      MemoryRouter,
-      { initialEntries: [`/auth/callback${search}`] },
-      createElement(
-        Routes,
-        null,
-        createElement(Route, { path: '/auth/callback', element: createElement(AuthCallbackPage) }),
-        createElement(Route, { path: '/trade', element: createElement('div', null, 'Trade Page') }),
-      ),
-    ),
-  )
+  const rootRoute = createRootRoute()
+  const callbackRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/auth/callback',
+    component: AuthCallbackPage,
+  })
+  const tradeRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/trade',
+    component: () => createElement('div', null, 'Trade Page'),
+  })
+  const routeTree = rootRoute.addChildren([callbackRoute, tradeRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [`/auth/callback${search}`] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(createElement(RouterProvider, { router }))
+  })
+  return result
 }
 
 describe('AuthCallbackPage', () => {
@@ -46,19 +62,19 @@ describe('AuthCallbackPage', () => {
 
   it('AuthCallbackPage - successful session - navigates to /trade', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockResolvedValue(mockUserResponse)
-    renderPage(VALID_TOKEN)
+    await renderPage(VALID_TOKEN)
     await waitFor(() => expect(screen.getByText('Trade Page')).toBeInTheDocument())
   })
 
   it('AuthCallbackPage - missing token - displays error message', async () => {
-    renderPage(null)
+    await renderPage(null)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.getByText(/authentication failed/i)).toBeInTheDocument()
   })
 
   it('AuthCallbackPage - fetch fails - displays error without navigating', async () => {
     vi.spyOn(userApi, 'fetchUserById').mockRejectedValue(new Error('fetch error'))
-    renderPage(VALID_TOKEN)
+    await renderPage(VALID_TOKEN)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.queryByText('Trade Page')).not.toBeInTheDocument()
   })

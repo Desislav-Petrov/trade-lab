@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate } from '@tanstack/react-router'
 import { useSessionStore } from '../hooks/useSessionStore'
 import { PlatformSettingsSection } from '../components/PlatformSettingsSection'
 

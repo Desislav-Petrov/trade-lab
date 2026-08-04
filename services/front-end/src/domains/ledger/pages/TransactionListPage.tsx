@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Navigate, useLocation, useParams } from 'react-router-dom'
+import { Navigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import { useTransactions } from '../hooks/useTransactions'
 import { TransactionTable } from '../components/TransactionTable'
@@ -11,10 +11,10 @@ interface LocationState {
 }
 
 export function TransactionListPage() {
-  const { accountId } = useParams<{ accountId: string }>()
+  const { accountId } = useParams({ strict: false })
   const user = useSessionStore((s) => s.user)
-  const location = useLocation()
-  const state = location.state as LocationState | null
+  const routerState = useRouterState()
+  const state = routerState.location.state as LocationState | null
 
   const accountName = state?.accountName
   const currency = state?.currency

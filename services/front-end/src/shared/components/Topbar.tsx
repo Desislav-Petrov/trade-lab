@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { useSessionStore } from '../../domains/user/hooks/useSessionStore'
 
 export function Topbar() {
@@ -8,7 +8,7 @@ export function Topbar() {
 
   function handleLogout() {
     clearSession()
-    navigate('/login')
+    navigate({ to: '/login' })
   }
 
   const today = new Date().toLocaleDateString(undefined, {

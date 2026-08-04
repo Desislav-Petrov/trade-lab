@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
 import { LoginForm } from '../components/LoginForm'
 import { useFetchUserProfile } from '../hooks/useFetchUserProfile'
 import { LoginWithGoogleButton } from '../components/LoginWithGoogleButton'
@@ -17,16 +17,16 @@ const OIDC_ERROR_MESSAGES: Record<string, string> = {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const banner = (location.state as LocationState | null)?.banner ?? null
+  const routerState = useRouterState()
+  const banner = (routerState.location.state as LocationState | null)?.banner ?? null
   const [profileError, setProfileError] = useState(false)
 
-  const errorCode = searchParams.get('error')
+  const search = useSearch({ strict: false }) as Record<string, string | undefined>
+  const errorCode = search?.error ?? null
   const oidcError = errorCode ? (OIDC_ERROR_MESSAGES[errorCode] ?? null) : null
 
   const fetchProfile = useFetchUserProfile({
-    onSuccess: () => navigate('/profile'),
+    onSuccess: () => navigate({ to: '/profile' }),
     onError: () => setProfileError(true),
   })
 
