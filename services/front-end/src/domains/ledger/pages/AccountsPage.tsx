@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from '@tanstack/react-router'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import { useAccounts, useOpenAccount, useTopUpAccount } from '../hooks/useLedger'
@@ -35,7 +35,7 @@ export function AccountsPage() {
         onError: (err) => {
           const axiosError = err as AxiosError
           if (axiosError?.response?.status === 401) {
-            navigate('/login', { replace: true })
+            navigate({ to: '/login', replace: true })
           } else {
             const message =
               axiosError?.response?.status === 400
@@ -56,8 +56,10 @@ export function AccountsPage() {
   }
 
   function handleTransactions(account: AccountResponse) {
-    navigate(`/accounts/${account.id}/transactions`, {
-      state: { accountName: account.name, currency: account.currency },
+    navigate({
+      to: '/accounts/$accountId/transactions',
+      params: { accountId: account.id },
+      state: (prev) => ({ ...prev, accountName: account.name, currency: account.currency }),
     })
   }
 
@@ -124,7 +126,7 @@ export function AccountsPage() {
                   const axiosError = err as AxiosError
                   const status = axiosError?.response?.status
                   if (status === 401) {
-                    navigate('/login', { replace: true })
+                    navigate({ to: '/login', replace: true })
                   } else {
                     setTopUpError(
                       status === 400

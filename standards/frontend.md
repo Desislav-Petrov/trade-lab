@@ -50,7 +50,7 @@ services/front-end/
       types/          # Shared TypeScript types
     app/
       App.tsx         # Root component
-      router.tsx      # React Router configuration
+      router.tsx      # TanStack Router route tree configuration
       main.tsx        # Entry point
 ```
 

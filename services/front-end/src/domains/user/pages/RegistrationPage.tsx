@@ -1,11 +1,11 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { RegistrationForm } from '../components/RegistrationForm'
 
 export function RegistrationPage() {
   const navigate = useNavigate()
 
   function handleSuccess() {
-    navigate('/login', { state: { banner: 'Account created. Please log in.' } })
+    navigate({ to: '/login', state: (prev) => ({ ...prev, banner: 'Account created. Please log in.' }) })
   }
 
   return (

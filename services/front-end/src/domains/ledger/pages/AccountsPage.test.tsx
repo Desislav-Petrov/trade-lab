@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { createElement } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccountsPage } from './AccountsPage'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -122,31 +128,41 @@ const mockAccount: AccountResponse = {
   createdAt: '2026-01-01T00:00:00Z',
 }
 
-function renderPage(initialPath = '/accounts') {
+async function renderPage(initialPath = '/accounts') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  return render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
+  const rootRoute = createRootRoute()
+  const accountsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/accounts',
+    component: AccountsPage,
+  })
+  const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: () => createElement('div', null, 'Login Page'),
+  })
+  const transactionsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/accounts/$accountId/transactions',
+    component: () => createElement('div', null, 'Transaction List Page'),
+  })
+  const routeTree = rootRoute.addChildren([accountsRoute, loginRoute, transactionsRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
-        MemoryRouter,
-        { initialEntries: [initialPath] },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, { path: '/accounts', element: createElement(AccountsPage) }),
-          createElement(Route, {
-            path: '/login',
-            element: createElement('div', null, 'Login Page'),
-          }),
-          createElement(Route, {
-            path: '/accounts/:accountId/transactions',
-            element: createElement('div', null, 'Transaction List Page'),
-          }),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 function setupMocks(
@@ -184,20 +200,20 @@ describe('AccountsPage', () => {
     act(() => useSessionStore.getState().clearSession())
   })
 
-  it('AccountsPage - no session - redirects to /login', () => {
+  it('AccountsPage - no session - redirects to /login', async () => {
     setupMocks()
-    renderPage()
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    await renderPage()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('AccountsPage - session exists - renders heading', () => {
+  it('AccountsPage - session exists - renders heading', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
     expect(screen.getByRole('heading', { name: /accounts/i })).toBeInTheDocument()
   })
 
-  it('AccountsPage - loading accounts - shows loading text', () => {
+  it('AccountsPage - loading accounts - shows loading text', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseAccounts.mockReturnValue({
       data: undefined,
@@ -213,31 +229,31 @@ describe('AccountsPage', () => {
       isSuccess: false,
       reset: vi.fn(),
     } as unknown as ReturnType<typeof useTopUpAccount>)
-    renderPage()
+    await renderPage()
     expect(screen.getByText(/loading accounts/i)).toBeInTheDocument()
   })
 
-  it('AccountsPage - accounts loaded - renders AccountList', () => {
+  it('AccountsPage - accounts loaded - renders AccountList', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('account-list')).toBeInTheDocument()
   })
 
-  it('AccountsPage - open new account clicked - shows OpenAccountForm', () => {
+  it('AccountsPage - open new account clicked - shows OpenAccountForm', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
 
     expect(screen.getByTestId('open-account-form')).toBeInTheDocument()
   })
 
-  it('AccountsPage - cancel form - hides OpenAccountForm', () => {
+  it('AccountsPage - cancel form - hides OpenAccountForm', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /cancel form/i }))
@@ -245,11 +261,11 @@ describe('AccountsPage', () => {
     expect(screen.queryByTestId('open-account-form')).not.toBeInTheDocument()
   })
 
-  it('AccountsPage - form submitted - calls mutate with userId and currency', () => {
+  it('AccountsPage - form submitted - calls mutate with userId and currency', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const mutate = vi.fn()
     setupMocks({ openAccountMutate: mutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /submit form/i }))
@@ -260,11 +276,11 @@ describe('AccountsPage', () => {
     )
   })
 
-  it('AccountsPage - mutation success - hides form', () => {
+  it('AccountsPage - mutation success - hides form', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const mutate = vi.fn((_, { onSuccess }: { onSuccess: () => void }) => onSuccess())
     setupMocks({ openAccountMutate: mutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /submit form/i }))
@@ -272,7 +288,7 @@ describe('AccountsPage', () => {
     expect(screen.queryByTestId('open-account-form')).not.toBeInTheDocument()
   })
 
-  it('AccountsPage - mutation 401 error - redirects to /login', () => {
+  it('AccountsPage - mutation 401 error - redirects to /login', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Unauthorized'), {
       isAxiosError: true,
@@ -280,15 +296,15 @@ describe('AccountsPage', () => {
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ openAccountMutate: mutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /submit form/i }))
 
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('AccountsPage - mutation 400 error - shows error in form', () => {
+  it('AccountsPage - mutation 400 error - shows error in form', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Bad Request'), {
       isAxiosError: true,
@@ -296,7 +312,7 @@ describe('AccountsPage', () => {
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ openAccountMutate: mutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /submit form/i }))
@@ -305,7 +321,7 @@ describe('AccountsPage', () => {
     expect(screen.getByText(/invalid request/i)).toBeInTheDocument()
   })
 
-  it('AccountsPage - mutation 403 error - shows authorisation error in form', () => {
+  it('AccountsPage - mutation 403 error - shows authorisation error in form', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Forbidden'), {
       isAxiosError: true,
@@ -313,7 +329,7 @@ describe('AccountsPage', () => {
     })
     const mutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ openAccountMutate: mutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /open new account/i }))
     fireEvent.click(screen.getByRole('button', { name: /submit form/i }))
@@ -324,10 +340,10 @@ describe('AccountsPage', () => {
 
   // --- Top-up flow tests ---
 
-  it('AccountsPage - clicking Top Up on an account - opens TopUpModal for that account', () => {
+  it('AccountsPage - clicking Top Up on an account - opens TopUpModal for that account', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ accounts: [mockAccount] })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
 
@@ -335,20 +351,20 @@ describe('AccountsPage', () => {
     expect(screen.getByText(/Amount/i)).toBeInTheDocument()
   })
 
-  it('AccountsPage - successful top-up - isSuccess passed as true to modal', () => {
+  it('AccountsPage - successful top-up - isSuccess passed as true to modal', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ accounts: [mockAccount], topUpIsSuccess: true })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
 
     expect(screen.getByText('Top up successful')).toBeInTheDocument()
   })
 
-  it('AccountsPage - closing modal - clears selectedAccount', () => {
+  it('AccountsPage - closing modal - clears selectedAccount', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ accounts: [mockAccount] })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
     expect(screen.getByTestId('top-up-modal')).toBeInTheDocument()
@@ -358,7 +374,7 @@ describe('AccountsPage', () => {
     expect(screen.queryByTestId('top-up-modal')).not.toBeInTheDocument()
   })
 
-  it('AccountsPage - top-up 401 error - navigates to /login', () => {
+  it('AccountsPage - top-up 401 error - navigates to /login', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Unauthorized'), {
       isAxiosError: true,
@@ -366,15 +382,15 @@ describe('AccountsPage', () => {
     })
     const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
     fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
 
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('AccountsPage - top-up 403 error - passes correct error string to modal', () => {
+  it('AccountsPage - top-up 403 error - passes correct error string to modal', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Forbidden'), {
       isAxiosError: true,
@@ -382,7 +398,7 @@ describe('AccountsPage', () => {
     })
     const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
     fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
@@ -391,7 +407,7 @@ describe('AccountsPage', () => {
     expect(screen.getByText('This account is not available for top-up.')).toBeInTheDocument()
   })
 
-  it('AccountsPage - top-up 404 error - passes correct error string to modal', () => {
+  it('AccountsPage - top-up 404 error - passes correct error string to modal', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Not Found'), {
       isAxiosError: true,
@@ -399,7 +415,7 @@ describe('AccountsPage', () => {
     })
     const topUpMutate = vi.fn((_, { onError }: { onError: (e: unknown) => void }) => onError(error))
     setupMocks({ accounts: [mockAccount], topUpMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /top up/i }))
     fireEvent.click(screen.getByRole('button', { name: /confirm top up/i }))
@@ -410,13 +426,13 @@ describe('AccountsPage', () => {
 
   // --- Transactions navigation tests ---
 
-  it('AccountsPage - clicking Transactions on an account - navigates to transaction list page', () => {
+  it('AccountsPage - clicking Transactions on an account - navigates to transaction list page', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ accounts: [mockAccount] })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /transactions/i }))
 
-    expect(screen.getByText('Transaction List Page')).toBeInTheDocument()
+    expect(await screen.findByText('Transaction List Page')).toBeInTheDocument()
   })
 })

@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { createElement } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { TransactionListPage } from './TransactionListPage'
@@ -83,37 +89,40 @@ const mockTransactionListResponse: TransactionListResponse = {
   totalCount: 60,
 }
 
-function renderPage(
+async function renderPage(
   initialPath = '/accounts/acc-1/transactions',
   locationState?: Record<string, string>,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  return render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
+  const rootRoute = createRootRoute()
+  const transactionsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/accounts/$accountId/transactions',
+    component: TransactionListPage,
+  })
+  const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: () => createElement('div', null, 'Login Page'),
+  })
+  const routeTree = rootRoute.addChildren([transactionsRoute, loginRoute])
+  const memoryHistory = createMemoryHistory({ initialEntries: [initialPath] })
+  if (locationState) {
+    memoryHistory.push(initialPath, locationState)
+  }
+  const router = createRouter({ routeTree, history: memoryHistory })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
-        MemoryRouter,
-        {
-          initialEntries: [
-            locationState ? { pathname: initialPath, state: locationState } : initialPath,
-          ],
-        },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, {
-            path: '/accounts/:accountId/transactions',
-            element: createElement(TransactionListPage),
-          }),
-          createElement(Route, {
-            path: '/login',
-            element: createElement('div', null, 'Login Page'),
-          }),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 describe('TransactionListPage', () => {
@@ -122,18 +131,18 @@ describe('TransactionListPage', () => {
     act(() => useSessionStore.getState().clearSession())
   })
 
-  it('TransactionListPage - no session - redirects to /login', () => {
+  it('TransactionListPage - no session - redirects to /login', async () => {
     mockUseTransactions.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: false,
       error: null,
     })
-    renderPage()
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    await renderPage()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - session exists with location state - renders heading with name and currency', () => {
+  it('TransactionListPage - session exists with location state - renders heading with name and currency', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: mockTransactionListResponse,
@@ -141,14 +150,14 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
     expect(screen.getByRole('heading', { name: 'My USD Account — USD' })).toBeInTheDocument()
   })
 
-  it('TransactionListPage - no location state - falls back to accountId in heading', () => {
+  it('TransactionListPage - no location state - falls back to accountId in heading', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: mockTransactionListResponse,
@@ -156,11 +165,11 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions')
+    await renderPage('/accounts/acc-1/transactions')
     expect(screen.getByRole('heading', { name: 'acc-1' })).toBeInTheDocument()
   })
 
-  it('TransactionListPage - data loaded - renders TransactionTable with transactions', () => {
+  it('TransactionListPage - data loaded - renders TransactionTable with transactions', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: mockTransactionListResponse,
@@ -168,7 +177,7 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
@@ -176,7 +185,7 @@ describe('TransactionListPage', () => {
     expect(screen.getByText('1 transactions')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - data loaded - renders PaginationControls', () => {
+  it('TransactionListPage - data loaded - renders PaginationControls', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: mockTransactionListResponse,
@@ -184,7 +193,7 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
@@ -192,7 +201,7 @@ describe('TransactionListPage', () => {
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - clicking Next - calls useTransactions with incremented page', () => {
+  it('TransactionListPage - clicking Next - calls useTransactions with incremented page', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: mockTransactionListResponse,
@@ -200,7 +209,7 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
@@ -213,7 +222,7 @@ describe('TransactionListPage', () => {
     expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - isLoading true - renders loading state via TransactionTable', () => {
+  it('TransactionListPage - isLoading true - renders loading state via TransactionTable', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: undefined,
@@ -221,14 +230,14 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - isError true - renders error state via TransactionTable', () => {
+  it('TransactionListPage - isError true - renders error state via TransactionTable', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: undefined,
@@ -236,7 +245,7 @@ describe('TransactionListPage', () => {
       isError: true,
       error: new Error('500'),
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
@@ -244,7 +253,7 @@ describe('TransactionListPage', () => {
     expect(screen.getByText('Could not load transactions.')).toBeInTheDocument()
   })
 
-  it('TransactionListPage - empty transactions - renders empty state and no pagination', () => {
+  it('TransactionListPage - empty transactions - renders empty state and no pagination', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseTransactions.mockReturnValue({
       data: { transactions: [], page: 0, totalPages: 0, totalCount: 0 },
@@ -252,7 +261,7 @@ describe('TransactionListPage', () => {
       isError: false,
       error: null,
     })
-    renderPage('/accounts/acc-1/transactions', {
+    await renderPage('/accounts/acc-1/transactions', {
       accountName: 'My USD Account',
       currency: 'USD',
     })
