@@ -28,7 +28,20 @@ export async function loginUser(request: LoginRequest): Promise<LoginResponse> {
   return response.data
 }
 
-export async function fetchUserById(userId: string): Promise<UserResponse> {
-  const response = await axiosInstance.get<UserResponse>(`/v1/users/${userId}`)
+/**
+ * Fetch a user profile by ID.
+ *
+ * @param userId   - The UUID of the user to fetch.
+ * @param accessToken - Optional bearer token to use for this request.
+ *   Required during the OAuth2 callback bootstrap where the session has not
+ *   yet been persisted to localStorage and the Axios interceptor would
+ *   therefore send the request without an Authorization header.
+ */
+export async function fetchUserById(
+  userId: string,
+  accessToken?: string,
+): Promise<UserResponse> {
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+  const response = await axiosInstance.get<UserResponse>(`/v1/users/${userId}`, { headers })
   return response.data
 }

@@ -72,7 +72,7 @@ describe('loginUser', () => {
 describe('fetchUserById', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('fetchUserById - success - returns UserResponse with settings', async () => {
+  it('fetchUserById - success without token - calls correct URL without Authorization header', async () => {
     const profile = {
       userId: 'u1',
       firstName: 'Jane',
@@ -89,7 +89,28 @@ describe('fetchUserById', () => {
 
     expect(result).toEqual(profile)
     expect(result.settings).toEqual({ feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' })
-    expect(mockGet).toHaveBeenCalledWith('/v1/users/u1')
+    expect(mockGet).toHaveBeenCalledWith('/v1/users/u1', { headers: undefined })
+  })
+
+  it('fetchUserById - with accessToken - passes Authorization header', async () => {
+    const profile = {
+      userId: 'u1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      address: null,
+      email: 'jane@example.com',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00Z',
+      settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
+    }
+    mockGet.mockResolvedValueOnce({ data: profile })
+
+    const result = await fetchUserById('u1', 'my-jwt-token')
+
+    expect(result).toEqual(profile)
+    expect(mockGet).toHaveBeenCalledWith('/v1/users/u1', {
+      headers: { Authorization: 'Bearer my-jwt-token' },
+    })
   })
 
   it('fetchUserById - 404 - throws AxiosError', async () => {

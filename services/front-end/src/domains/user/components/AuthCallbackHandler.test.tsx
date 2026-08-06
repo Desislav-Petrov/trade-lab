@@ -70,6 +70,13 @@ describe('AuthCallbackHandler', () => {
     )
   })
 
+  it('AuthCallbackHandler - valid token - passes token to fetchUserById for bootstrap auth', async () => {
+    const spy = vi.spyOn(userApi, 'fetchUserById').mockResolvedValue(mockUserResponse)
+    renderWithToken(VALID_TOKEN)
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    expect(spy).toHaveBeenCalledWith(SUB, VALID_TOKEN)
+  })
+
   it('AuthCallbackHandler - missing token - shows error message', async () => {
     renderWithToken(null)
     await waitFor(() =>
