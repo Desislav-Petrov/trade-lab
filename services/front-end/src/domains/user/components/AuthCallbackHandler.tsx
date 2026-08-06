@@ -41,7 +41,7 @@ export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
       }
 
       try {
-        const userResponse = await fetchUserById(userId)
+        const userResponse = await fetchUserById(userId, token)
         establishSession(userResponse, token)
         onSuccess()
       } catch {
