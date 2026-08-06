@@ -18,15 +18,13 @@ export interface AuthCallbackHandlerProps {
 }
 
 export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
-  const search = useSearch({ strict: false }) as Record<string, string | undefined>
+  const { token } = useSearch({ strict: false }) as { token?: string }
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const establishSession = useSessionStore((s) => s.establishSession)
 
   useEffect(() => {
     async function handleCallback() {
-      const token = search?.token ?? null
-
       if (!token) {
         setError('Authentication failed. Please try again.')
         setLoading(false)

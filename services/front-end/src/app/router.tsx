@@ -37,6 +37,9 @@ const authCallbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/callback',
   component: AuthCallbackPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search.token === 'string' ? search.token : undefined,
+  }),
 })
 
 const profileRoute = createRoute({
