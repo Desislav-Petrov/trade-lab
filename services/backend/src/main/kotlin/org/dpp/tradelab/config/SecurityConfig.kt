@@ -2,6 +2,7 @@ package org.dpp.tradelab.config
 
 import org.dpp.tradelab.user.controller.JwtAuthenticationFilter
 import org.dpp.tradelab.user.controller.OidcAuthenticationSuccessHandler
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -26,6 +27,8 @@ class SecurityConfig(
     @Value("\${app.frontend.origin}")
     private val frontendOrigin: String
 ) {
+
+    private val logger = LoggerFactory.getLogger(SecurityConfig::class.java)
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -66,7 +69,8 @@ class SecurityConfig(
                 if (!environment.activeProfiles.contains("test")) {
                     oauth2Login { oauth2 ->
                         oauth2.successHandler(oidcAuthenticationSuccessHandler)
-                        oauth2.failureHandler { _, response, _ ->
+                        oauth2.failureHandler { _, response, exception ->
+                            logger.error("OAuth2 login failure", exception)
                             response.sendRedirect("$frontendOrigin/login?error=oidc_failed")
                         }
                     }
