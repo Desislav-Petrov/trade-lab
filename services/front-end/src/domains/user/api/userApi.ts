@@ -28,7 +28,9 @@ export async function loginUser(request: LoginRequest): Promise<LoginResponse> {
   return response.data
 }
 
-export async function fetchUserById(userId: string): Promise<UserResponse> {
-  const response = await axiosInstance.get<UserResponse>(`/v1/users/${userId}`)
+export async function fetchUserById(userId: string, token?: string): Promise<UserResponse> {
+  const response = await axiosInstance.get<UserResponse>(`/v1/users/${userId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
   return response.data
 }
