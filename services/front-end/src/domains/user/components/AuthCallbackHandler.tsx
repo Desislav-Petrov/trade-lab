@@ -41,7 +41,11 @@ export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
       }
 
       try {
-        const userResponse = await fetchUserById(userId)
+        // Pass token explicitly: the session is not yet established so the
+        // Axios interceptor cannot attach the Authorization header from
+        // localStorage. Without this the request is sent unauthenticated
+        // and the backend returns 401, causing the error message to appear.
+        const userResponse = await fetchUserById(userId, token)
         establishSession(userResponse, token)
         onSuccess()
       } catch {
