@@ -28,7 +28,39 @@ axiosInstance.interceptors.request.use((config) => {
   } catch {
     // localStorage unavailable or session malformed — proceed without token
   }
+
+  // DEBUG logging — helps diagnose auth issues in the browser console
+  console.debug(
+    `[axios] --> ${config.method?.toUpperCase()} ${config.baseURL ?? ''}${config.url ?? ''}`,
+    '\n  Authorization:', (config.headers['Authorization'] as string | undefined)
+      ? `Bearer ${String(config.headers['Authorization']).slice(7, 17)}…`
+      : 'NONE',
+  )
+
   return config
 })
+
+// Log every response (status + url) so failures are visible without DevTools Network tab
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.debug(
+      `[axios] <-- ${response.status} ${response.config.method?.toUpperCase()} ${
+        response.config.baseURL ?? ''
+      }${response.config.url ?? ''}`,
+    )
+    return response
+  },
+  (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `[axios] <-- ${error.response?.status ?? 'ERR'} ${
+          error.config?.method?.toUpperCase() ?? '?'
+        } ${error.config?.baseURL ?? ''}${error.config?.url ?? ''}`,
+        '\n  response body:', error.response?.data,
+      )
+    }
+    return Promise.reject(error)
+  },
+)
 
 export default axiosInstance
