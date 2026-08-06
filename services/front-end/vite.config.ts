@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import type { IncomingMessage, ClientRequest } from 'http'
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
@@ -13,6 +14,20 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
+        // Explicitly forward the Authorization header.
+        // Some versions of http-proxy (used by Vite internally) strip
+        // the Authorization header when changeOrigin is true.
+        // The configure hook runs once on proxy creation; proxyReq runs
+        // on every request and copies the header from the original request.
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq: ClientRequest, req: IncomingMessage) => {
+            const auth = (req as IncomingMessage & { headers: Record<string, string | string[] | undefined> }).headers['authorization']
+            if (auth) {
+              const authValue = Array.isArray(auth) ? auth[0] : auth
+              proxyReq.setHeader('Authorization', authValue)
+            }
+          })
+        },
       },
     },
   },
