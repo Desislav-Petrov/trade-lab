@@ -25,24 +25,33 @@ export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
 
   useEffect(() => {
     async function handleCallback() {
+      console.log('[AuthCallback] search token:', token)
+
       if (!token) {
+        console.error('[AuthCallback] no token in search params')
         setError('Authentication failed. Please try again.')
         setLoading(false)
         return
       }
 
       const userId = decodeJwtSub(token)
+      console.log('[AuthCallback] decoded userId:', userId)
+
       if (!userId) {
+        console.error('[AuthCallback] could not decode userId from token')
         setError('Authentication failed. Please try again.')
         setLoading(false)
         return
       }
 
       try {
+        console.log('[AuthCallback] fetching user profile for:', userId)
         const userResponse = await fetchUserById(userId, token)
+        console.log('[AuthCallback] user fetched successfully:', userResponse)
         establishSession(userResponse, token)
         onSuccess()
-      } catch {
+      } catch (e) {
+        console.error('[AuthCallback] fetchUserById failed:', e)
         setError('Authentication failed. Please try again.')
         setLoading(false)
       }
