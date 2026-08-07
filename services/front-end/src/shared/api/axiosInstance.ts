@@ -15,52 +15,25 @@ const axiosInstance = axios.create({
 })
 
 // Attach Bearer token from localStorage session on every request.
-// No-op if no session exists or token is absent.
+// Only sets the header when the caller has NOT already supplied one —
+// this prevents a stale/expired token in localStorage from overwriting
+// an explicit token passed by the caller (e.g. the OAuth2 callback
+// bootstrap fetch in AuthCallbackHandler).
 axiosInstance.interceptors.request.use((config) => {
-  try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
-    if (raw) {
-      const session = JSON.parse(raw) as Session
-      if (session.accessToken) {
-        config.headers['Authorization'] = `Bearer ${session.accessToken}`
+  if (!config.headers['Authorization']) {
+    try {
+      const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+      if (raw) {
+        const session = JSON.parse(raw) as Session
+        if (session.accessToken) {
+          config.headers['Authorization'] = `Bearer ${session.accessToken}`
+        }
       }
+    } catch {
+      // localStorage unavailable or session malformed — proceed without token
     }
-  } catch {
-    // localStorage unavailable or session malformed — proceed without token
   }
-
-  // DEBUG logging — helps diagnose auth issues in the browser console
-  console.debug(
-    `[axios] --> ${config.method?.toUpperCase()} ${config.baseURL ?? ''}${config.url ?? ''}`,
-    '\n  Authorization:', (config.headers['Authorization'] as string | undefined)
-      ? `Bearer ${String(config.headers['Authorization']).slice(7, 17)}…`
-      : 'NONE',
-  )
-
   return config
 })
-
-// Log every response (status + url) so failures are visible without DevTools Network tab
-axiosInstance.interceptors.response.use(
-  (response) => {
-    console.debug(
-      `[axios] <-- ${response.status} ${response.config.method?.toUpperCase()} ${
-        response.config.baseURL ?? ''
-      }${response.config.url ?? ''}`,
-    )
-    return response
-  },
-  (error: unknown) => {
-    if (axios.isAxiosError(error)) {
-      console.error(
-        `[axios] <-- ${error.response?.status ?? 'ERR'} ${
-          error.config?.method?.toUpperCase() ?? '?'
-        } ${error.config?.baseURL ?? ''}${error.config?.url ?? ''}`,
-        '\n  response body:', error.response?.data,
-      )
-    }
-    return Promise.reject(error)
-  },
-)
 
 export default axiosInstance

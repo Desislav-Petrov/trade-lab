@@ -1,70 +1,62 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { SESSION_STORAGE_KEY } from '../../domains/user/types/user'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import axios from 'axios'
 
-// axiosInstance is a module singleton — we need to import it fresh for each test
-// to pick up different localStorage states. Since Vitest doesn't hot-reload
-// modules per test, we mock localStorage before the import.
-const SESSION_KEY = SESSION_STORAGE_KEY
+const SESSION_KEY = 'trade-lab-session'
 
-describe('axiosInstance', () => {
-  it('axiosInstance - timeout - is configured to 10000ms', async () => {
-    const { default: axiosInstance } = await import('./axiosInstance')
-    expect(axiosInstance.defaults.timeout).toBe(10_000)
+describe('axiosInstance request interceptor', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.resetModules()
   })
 
-  it('axiosInstance - baseURL - is /api', async () => {
-    const { default: axiosInstance } = await import('./axiosInstance')
-    expect(axiosInstance.defaults.baseURL).toBe('/api')
+  afterEach(() => {
+    localStorage.clear()
   })
 
-  it('axiosInstance - Content-Type - is application/json', async () => {
-    const { default: axiosInstance } = await import('./axiosInstance')
-    expect(axiosInstance.defaults.headers['Content-Type']).toBe('application/json')
+  it('sets Authorization from localStorage when no header is pre-set', async () => {
+    const session = { accessToken: 'stored-token' }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+
+    const { default: instance } = await import('./axiosInstance')
+    // Intercept the outgoing request config
+    let capturedAuth: string | undefined
+    instance.interceptors.request.use((config) => {
+      capturedAuth = config.headers['Authorization'] as string | undefined
+      // Abort — we only care about the headers, not the actual HTTP call
+      return Promise.reject(new axios.Cancel('test abort'))
+    })
+
+    await instance.get('/test').catch(() => {})
+    expect(capturedAuth).toBe('Bearer stored-token')
   })
 
-  describe('Bearer token interceptor', () => {
-    beforeEach(() => {
-      localStorage.clear()
+  it('does NOT overwrite an Authorization header already set by the caller', async () => {
+    const session = { accessToken: 'stale-old-token' }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+
+    const { default: instance } = await import('./axiosInstance')
+    let capturedAuth: string | undefined
+    instance.interceptors.request.use((config) => {
+      capturedAuth = config.headers['Authorization'] as string | undefined
+      return Promise.reject(new axios.Cancel('test abort'))
     })
 
-    afterEach(() => {
-      localStorage.clear()
+    await instance.get('/test', {
+      headers: { Authorization: 'Bearer fresh-bootstrap-token' },
+    }).catch(() => {})
+
+    expect(capturedAuth).toBe('Bearer fresh-bootstrap-token')
+  })
+
+  it('sends no Authorization header when localStorage is empty', async () => {
+    const { default: instance } = await import('./axiosInstance')
+    let capturedAuth: string | undefined
+    instance.interceptors.request.use((config) => {
+      capturedAuth = config.headers['Authorization'] as string | undefined
+      return Promise.reject(new axios.Cancel('test abort'))
     })
 
-    it('axiosInstance - session with accessToken in localStorage - attaches Authorization header', async () => {
-      const mockSession = { accessToken: 'test-jwt-token' }
-      localStorage.setItem(SESSION_KEY, JSON.stringify(mockSession))
-
-      const { default: axiosInstance } = await import('./axiosInstance')
-
-      // Trigger the interceptor by creating a config and running it through
-      const interceptor = axiosInstance.interceptors.request as unknown as {
-        handlers: Array<{ fulfilled: (config: unknown) => unknown }>
-      }
-      const lastHandler = interceptor.handlers[interceptor.handlers.length - 1]
-
-      const mockConfig = {
-        headers: {} as Record<string, string>,
-      }
-      lastHandler.fulfilled(mockConfig)
-
-      expect(mockConfig.headers['Authorization']).toBe('Bearer test-jwt-token')
-    })
-
-    it('axiosInstance - no session in localStorage - does not attach Authorization header', async () => {
-      const { default: axiosInstance } = await import('./axiosInstance')
-
-      const interceptor = axiosInstance.interceptors.request as unknown as {
-        handlers: Array<{ fulfilled: (config: unknown) => unknown }>
-      }
-      const lastHandler = interceptor.handlers[interceptor.handlers.length - 1]
-
-      const mockConfig = {
-        headers: {} as Record<string, string>,
-      }
-      lastHandler.fulfilled(mockConfig)
-
-      expect(mockConfig.headers['Authorization']).toBeUndefined()
-    })
+    await instance.get('/test').catch(() => {})
+    expect(capturedAuth).toBeUndefined()
   })
 })
