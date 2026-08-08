@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { fetchUserById } from '../api/userApi'

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import axios from 'axios'
 
 const SESSION_KEY = 'trade-lab-session'
 
@@ -18,13 +17,12 @@ describe('axiosInstance request interceptor', () => {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
 
     const { default: instance } = await import('./axiosInstance')
-    // Intercept the outgoing request config
+    // Use a custom adapter to capture the final config after all interceptors run
     let capturedAuth: string | undefined
-    instance.interceptors.request.use((config) => {
+    instance.defaults.adapter = async (config) => {
       capturedAuth = config.headers['Authorization'] as string | undefined
-      // Abort — we only care about the headers, not the actual HTTP call
-      return Promise.reject(new axios.Cancel('test abort'))
-    })
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
 
     await instance.get('/test').catch(() => {})
     expect(capturedAuth).toBe('Bearer stored-token')
@@ -36,10 +34,10 @@ describe('axiosInstance request interceptor', () => {
 
     const { default: instance } = await import('./axiosInstance')
     let capturedAuth: string | undefined
-    instance.interceptors.request.use((config) => {
+    instance.defaults.adapter = async (config) => {
       capturedAuth = config.headers['Authorization'] as string | undefined
-      return Promise.reject(new axios.Cancel('test abort'))
-    })
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
 
     await instance.get('/test', {
       headers: { Authorization: 'Bearer fresh-bootstrap-token' },
@@ -51,10 +49,10 @@ describe('axiosInstance request interceptor', () => {
   it('sends no Authorization header when localStorage is empty', async () => {
     const { default: instance } = await import('./axiosInstance')
     let capturedAuth: string | undefined
-    instance.interceptors.request.use((config) => {
+    instance.defaults.adapter = async (config) => {
       capturedAuth = config.headers['Authorization'] as string | undefined
-      return Promise.reject(new axios.Cancel('test abort'))
-    })
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
 
     await instance.get('/test').catch(() => {})
     expect(capturedAuth).toBeUndefined()
