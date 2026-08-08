@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import axios from 'axios'
+import { useEffect, useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
 import { fetchUserById } from '../api/userApi'
 import { useSessionStore } from '../hooks/useSessionStore'
 
@@ -19,18 +19,14 @@ export interface AuthCallbackHandlerProps {
 }
 
 export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
-  const [searchParams] = useSearchParams()
+  const search = useSearch({ strict: false }) as Record<string, string | undefined>
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const establishSession = useSessionStore((s) => s.establishSession)
 
   useEffect(() => {
     async function handleCallback() {
-      console.group('[AuthCallback] handleCallback start')
-
-      // ── Step 1: token present? ──────────────────────────────────────────────
-      const token = searchParams.get('token')
-      console.log('[AuthCallback] raw ?token param:', token ? `${token.slice(0, 30)}…` : 'MISSING')
+      const token = search?.token ?? null
 
       if (!token) {
         console.error('[AuthCallback] FAIL: no token in URL')

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
 import { patchUserSettings } from '../api/userSettingsApi'
 import { useSessionStore } from './useSessionStore'
@@ -16,7 +16,7 @@ export function usePatchUserSettings(userId: string) {
     },
     onError: (err: unknown) => {
       if (isAxiosError(err) && err.response?.status === 401) {
-        navigate('/login', { replace: true })
+        navigate({ to: '/login', replace: true })
       }
     },
   })

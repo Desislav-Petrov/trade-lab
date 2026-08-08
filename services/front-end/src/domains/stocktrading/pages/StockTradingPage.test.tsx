@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { StockTradingPage } from './StockTradingPage'
@@ -253,27 +259,36 @@ const mockActiveAccounts = [
   },
 ]
 
-function renderPage(initialPath = '/trade') {
+async function renderPage(initialPath = '/trade') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  return render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
+  const rootRoute = createRootRoute()
+  const tradeRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/trade',
+    component: StockTradingPage,
+  })
+  const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: () => createElement('div', null, 'Login Page'),
+  })
+  const routeTree = rootRoute.addChildren([tradeRoute, loginRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
-        MemoryRouter,
-        { initialEntries: [initialPath] },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, { path: '/trade', element: createElement(StockTradingPage) }),
-          createElement(Route, {
-            path: '/login',
-            element: createElement('div', null, 'Login Page'),
-          }),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 function setupMocks(
@@ -336,44 +351,44 @@ describe('StockTradingPage', () => {
     mockUseMarketDataFeed.mockReturnValue({ rows: [], feedStatus: 'connecting' })
   })
 
-  it('StockTradingPage - no session - redirects to /login', () => {
+  it('StockTradingPage - no session - redirects to /login', async () => {
     setupMocks()
-    renderPage()
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    await renderPage()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('StockTradingPage - session exists with subscriptions - renders subscription list', () => {
+  it('StockTradingPage - session exists with subscriptions - renders subscription list', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('subscription-list')).toBeInTheDocument()
     expect(screen.getByText('AAPL')).toBeInTheDocument()
     expect(screen.getByText('MSFT')).toBeInTheDocument()
   })
 
-  it('StockTradingPage - session exists with empty subscriptions - renders empty state', () => {
+  it('StockTradingPage - session exists with empty subscriptions - renders empty state', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ subscriptions: [] })
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('empty-state')).toBeInTheDocument()
     expect(screen.getByText(/you have no subscriptions yet/i)).toBeInTheDocument()
   })
 
-  it('StockTradingPage - Add tickers button clicked - opens AddTickerPanel', () => {
+  it('StockTradingPage - Add tickers button clicked - opens AddTickerPanel', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
 
     expect(screen.queryByTestId('add-ticker-panel')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /add tickers/i }))
     expect(screen.getByTestId('add-ticker-panel')).toBeInTheDocument()
   })
 
-  it('StockTradingPage - onAdd fires - calls bulkAddSubscriptions with correct tickers', () => {
+  it('StockTradingPage - onAdd fires - calls bulkAddSubscriptions with correct tickers', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const addMutate = vi.fn()
     setupMocks({ addMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: /add tickers/i }))
     fireEvent.click(screen.getByRole('button', { name: /confirm add/i }))
@@ -381,11 +396,11 @@ describe('StockTradingPage', () => {
     expect(addMutate).toHaveBeenCalledWith({ userId: 'u1', tickers: ['AAPL'] }, expect.any(Object))
   })
 
-  it('StockTradingPage - onRemove fires - calls bulkRemoveSubscriptions with selected tickers', () => {
+  it('StockTradingPage - onRemove fires - calls bulkRemoveSubscriptions with selected tickers', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const removeMutate = vi.fn()
     setupMocks({ removeMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
@@ -396,7 +411,7 @@ describe('StockTradingPage', () => {
     )
   })
 
-  it('StockTradingPage - remove mutation fails - displays error message', () => {
+  it('StockTradingPage - remove mutation fails - displays error message', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     const error = Object.assign(new Error('Server Error'), {
       isAxiosError: true,
@@ -406,7 +421,7 @@ describe('StockTradingPage', () => {
       onError(error),
     )
     setupMocks({ removeMutate })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getAllByRole('button', { name: /toggle/i })[0])
     fireEvent.click(screen.getByRole('button', { name: /remove selected/i }))
@@ -415,17 +430,17 @@ describe('StockTradingPage', () => {
     expect(screen.getByText('Ticker not found in subscriptions.')).toBeInTheDocument()
   })
 
-  it('StockTradingPage - AccountSelector rendered - account selector is present on the page', () => {
+  it('StockTradingPage - AccountSelector rendered - account selector is present on the page', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks()
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('account-selector')).toBeInTheDocument()
   })
 
   it('StockTradingPage - accounts returned with no prior selection - sets first account as default', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     await waitFor(() => {
       expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-1')
@@ -436,7 +451,7 @@ describe('StockTradingPage', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => useStockTradingStore.getState().setSelectedAccountId('acc-2'))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     await waitFor(() => {
       expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
@@ -446,17 +461,17 @@ describe('StockTradingPage', () => {
   it('StockTradingPage - no accounts returned - selectedAccountId remains null', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: [] })
-    renderPage()
+    await renderPage()
 
     await waitFor(() => {
       expect(useStockTradingStore.getState().selectedAccountId).toBeNull()
     })
   })
 
-  it('StockTradingPage - user selects different account - selectedAccountId updates in store', () => {
+  it('StockTradingPage - user selects different account - selectedAccountId updates in store', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     const select = screen.getByTestId('account-selector')
     fireEvent.change(select, { target: { value: 'acc-2' } })
@@ -464,17 +479,17 @@ describe('StockTradingPage', () => {
     expect(useStockTradingStore.getState().selectedAccountId).toBe('acc-2')
   })
 
-  it('StockTradingPage - accounts loading - forwards isLoading to AccountSelector', () => {
+  it('StockTradingPage - accounts loading - forwards isLoading to AccountSelector', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: [], isAccountsLoading: true })
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('account-selector-loading')).toBeInTheDocument()
   })
 
-  it('StockTradingPage - accounts error - forwards isError to AccountSelector', () => {
+  it('StockTradingPage - accounts error - forwards isError to AccountSelector', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: [], isAccountsError: true })
-    renderPage()
+    await renderPage()
     expect(screen.getByTestId('account-selector-error')).toBeInTheDocument()
   })
 
@@ -482,7 +497,7 @@ describe('StockTradingPage', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     const triggerBtn = screen.getByTestId('trigger-buy')
     fireEvent.click(triggerBtn)
@@ -501,7 +516,7 @@ describe('StockTradingPage', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     fireEvent.click(screen.getByTestId('trigger-buy'))
 
@@ -516,15 +531,15 @@ describe('StockTradingPage', () => {
     })
   })
 
-  it('StockTradingPage - no account selected - MarketDataGrid does not receive onBuy', () => {
+  it('StockTradingPage - no account selected - MarketDataGrid does not receive onBuy', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     setupMocks({ activeAccounts: [] })
-    renderPage()
+    await renderPage()
 
     expect(screen.queryByTestId('trigger-buy')).not.toBeInTheDocument()
   })
 
-  it('StockTradingPage - live feed connected with rows - MarketDataGrid remains mounted and receives deferred rows', () => {
+  it('StockTradingPage - live feed connected with rows - MarketDataGrid remains mounted and receives deferred rows', async () => {
     mockUseMarketDataFeed.mockReturnValue({
       rows: [
         {
@@ -542,7 +557,7 @@ describe('StockTradingPage', () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => useStockTradingStore.getState().setSelectedAccountId('acc-1'))
     setupMocks({ activeAccounts: mockActiveAccounts })
-    renderPage()
+    await renderPage()
 
     expect(screen.getByTestId('market-data-grid')).toBeInTheDocument()
     expect(screen.getByTestId('trigger-buy')).toBeInTheDocument()

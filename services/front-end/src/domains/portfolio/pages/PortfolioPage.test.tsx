@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { createElement } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { PortfolioPage } from './PortfolioPage'
@@ -148,27 +154,36 @@ const mockHoldingsResponse: PortfolioHoldingsResponse = {
   },
 }
 
-function renderPage(initialPath = '/portfolio') {
+async function renderPage(initialPath = '/portfolio') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  return render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
+  const rootRoute = createRootRoute()
+  const portfolioRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/portfolio',
+    component: PortfolioPage,
+  })
+  const loginRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/login',
+    component: () => createElement('div', null, 'Login Page'),
+  })
+  const routeTree = rootRoute.addChildren([portfolioRoute, loginRoute])
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  })
+  await router.load()
+  let result!: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
       createElement(
-        MemoryRouter,
-        { initialEntries: [initialPath] },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, { path: '/portfolio', element: createElement(PortfolioPage) }),
-          createElement(Route, {
-            path: '/login',
-            element: createElement('div', null, 'Login Page'),
-          }),
-        ),
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(RouterProvider, { router }),
       ),
-    ),
-  )
+    )
+  })
+  return result
 }
 
 describe('PortfolioPage', () => {
@@ -182,7 +197,7 @@ describe('PortfolioPage', () => {
     mockUseSellPanel.mockReturnValue(buildSellPanelHook())
   })
 
-  it('PortfolioPage - no session - redirects to /login', () => {
+  it('PortfolioPage - no session - redirects to /login', async () => {
     mockUseActiveAccounts.mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -195,12 +210,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - session exists - renders heading', () => {
+  it('PortfolioPage - session exists - renders heading', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseActiveAccounts.mockReturnValue({
       data: { accounts: [] },
@@ -214,12 +229,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByRole('heading', { name: /portfolio/i })).toBeInTheDocument()
   })
 
-  it('PortfolioPage - accounts loading - shows loading text', () => {
+  it('PortfolioPage - accounts loading - shows loading text', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseActiveAccounts.mockReturnValue({
       data: undefined,
@@ -233,12 +248,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByText(/loading accounts/i)).toBeInTheDocument()
   })
 
-  it('PortfolioPage - holdings loading - renders loading state', () => {
+  it('PortfolioPage - holdings loading - renders loading state', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseActiveAccounts.mockReturnValue({
@@ -253,12 +268,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByText(/loading\.\.\./i)).toBeInTheDocument()
   })
 
-  it('PortfolioPage - holdings loaded - renders PortfolioHoldingsTable', () => {
+  it('PortfolioPage - holdings loaded - renders PortfolioHoldingsTable', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseActiveAccounts.mockReturnValue({
@@ -273,12 +288,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByTestId('holdings-table')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - 502 price error - renders price unavailable message', () => {
+  it('PortfolioPage - 502 price error - renders price unavailable message', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const priceError = Object.assign(new Error('Bad Gateway'), {
@@ -300,14 +315,14 @@ describe('PortfolioPage', () => {
       error: priceError,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(
       screen.getByText('Could not load portfolio. Price data unavailable.'),
     ).toBeInTheDocument()
   })
 
-  it('PortfolioPage - 502 balance error - renders balance unavailable message', () => {
+  it('PortfolioPage - 502 balance error - renders balance unavailable message', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const balanceError = Object.assign(new Error('Bad Gateway'), {
@@ -329,14 +344,14 @@ describe('PortfolioPage', () => {
       error: balanceError,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(
       screen.getByText('Could not load portfolio. Balance data unavailable.'),
     ).toBeInTheDocument()
   })
 
-  it('PortfolioPage - no accounts - renders empty-state message, no table', () => {
+  it('PortfolioPage - no accounts - renders empty-state message, no table', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseActiveAccounts.mockReturnValue({
       data: { accounts: [] },
@@ -350,13 +365,13 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByText('No accounts available. Open an account first.')).toBeInTheDocument()
     expect(screen.queryByTestId('holdings-table')).not.toBeInTheDocument()
   })
 
-  it('PortfolioPage - accounts fetch error - shows could not load accounts', () => {
+  it('PortfolioPage - accounts fetch error - shows could not load accounts', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     mockUseActiveAccounts.mockReturnValue({
       data: undefined,
@@ -370,13 +385,13 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText('Could not load accounts.')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - 401 holdings error - redirects to /login', () => {
+  it('PortfolioPage - 401 holdings error - redirects to /login', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const authError = Object.assign(new Error('Unauthorized'), {
@@ -395,12 +410,12 @@ describe('PortfolioPage', () => {
       error: authError,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
-    expect(screen.getByText('Login Page')).toBeInTheDocument()
+    expect(await screen.findByText('Login Page')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - account selection change - calls setSelectedAccountId', () => {
+  it('PortfolioPage - account selection change - calls setSelectedAccountId', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const secondAccount: AccountResponse = {
@@ -420,7 +435,7 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     const select = screen.getByRole('combobox', { name: /select account/i })
     fireEvent.change(select, { target: { value: 'acc-2' } })
@@ -428,7 +443,7 @@ describe('PortfolioPage', () => {
     expect(usePortfolioStore.getState().selectedAccountId).toBe('acc-2')
   })
 
-  it('PortfolioPage - default account selection - selects first account when none stored', () => {
+  it('PortfolioPage - default account selection - selects first account when none stored', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     // selectedAccountId is null, accounts loads → useEffect should select first
     mockUseActiveAccounts.mockReturnValue({
@@ -443,12 +458,12 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(usePortfolioStore.getState().selectedAccountId).toBe('acc-1')
   })
 
-  it('PortfolioPage - triggering onSell from table - calls openSellPanel with correct args', () => {
+  it('PortfolioPage - triggering onSell from table - calls openSellPanel with correct args', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const openSellPanel = vi.fn()
@@ -465,7 +480,7 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     // The table mock captures onSell — call it directly
     capturedOnSell?.('AAPL', 10)
@@ -473,7 +488,7 @@ describe('PortfolioPage', () => {
     expect(openSellPanel).toHaveBeenCalledWith('AAPL', 10)
   })
 
-  it('PortfolioPage - isOpen true - SellPanel is rendered with correct props', () => {
+  it('PortfolioPage - isOpen true - SellPanel is rendered with correct props', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseSellPanel.mockReturnValue(
@@ -491,14 +506,14 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     const sellPanel = screen.getByTestId('sell-panel')
     expect(sellPanel).toBeInTheDocument()
     expect(sellPanel).toHaveTextContent('SellPanel: AAPL qty=10')
   })
 
-  it('PortfolioPage - isOpen false - SellPanel is not rendered', () => {
+  it('PortfolioPage - isOpen false - SellPanel is not rendered', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseSellPanel.mockReturnValue(buildSellPanelHook({ isOpen: false }))
@@ -514,7 +529,7 @@ describe('PortfolioPage', () => {
       error: null,
     } as unknown as ReturnType<typeof usePortfolioHoldings>)
 
-    renderPage()
+    await renderPage()
 
     expect(screen.queryByTestId('sell-panel')).not.toBeInTheDocument()
   })

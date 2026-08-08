@@ -1,11 +1,11 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@tanstack/react-router'
 import { AuthCallbackHandler } from '../components/AuthCallbackHandler'
 
 export function AuthCallbackPage() {
   const navigate = useNavigate()
 
   function handleSuccess() {
-    navigate('/trade', { replace: true })
+    navigate({ to: '/trade', replace: true })
   }
 
   return (
