@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate } from '@tanstack/react-router'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -7,8 +7,11 @@ import { usePortfolioStore } from '../hooks/usePortfolioStore'
 import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings'
 import { PortfolioAccountSelector } from '../components/PortfolioAccountSelector'
 import { PortfolioHoldingsTable } from '../components/PortfolioHoldingsTable'
+import { InsightsTab } from '../components/InsightsTab'
 import { useSellPanel } from '../../stocktrading/hooks/useSellPanel'
 import { SellPanel } from '../../stocktrading/components/SellPanel'
+
+type ActiveTab = 'insights' | 'holdings' | 'advanced'
 
 function getHoldings502ErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ error?: string }>
@@ -26,6 +29,8 @@ export function PortfolioPage() {
   const user = useSessionStore((s) => s.user)
   const selectedAccountId = usePortfolioStore((s) => s.selectedAccountId)
   const setSelectedAccountId = usePortfolioStore((s) => s.setSelectedAccountId)
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>('insights')
 
   const { isOpen, ticker, maxQuantity, openSellPanel } = useSellPanel()
 
@@ -47,6 +52,7 @@ export function PortfolioPage() {
 
   const {
     data: holdingsData,
+    insights,
     isLoading: isHoldingsLoading,
     isError: isHoldingsError,
     error: holdingsError,
@@ -81,44 +87,71 @@ export function PortfolioPage() {
     )
   }
 
-  function renderHoldingsSection() {
-    if (isAccountsError) {
-      return null
-    }
+  const currency = holdingsData?.cash.currency ?? 'USD'
 
-    if (accounts.length === 0 && !isAccountsLoading) {
-      return null
-    }
-
-    if (selectedAccountId === null) {
-      return null
-    }
-
-    if (isHoldingsLoading) {
-      return <p>Loading...</p>
-    }
-
-    if (isHoldingsError) {
-      const status = (holdingsError as AxiosError)?.response?.status
-      if (status === 502) {
-        return <p role="alert">{getHoldings502ErrorMessage(holdingsError)}</p>
+  function renderTabContent() {
+    if (activeTab === 'insights') {
+      if (isAccountsError || (accounts.length === 0 && !isAccountsLoading) || selectedAccountId === null) {
+        return null
       }
-      return <p role="alert">Could not load portfolio.</p>
-    }
-
-    if (holdingsData) {
       return (
-        <PortfolioHoldingsTable
-          holdings={holdingsData.holdings}
-          cash={holdingsData.cash}
-          currency={holdingsData.cash.currency}
-          onSell={openSellPanel}
+        <InsightsTab
+          insights={insights}
+          isLoading={isHoldingsLoading}
+          isError={isHoldingsError}
+          currency={currency}
         />
       )
     }
 
+    if (activeTab === 'holdings') {
+      if (isAccountsError) return null
+      if (accounts.length === 0 && !isAccountsLoading) return null
+      if (selectedAccountId === null) return null
+
+      if (isHoldingsLoading) {
+        return <p>Loading...</p>
+      }
+
+      if (isHoldingsError) {
+        const status = (holdingsError as AxiosError)?.response?.status
+        if (status === 502) {
+          return <p role="alert">{getHoldings502ErrorMessage(holdingsError)}</p>
+        }
+        return <p role="alert">Could not load portfolio.</p>
+      }
+
+      if (holdingsData) {
+        return (
+          <PortfolioHoldingsTable
+            holdings={holdingsData.holdings}
+            cash={holdingsData.cash}
+            currency={holdingsData.cash.currency}
+            onSell={openSellPanel}
+          />
+        )
+      }
+
+      return null
+    }
+
+    if (activeTab === 'advanced') {
+      return <div data-testid="advanced-insights-placeholder" />
+    }
+
     return null
   }
+
+  const tabStyle = (tab: ActiveTab): React.CSSProperties => ({
+    padding: '8px 16px',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+    borderBottom: activeTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent',
+    color: activeTab === tab ? 'var(--color-accent)' : 'var(--color-text-primary)',
+    fontWeight: activeTab === tab ? 600 : 400,
+    fontSize: 13,
+  })
 
   return (
     <div className="max-w-lg">
@@ -129,7 +162,44 @@ export function PortfolioPage() {
 
       <div className="mb-4">{renderAccountSelector()}</div>
 
-      {renderHoldingsSection()}
+      <div
+        role="tablist"
+        aria-label="Portfolio tabs"
+        style={{ display: 'flex', borderBottom: '1px solid #334155', marginBottom: 24 }}
+      >
+        <button
+          role="tab"
+          aria-selected={activeTab === 'insights'}
+          aria-controls="tab-panel-insights"
+          type="button"
+          style={tabStyle('insights')}
+          onClick={() => setActiveTab('insights')}
+        >
+          Insights
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'holdings'}
+          aria-controls="tab-panel-holdings"
+          type="button"
+          style={tabStyle('holdings')}
+          onClick={() => setActiveTab('holdings')}
+        >
+          Holdings
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'advanced'}
+          aria-controls="tab-panel-advanced"
+          type="button"
+          style={tabStyle('advanced')}
+          onClick={() => setActiveTab('advanced')}
+        >
+          Advanced Insights
+        </button>
+      </div>
+
+      <div>{renderTabContent()}</div>
 
       {isOpen && ticker !== null && maxQuantity !== null && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">

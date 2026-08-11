@@ -16,7 +16,31 @@ export interface CashHolding {
   portfolioPercent: number | null
 }
 
+export interface AssetClassBreakdown {
+  stockPercent: number | null
+  cashPercent: number | null
+  totalPortfolioValue: number
+}
+
+export interface StockBreakdownEntry {
+  ticker: string
+  currentValue: number
+  percentOfStockPortfolio: number | null
+}
+
+export interface UnrealisedPnLEntry {
+  ticker: string
+  unrealisedPnL: number
+}
+
+export interface PortfolioInsights {
+  assetClassBreakdown: AssetClassBreakdown
+  stockBreakdown: StockBreakdownEntry[]
+  unrealisedPnLContribution: UnrealisedPnLEntry[]
+}
+
 export interface PortfolioHoldingsResponse {
   holdings: StockHolding[]
   cash: CashHolding
+  insights?: PortfolioInsights
 }
