@@ -212,4 +212,102 @@ class PortfolioQueryServiceTest : FunSpec({
 
         result shouldBe BigDecimal.ZERO
     }
+
+    // ── Insights: mixed positive and negative unrealisedPnL ─────────────────
+
+    test("getHoldings_mixedPositiveAndNegativeUnrealisedPnL_insightsContainsBothSigns") {
+        val aaplPosition = buildPosition("AAPL", BigDecimal("2.0000"), BigDecimal("100.0000"))
+        val googPosition = buildPosition("GOOG", BigDecimal("1.0000"), BigDecimal("200.0000"))
+
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(buildAccountSummary())
+        whenever(positionRepository.findAllByAccountIdAndQuantityGreaterThan(accountId, BigDecimal.ZERO))
+            .thenReturn(listOf(aaplPosition, googPosition))
+        // AAPL currentPrice > avgPrice → positive PnL; GOOG currentPrice < avgPrice → negative PnL
+        whenever(marketDataApi.getPrices(any())).thenReturn(
+            mapOf("AAPL" to BigDecimal("120.0000"), "GOOG" to BigDecimal("180.0000"))
+        )
+        whenever(ledgerApi.getBalance(accountId)).thenReturn(AccountBalanceResult(BigDecimal("500.0000"), "USD"))
+
+        val result = service.getHoldings(accountId, userId)
+
+        val pnlMap = result.insights.unrealisedPnLContribution.associateBy { it.ticker }
+        // AAPL: (120 - 100) * 2 = 40
+        pnlMap["AAPL"]!!.unrealisedPnL.compareTo(BigDecimal("40.0000")) shouldBe 0
+        // GOOG: (180 - 200) * 1 = -20
+        pnlMap["GOOG"]!!.unrealisedPnL.compareTo(BigDecimal("-20.0000")) shouldBe 0
+    }
+
+    // ── Insights: zero stock positions ───────────────────────────────────────
+
+    test("getHoldings_noStockPositions_insightsStockBreakdownAndPnlAreEmpty") {
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(buildAccountSummary())
+        whenever(positionRepository.findAllByAccountIdAndQuantityGreaterThan(accountId, BigDecimal.ZERO))
+            .thenReturn(emptyList())
+        whenever(ledgerApi.getBalance(accountId)).thenReturn(AccountBalanceResult(BigDecimal("1000.0000"), "USD"))
+
+        val result = service.getHoldings(accountId, userId)
+
+        result.insights.stockBreakdown.shouldBeEmpty()
+        result.insights.unrealisedPnLContribution.shouldBeEmpty()
+    }
+
+    // ── Insights: zero total portfolio value → null percents ─────────────────
+
+    test("getHoldings_zeroTotalPortfolioValue_insightsAssetClassPercentsAreNull") {
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(buildAccountSummary())
+        whenever(positionRepository.findAllByAccountIdAndQuantityGreaterThan(accountId, BigDecimal.ZERO))
+            .thenReturn(emptyList())
+        whenever(ledgerApi.getBalance(accountId)).thenReturn(AccountBalanceResult(BigDecimal.ZERO, "USD"))
+
+        val result = service.getHoldings(accountId, userId)
+
+        result.insights.assetClassBreakdown.stockPercent shouldBe null
+        result.insights.assetClassBreakdown.cashPercent shouldBe null
+        result.insights.assetClassBreakdown.totalPortfolioValue.compareTo(BigDecimal.ZERO) shouldBe 0
+    }
+
+    // ── Insights: single stock → 100% stockBreakdown ─────────────────────────
+
+    test("getHoldings_singleStock_insightsStockBreakdownIs100Percent") {
+        val position = buildPosition("AAPL", BigDecimal("5.0000"), BigDecimal("100.0000"))
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(buildAccountSummary())
+        whenever(positionRepository.findAllByAccountIdAndQuantityGreaterThan(accountId, BigDecimal.ZERO))
+            .thenReturn(listOf(position))
+        whenever(marketDataApi.getPrices(listOf("AAPL"))).thenReturn(mapOf("AAPL" to BigDecimal("110.0000")))
+        whenever(ledgerApi.getBalance(accountId)).thenReturn(AccountBalanceResult(BigDecimal.ZERO, "USD"))
+
+        val result = service.getHoldings(accountId, userId)
+
+        result.insights.stockBreakdown shouldHaveSize 1
+        result.insights.stockBreakdown[0].percentOfStockPortfolio!!.compareTo(BigDecimal("100.0000")) shouldBe 0
+    }
+
+    // ── Insights: multiple stocks → percents sum to 100 ──────────────────────
+
+    test("getHoldings_multipleStocks_insightsStockBreakdownPercentsAreCorrect") {
+        val aaplPosition = buildPosition("AAPL", BigDecimal("2.0000"), BigDecimal("100.0000"))
+        val msftPosition = buildPosition("MSFT", BigDecimal("3.0000"), BigDecimal("200.0000"))
+
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(buildAccountSummary())
+        whenever(positionRepository.findAllByAccountIdAndQuantityGreaterThan(accountId, BigDecimal.ZERO))
+            .thenReturn(listOf(aaplPosition, msftPosition))
+        // AAPL currentValue = 2 * 100 = 200; MSFT currentValue = 3 * 200 = 600; totalStock = 800
+        whenever(marketDataApi.getPrices(any())).thenReturn(
+            mapOf("AAPL" to BigDecimal("100.0000"), "MSFT" to BigDecimal("200.0000"))
+        )
+        whenever(ledgerApi.getBalance(accountId)).thenReturn(AccountBalanceResult(BigDecimal.ZERO, "USD"))
+
+        val result = service.getHoldings(accountId, userId)
+
+        val breakdownMap = result.insights.stockBreakdown.associateBy { it.ticker }
+        // AAPL: 200 / 800 * 100 = 25%
+        breakdownMap["AAPL"]!!.percentOfStockPortfolio!!.compareTo(BigDecimal("25.0000")) shouldBe 0
+        // MSFT: 600 / 800 * 100 = 75%
+        breakdownMap["MSFT"]!!.percentOfStockPortfolio!!.compareTo(BigDecimal("75.0000")) shouldBe 0
+
+        val total = result.insights.stockBreakdown
+            .mapNotNull { it.percentOfStockPortfolio }
+            .fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
+        total.compareTo(BigDecimal("100.0000")) shouldBe 0
+    }
 })

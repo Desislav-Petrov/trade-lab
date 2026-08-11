@@ -34,9 +34,33 @@ data class CashHoldingResult(
     val portfolioPercent: BigDecimal?
 )
 
+data class AssetClassBreakdown(
+    val stockPercent: BigDecimal?,
+    val cashPercent: BigDecimal?,
+    val totalPortfolioValue: BigDecimal
+)
+
+data class StockBreakdownEntry(
+    val ticker: String,
+    val currentValue: BigDecimal,
+    val percentOfStockPortfolio: BigDecimal?
+)
+
+data class UnrealisedPnLEntry(
+    val ticker: String,
+    val unrealisedPnL: BigDecimal
+)
+
+data class PortfolioInsights(
+    val assetClassBreakdown: AssetClassBreakdown,
+    val stockBreakdown: List<StockBreakdownEntry>,
+    val unrealisedPnLContribution: List<UnrealisedPnLEntry>
+)
+
 data class PortfolioHoldingsResult(
     val holdings: List<StockHoldingResult>,
-    val cash: CashHoldingResult
+    val cash: CashHoldingResult,
+    val insights: PortfolioInsights
 )
 
 @Service
@@ -138,13 +162,68 @@ class PortfolioQueryService(
                 .setScale(4, RoundingMode.HALF_UP)
         }
 
+        // Step 6: Compute insights
+        val insights = computeInsights(finalStockHoldings, cashBalance, totalStockValue, totalValue)
+
         return PortfolioHoldingsResult(
             holdings = finalStockHoldings,
             cash = CashHoldingResult(
                 balance = cashBalance,
                 currency = balanceResult.currency,
                 portfolioPercent = cashPortfolioPercent
+            ),
+            insights = insights
+        )
+    }
+
+    private fun computeInsights(
+        stockHoldings: List<StockHoldingResult>,
+        cashBalance: BigDecimal,
+        totalStockValue: BigDecimal,
+        totalPortfolioValue: BigDecimal
+    ): PortfolioInsights {
+        val isZeroTotal = totalPortfolioValue.compareTo(BigDecimal.ZERO) == 0
+        val isZeroStock = totalStockValue.compareTo(BigDecimal.ZERO) == 0
+
+        val stockPercent = if (isZeroTotal) null else
+            totalStockValue.divide(totalPortfolioValue, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal("100"))
+                .setScale(4, RoundingMode.HALF_UP)
+
+        val cashPercent = if (isZeroTotal) null else
+            cashBalance.divide(totalPortfolioValue, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal("100"))
+                .setScale(4, RoundingMode.HALF_UP)
+
+        val assetClassBreakdown = AssetClassBreakdown(
+            stockPercent = stockPercent,
+            cashPercent = cashPercent,
+            totalPortfolioValue = totalPortfolioValue
+        )
+
+        val stockBreakdown = stockHoldings.map { holding ->
+            val percent = if (isZeroStock) null else
+                holding.currentValue.divide(totalStockValue, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal("100"))
+                    .setScale(4, RoundingMode.HALF_UP)
+            StockBreakdownEntry(
+                ticker = holding.ticker,
+                currentValue = holding.currentValue,
+                percentOfStockPortfolio = percent
             )
+        }
+
+        val unrealisedPnLContribution = stockHoldings.map { holding ->
+            UnrealisedPnLEntry(
+                ticker = holding.ticker,
+                unrealisedPnL = holding.unrealisedPnL
+            )
+        }
+
+        return PortfolioInsights(
+            assetClassBreakdown = assetClassBreakdown,
+            stockBreakdown = stockBreakdown,
+            unrealisedPnLContribution = unrealisedPnLContribution
         )
     }
 }
