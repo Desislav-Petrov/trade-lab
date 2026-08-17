@@ -69,7 +69,7 @@ describe('redirectToGithubLogin', () => {
     })
   })
 
-  it('redirectToGithubLogin - called - sets window.location.href to /oauth2/authorization/github', () => {
+  it('redirectToGithubLogin - called - sets window.location.href to http://localhost:8080/oauth2/authorization/github', () => {
     const hrefAssignments: string[] = []
 
     Object.defineProperty(window, 'location', {
@@ -86,7 +86,7 @@ describe('redirectToGithubLogin', () => {
 
     redirectToGithubLogin()
 
-    expect(hrefAssignments[0]).toBe('/oauth2/authorization/github')
+    expect(hrefAssignments[0]).toBe('http://localhost:8080/oauth2/authorization/github')
   })
 })
 

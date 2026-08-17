@@ -14,5 +14,5 @@ export function redirectToGoogleLogin(): void {
 }
 
 export function redirectToGithubLogin(): void {
-  window.location.href = '/oauth2/authorization/github'
+  window.location.href = `${API_BASE_URL}/oauth2/authorization/github`
 }

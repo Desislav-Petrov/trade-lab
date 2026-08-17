@@ -12,7 +12,7 @@ interface LocationState {
 }
 
 const OIDC_ERROR_MESSAGES: Record<string, string> = {
-  oidc_failed: 'Google authentication failed. Please try again.',
+  google_oidc_failed: 'Google authentication failed. Please try again.',
   github_oidc_failed: 'GitHub authentication failed. Please try again.',
   github_no_email: 'Your GitHub account has no public email. Please make your email public on GitHub and try again.',
   server_error: 'Something went wrong. Please try again.',

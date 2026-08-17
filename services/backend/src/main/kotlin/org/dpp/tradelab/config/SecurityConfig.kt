@@ -67,7 +67,7 @@ class SecurityConfig(
                     oauth2Login { oauth2 ->
                         oauth2.successHandler(oidcAuthenticationSuccessHandler)
                         oauth2.failureHandler { request, response, _ ->
-                            val errorParam = if (request.requestURI.contains("github")) "github_oidc_failed" else "oidc_failed"
+                            val errorParam = if (request.requestURI.contains("github")) "github_oidc_failed" else "google_oidc_failed"
                             response.sendRedirect("$frontendOrigin/login?error=$errorParam")
                         }
                     }

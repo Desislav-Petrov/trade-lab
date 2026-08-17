@@ -114,8 +114,8 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('LoginPage - error=oidc_failed query param - shows oidc error banner', async () => {
-    await renderPageWithSearch('?error=oidc_failed')
+  it('LoginPage - error=google_oidc_failed query param - shows google oidc error banner', async () => {
+    await renderPageWithSearch('?error=google_oidc_failed')
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(/google authentication failed/i)).toBeInTheDocument()
   })
