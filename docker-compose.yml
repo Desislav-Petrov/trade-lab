@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  backend:
+    image: ghcr.io/desislav-petrov/trade-lab-backend:${BACKEND_VERSION:-latest}
+    container_name: trade-lab-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_H2_CONSOLE_ENABLED=true
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-not-configured}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-not-configured}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - trade-lab-network
+
+  frontend:
+    image: ghcr.io/desislav-petrov/trade-lab-frontend:${FRONTEND_VERSION:-latest}
+    container_name: trade-lab-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://localhost:8080/api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - trade-lab-network
+
+networks:
+  trade-lab-network:
+    driver: bridge
