@@ -1,10 +1,12 @@
-# OIDC Login
+# OIDC Login — Google
 
 ## Overview
 
-Allows a guest to authenticate using an external identity provider (currently Google) and establish a session on the paper trading platform. On first use, a user profile is auto-created from the provider's ID token claims. On subsequent uses, the existing profile is loaded. In both cases the backend issues an internal JWT which the frontend stores in `localStorage`.
+Allows a guest to authenticate using their Google account and establish a session on the paper trading platform. On first use, a user profile is auto-created from the provider's ID token claims. On subsequent uses, the existing profile is loaded. In both cases the backend issues an internal JWT which the frontend stores in `localStorage`.
 
 This flow runs entirely via a backend-driven OAuth2 dance — the frontend never handles the identity provider token directly.
+
+> **See also:** `domain/flows/github-oidc-login.md` for the parallel GitHub OAuth2 login path.
 
 ## Actors
 
@@ -22,7 +24,7 @@ This flow runs entirely via a backend-driven OAuth2 dance — the frontend never
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | Guest Browser | Render login page | Displays the "Login with Google" button at `/login` alongside the existing email-select option (retained for testing only). |
+| 1 | Guest Browser | Render login page | Displays both "Login with Google" and "Login with GitHub" buttons at `/login` alongside the existing email-select option (retained for testing only). |
 | 2 | Guest | Click "Login with Google" | Triggers a browser redirect to `/oauth2/authorization/google`. |
 | 3 | System | Redirect to Google | Spring Security redirects the browser to Google's OAuth2 authorisation endpoint with the configured client ID, scopes (`openid email profile`), and redirect URI. |
 | 4 | Guest | Authenticate with Google | Authenticates on Google's page and grants consent. |
@@ -52,9 +54,9 @@ This flow runs entirely via a backend-driven OAuth2 dance — the frontend never
 
 | Scenario | Condition | System Response | UI Outcome |
 |----------|-----------|-----------------|------------|
-| Google auth denied | Guest denies consent or closes Google page | Google redirects with `error` param; Spring failure handler fires | Redirect to `{frontend-origin}/login?error=oidc_failed`. Login page shows "Authentication failed. Please try again." |
-| Token exchange fails | Spring cannot exchange authorisation code for token | Spring OAuth2 failure handler fires | Redirect to `{frontend-origin}/login?error=oidc_failed` |
-| Internal error | Unexpected error in find-or-register logic | Exception caught by failure handler | Redirect to `{frontend-origin}/login?error=server_error`. Login page shows a generic error message. |
+| Google auth denied | Guest denies consent or closes Google page | Google redirects with `error` param; Spring failure handler fires | Redirect to `{frontend-origin}/login?error=oidc_failed`. Login page shows "Google authentication failed. Please try again." |
+| Token exchange fails | Spring cannot exchange authorisation code for token | Spring OAuth2 failure handler fires | Redirect to `{frontend-origin}/login?error=oidc_failed`. Login page shows "Google authentication failed. Please try again." |
+| Internal error | Unexpected error in find-or-register logic | Exception caught by failure handler | Redirect to `{frontend-origin}/login?error=server_error`. Login page shows "Something went wrong. Please try again." |
 | Profile fetch fails | `GET /api/v1/users/{userId}` fails at step 13 | HTTP error returned | Session not established. Guest remains on `/auth/callback` with a generic error message. |
 
 ## Domain Models Involved
