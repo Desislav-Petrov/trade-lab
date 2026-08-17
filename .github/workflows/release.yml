@@ -46,8 +46,8 @@ jobs:
       - name: Build and push Docker image with Jib
         working-directory: services/backend
         env:
-          JLIB_TO_AUTH_HELPER_USERNAME: ${{ github.actor }}
-          JLIB_TO_AUTH_HELPER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          JIB_TO_AUTH_USERNAME: ${{ github.actor }}
+          JIB_TO_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./gradlew jib \
             -PimageVersion=v${{ needs.extract-version.outputs.version }} \
@@ -116,7 +116,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create GitHub Release with auto-generated notes
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
