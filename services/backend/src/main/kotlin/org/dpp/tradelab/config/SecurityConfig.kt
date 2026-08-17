@@ -66,8 +66,9 @@ class SecurityConfig(
                 if (!environment.activeProfiles.contains("test")) {
                     oauth2Login { oauth2 ->
                         oauth2.successHandler(oidcAuthenticationSuccessHandler)
-                        oauth2.failureHandler { _, response, _ ->
-                            response.sendRedirect("$frontendOrigin/login?error=oidc_failed")
+                        oauth2.failureHandler { request, response, _ ->
+                            val errorParam = if (request.requestURI.contains("github")) "github_oidc_failed" else "oidc_failed"
+                            response.sendRedirect("$frontendOrigin/login?error=$errorParam")
                         }
                     }
                 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { redirectToGoogleLogin } from './oidcApi'
+import { redirectToGoogleLogin, redirectToGithubLogin } from './oidcApi'
 
 describe('redirectToGoogleLogin', () => {
   let originalLocation: Location
@@ -52,3 +52,41 @@ describe('redirectToGoogleLogin', () => {
     })
   })
 })
+
+describe('redirectToGithubLogin', () => {
+  let originalLocation: Location
+
+  beforeEach(() => {
+    originalLocation = window.location
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('redirectToGithubLogin - called - sets window.location.href to /oauth2/authorization/github', () => {
+    const hrefAssignments: string[] = []
+
+    Object.defineProperty(window, 'location', {
+      value: { ...originalLocation, href: '' },
+      writable: true,
+      configurable: true,
+    })
+
+    Object.defineProperty(window.location, 'href', {
+      set: (value: string) => { hrefAssignments.push(value) },
+      get: () => originalLocation.href,
+      configurable: true,
+    })
+
+    redirectToGithubLogin()
+
+    expect(hrefAssignments[0]).toBe('/oauth2/authorization/github')
+  })
+})
+
