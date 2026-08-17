@@ -114,10 +114,10 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('LoginPage - error=oidc_failed query param - shows oidc error banner', async () => {
-    await renderPageWithSearch('?error=oidc_failed')
+  it('LoginPage - error=google_oidc_failed query param - shows google oidc error banner', async () => {
+    await renderPageWithSearch('?error=google_oidc_failed')
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.getByText(/authentication failed/i)).toBeInTheDocument()
+    expect(screen.getByText(/google authentication failed/i)).toBeInTheDocument()
   })
 
   it('LoginPage - error=server_error query param - shows server error banner', async () => {
@@ -174,5 +174,29 @@ describe('LoginPage', () => {
   it('LoginPage - renders - shows register link', async () => {
     await renderPage()
     expect(screen.getByRole('link', { name: /register/i })).toBeInTheDocument()
+  })
+
+  it('LoginPage - renders - displays Login with GitHub button', async () => {
+    await renderPage()
+    expect(screen.getByRole('button', { name: /login with github/i })).toBeInTheDocument()
+  })
+
+  it('LoginPage - github button click - calls redirectToGithubLogin', async () => {
+    const redirectSpy = vi.spyOn(oidcApiModule, 'redirectToGithubLogin').mockReturnValue(undefined)
+    await renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /login with github/i }))
+    expect(redirectSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('LoginPage - error=github_oidc_failed query param - shows github oidc error banner', async () => {
+    await renderPageWithSearch('?error=github_oidc_failed')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(/github authentication failed/i)).toBeInTheDocument()
+  })
+
+  it('LoginPage - error=github_no_email query param - shows github no email error banner', async () => {
+    await renderPageWithSearch('?error=github_no_email')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(/no public email/i)).toBeInTheDocument()
   })
 })

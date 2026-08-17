@@ -27,6 +27,10 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID:not-configured}
             client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
             scope: openid,email,profile
+          github:
+            client-id: ${GITHUB_CLIENT_ID:not-configured}
+            client-secret: ${GITHUB_CLIENT_SECRET:not-configured}
+            scope: read:user,user:email
         provider:
           google:
             # Explicit URIs avoid an HTTP call to Google's OIDC discovery endpoint on startup.

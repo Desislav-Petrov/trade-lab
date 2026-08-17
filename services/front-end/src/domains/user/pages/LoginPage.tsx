@@ -3,7 +3,8 @@ import { useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
 import { LoginForm } from '../components/LoginForm'
 import { useFetchUserProfile } from '../hooks/useFetchUserProfile'
 import { LoginWithGoogleButton } from '../components/LoginWithGoogleButton'
-import { redirectToGoogleLogin } from '../api/oidcApi'
+import { LoginWithGithubButton } from '../components/LoginWithGithubButton'
+import { redirectToGoogleLogin, redirectToGithubLogin } from '../api/oidcApi'
 import type { LoginResponse } from '../types/user'
 
 interface LocationState {
@@ -11,7 +12,9 @@ interface LocationState {
 }
 
 const OIDC_ERROR_MESSAGES: Record<string, string> = {
-  oidc_failed: 'Authentication failed. Please try again.',
+  google_oidc_failed: 'Google authentication failed. Please try again.',
+  github_oidc_failed: 'GitHub authentication failed. Please try again.',
+  github_no_email: 'Your GitHub account has no public email. Please make your email public on GitHub and try again.',
   server_error: 'Something went wrong. Please try again.',
 }
 
@@ -37,6 +40,10 @@ export function LoginPage() {
 
   function handleGoogleLogin() {
     redirectToGoogleLogin()
+  }
+
+  function handleGithubLogin() {
+    redirectToGithubLogin()
   }
 
   return (
@@ -65,6 +72,7 @@ export function LoginPage() {
 
         <div className="mb-6">
           <LoginWithGoogleButton onClick={handleGoogleLogin} />
+          <LoginWithGithubButton onClick={handleGithubLogin} />
         </div>
 
         <div className="mb-4 flex items-center gap-2">
