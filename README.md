@@ -166,3 +166,38 @@ Docker images are published to:
 - `ghcr.io/desislav-petrov/trade-lab-frontend:vX.Y.Z`
 
 For the full guide (local validation, troubleshooting, commit conventions) see **[RELEASE.md](RELEASE.md)**.
+
+---
+
+## Important Configuration Settings
+
+### Backend (`services/backend/src/main/resources/application.yml` / environment variables)
+
+| Setting | Env Variable | Default | Description |
+|---|---|---|---|
+| JWT signing secret | `JWT_SECRET` | `dev-only-secret-change-me-in-production-32c` | Secret used to sign and verify JWTs. **Must** be changed to a strong random value in production. |
+| Google OAuth2 client ID | `GOOGLE_CLIENT_ID` | `not-configured` | Google OAuth2 client ID for OIDC login. OAuth2 login is disabled until a real value is supplied. |
+| Google OAuth2 client secret | `GOOGLE_CLIENT_SECRET` | `not-configured` | Google OAuth2 client secret. See [Google Cloud Console](https://console.cloud.google.com/). |
+| GitHub OAuth2 client ID | `GITHUB_CLIENT_ID` | `not-configured` | GitHub OAuth2 client ID for social login. |
+| GitHub OAuth2 client secret | `GITHUB_CLIENT_SECRET` | `not-configured` | GitHub OAuth2 client secret. |
+| Finnhub API key | `FINNHUB_API_KEY` | `demo` | API key for Finnhub market data. The `demo` key is heavily rate-limited; supply a real key for meaningful data. |
+| Frontend allowed origin (CORS) | `FRONTEND_ORIGIN` | `http://localhost:5173` | Origin the backend permits for CORS and OAuth2 redirects. Set to the production frontend URL in production. |
+| Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
+| Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
+| H2 console | `SPRING_H2_CONSOLE_ENABLED` | `true` | Enables the in-memory H2 web console at `/h2-console`. Disable in production. |
+| Active Spring profile | `SPRING_PROFILES_ACTIVE` | *(none)* | Set to `dev` locally or via Docker Compose. Controls profile-specific behaviour. |
+
+### Docker Compose (`.env` — copy from `.env.example`)
+
+| Setting | Default | Description |
+|---|---|---|
+| `BACKEND_VERSION` | `latest` | Docker image tag for the backend container. Use a specific version (e.g. `1.0.0`) in production. |
+| `FRONTEND_VERSION` | `latest` | Docker image tag for the frontend container. |
+| `GOOGLE_CLIENT_ID` | *(none)* | Passed into the backend container for Google OAuth2. |
+| `GOOGLE_CLIENT_SECRET` | *(none)* | Passed into the backend container for Google OAuth2. |
+
+### Frontend (`services/front-end/.env.development`)
+
+| Setting | Default | Description |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | Base URL the frontend uses for all API calls. The OAuth2 redirect must point directly to the backend (not the Vite dev server proxy) because `window.location.href` navigation bypasses Vite. |
