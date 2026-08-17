@@ -1,9 +1,13 @@
 package org.dpp.tradelab.portfolio.controller
 
 import org.dpp.tradelab.portfolio.generated.api.PortfolioApiDelegate
+import org.dpp.tradelab.portfolio.generated.model.AssetClassBreakdown
 import org.dpp.tradelab.portfolio.generated.model.CashHolding
 import org.dpp.tradelab.portfolio.generated.model.PortfolioHoldingsResponse
+import org.dpp.tradelab.portfolio.generated.model.PortfolioInsights
+import org.dpp.tradelab.portfolio.generated.model.StockBreakdownEntry
 import org.dpp.tradelab.portfolio.generated.model.StockHolding
+import org.dpp.tradelab.portfolio.generated.model.UnrealisedPnLEntry
 import org.dpp.tradelab.portfolio.service.PortfolioQueryService
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
@@ -37,6 +41,27 @@ class PortfolioApiDelegateImpl(
             portfolioPercent = result.cash.portfolioPercent
         )
 
-        return ResponseEntity.ok(PortfolioHoldingsResponse(holdings = holdings, cash = cash))
+        val insights = PortfolioInsights(
+            assetClassBreakdown = AssetClassBreakdown(
+                stockPercent = result.insights.assetClassBreakdown.stockPercent,
+                cashPercent = result.insights.assetClassBreakdown.cashPercent,
+                totalPortfolioValue = result.insights.assetClassBreakdown.totalPortfolioValue
+            ),
+            stockBreakdown = result.insights.stockBreakdown.map { entry ->
+                StockBreakdownEntry(
+                    ticker = entry.ticker,
+                    currentValue = entry.currentValue,
+                    percentOfStockPortfolio = entry.percentOfStockPortfolio
+                )
+            },
+            unrealisedPnLContribution = result.insights.unrealisedPnLContribution.map { entry ->
+                UnrealisedPnLEntry(
+                    ticker = entry.ticker,
+                    unrealisedPnL = entry.unrealisedPnL
+                )
+            }
+        )
+
+        return ResponseEntity.ok(PortfolioHoldingsResponse(holdings = holdings, cash = cash, insights = insights))
     }
 }

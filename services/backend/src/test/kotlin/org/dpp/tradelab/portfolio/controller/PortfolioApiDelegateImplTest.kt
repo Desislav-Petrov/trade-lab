@@ -6,10 +6,14 @@ import org.dpp.tradelab.portfolio.exception.PortfolioAccountAccessDeniedExceptio
 import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
+import org.dpp.tradelab.portfolio.service.AssetClassBreakdown
 import org.dpp.tradelab.portfolio.service.CashHoldingResult
 import org.dpp.tradelab.portfolio.service.PortfolioHoldingsResult
+import org.dpp.tradelab.portfolio.service.PortfolioInsights
 import org.dpp.tradelab.portfolio.service.PortfolioQueryService
+import org.dpp.tradelab.portfolio.service.StockBreakdownEntry
 import org.dpp.tradelab.portfolio.service.StockHoldingResult
+import org.dpp.tradelab.portfolio.service.UnrealisedPnLEntry
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
@@ -56,6 +60,62 @@ class PortfolioApiDelegateImplTest(
                 balance = BigDecimal("500.0000"),
                 currency = "USD",
                 portfolioPercent = BigDecimal("62.5000")
+            ),
+            insights = PortfolioInsights(
+                assetClassBreakdown = AssetClassBreakdown(
+                    stockPercent = BigDecimal("37.5000"),
+                    cashPercent = BigDecimal("62.5000"),
+                    totalPortfolioValue = BigDecimal("800.0000")
+                ),
+                stockBreakdown = listOf(
+                    StockBreakdownEntry(
+                        ticker = "AAPL",
+                        currentValue = BigDecimal("300.0000"),
+                        percentOfStockPortfolio = BigDecimal("100.0000")
+                    )
+                ),
+                unrealisedPnLContribution = listOf(
+                    UnrealisedPnLEntry(
+                        ticker = "AAPL",
+                        unrealisedPnL = BigDecimal("10.0000")
+                    )
+                )
+            )
+        )
+
+        fun buildEmptyStockHoldingsResult() = PortfolioHoldingsResult(
+            holdings = emptyList(),
+            cash = CashHoldingResult(
+                balance = BigDecimal("500.0000"),
+                currency = "USD",
+                portfolioPercent = BigDecimal("100.0000")
+            ),
+            insights = PortfolioInsights(
+                assetClassBreakdown = AssetClassBreakdown(
+                    stockPercent = BigDecimal.ZERO,
+                    cashPercent = BigDecimal("100.0000"),
+                    totalPortfolioValue = BigDecimal("500.0000")
+                ),
+                stockBreakdown = emptyList(),
+                unrealisedPnLContribution = emptyList()
+            )
+        )
+
+        fun buildZeroTotalValueResult() = PortfolioHoldingsResult(
+            holdings = emptyList(),
+            cash = CashHoldingResult(
+                balance = BigDecimal.ZERO,
+                currency = "USD",
+                portfolioPercent = null
+            ),
+            insights = PortfolioInsights(
+                assetClassBreakdown = AssetClassBreakdown(
+                    stockPercent = null,
+                    cashPercent = null,
+                    totalPortfolioValue = BigDecimal.ZERO
+                ),
+                stockBreakdown = emptyList(),
+                unrealisedPnLContribution = emptyList()
             )
         )
 
@@ -78,6 +138,58 @@ class PortfolioApiDelegateImplTest(
                 .andExpect(jsonPath("\$.cash.balance").value(500.0))
                 .andExpect(jsonPath("\$.cash.currency").value("USD"))
                 .andExpect(jsonPath("\$.cash.portfolioPercent").value(62.5))
+        }
+
+        test("getHoldings_happyPath_responseIncludesNonNullInsightsWithAllThreeSubFields") {
+            whenever(portfolioQueryService.getHoldings(any(), any())).thenReturn(buildHoldingsResult())
+
+            mockMvc.perform(
+                get("/api/v1/portfolio/holdings")
+                    .param("accountId", accountId.toString())
+                    .param("userId", userId.toString())
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.insights").exists())
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown").exists())
+                .andExpect(jsonPath("\$.insights.stockBreakdown").isArray)
+                .andExpect(jsonPath("\$.insights.unrealisedPnLContribution").isArray)
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.totalPortfolioValue").value(800.0))
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.stockPercent").value(37.5))
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.cashPercent").value(62.5))
+                .andExpect(jsonPath("\$.insights.stockBreakdown[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.insights.stockBreakdown[0].currentValue").value(300.0))
+                .andExpect(jsonPath("\$.insights.stockBreakdown[0].percentOfStockPortfolio").value(100.0))
+                .andExpect(jsonPath("\$.insights.unrealisedPnLContribution[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.insights.unrealisedPnLContribution[0].unrealisedPnL").value(10.0))
+        }
+
+        test("getHoldings_noStockPositions_insightsStockBreakdownIsEmptyArray") {
+            whenever(portfolioQueryService.getHoldings(any(), any())).thenReturn(buildEmptyStockHoldingsResult())
+
+            mockMvc.perform(
+                get("/api/v1/portfolio/holdings")
+                    .param("accountId", accountId.toString())
+                    .param("userId", userId.toString())
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.insights.stockBreakdown").isArray)
+                .andExpect(jsonPath("\$.insights.stockBreakdown").isEmpty)
+                .andExpect(jsonPath("\$.insights.unrealisedPnLContribution").isArray)
+                .andExpect(jsonPath("\$.insights.unrealisedPnLContribution").isEmpty)
+        }
+
+        test("getHoldings_zeroTotalPortfolioValue_insightsAssetClassBreakdownPercentsAreNull") {
+            whenever(portfolioQueryService.getHoldings(any(), any())).thenReturn(buildZeroTotalValueResult())
+
+            mockMvc.perform(
+                get("/api/v1/portfolio/holdings")
+                    .param("accountId", accountId.toString())
+                    .param("userId", userId.toString())
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.stockPercent").doesNotExist())
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.cashPercent").doesNotExist())
+                .andExpect(jsonPath("\$.insights.assetClassBreakdown.totalPortfolioValue").value(0))
         }
 
         test("getHoldings_accountNotFound_returns404") {

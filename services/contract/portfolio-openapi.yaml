@@ -96,6 +96,8 @@ components:
             $ref: '#/components/schemas/StockHolding'
         cash:
           $ref: '#/components/schemas/CashHolding'
+        insights:
+          $ref: '#/components/schemas/PortfolioInsights'
 
     StockHolding:
       type: object
@@ -174,3 +176,58 @@ components:
             type: string
           example:
             - "accountId is required"
+
+    PortfolioInsights:
+      type: object
+      properties:
+        assetClassBreakdown:
+          $ref: '#/components/schemas/AssetClassBreakdown'
+        stockBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockBreakdownEntry'
+        unrealisedPnLContribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnrealisedPnLEntry'
+
+    AssetClassBreakdown:
+      type: object
+      properties:
+        stockPercent:
+          type: number
+          nullable: true
+          example: 65.50
+        cashPercent:
+          type: number
+          nullable: true
+          example: 34.50
+        totalPortfolioValue:
+          type: number
+          example: 6825.00
+
+    StockBreakdownEntry:
+      type: object
+      required: [ticker, currentValue]
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        currentValue:
+          type: number
+          example: 1825.00
+        percentOfStockPortfolio:
+          type: number
+          nullable: true
+          example: 72.30
+
+    UnrealisedPnLEntry:
+      type: object
+      required: [ticker, unrealisedPnL]
+      properties:
+        ticker:
+          type: string
+          example: AAPL
+        unrealisedPnL:
+          type: number
+          example: 225.00
