@@ -70,6 +70,22 @@ vi.mock('../components/PortfolioHoldingsTable', () => ({
   },
 }))
 
+vi.mock('../components/InsightsTab', () => ({
+  InsightsTab: ({
+    isLoading,
+    isError,
+  }: {
+    isLoading: boolean
+    isError: boolean
+    insights: unknown
+    currency: string
+  }) => {
+    if (isLoading) return createElement('div', { 'data-testid': 'insights-loading' }, 'Loading insights...')
+    if (isError) return createElement('div', { 'data-testid': 'insights-error' }, 'Could not load insights. Please try again.')
+    return createElement('div', { 'data-testid': 'insights-tab' }, 'Insights')
+  },
+}))
+
 vi.mock('../../stocktrading/hooks/useSellPanel', () => ({
   useSellPanel: vi.fn(),
 }))
@@ -154,6 +170,21 @@ const mockHoldingsResponse: PortfolioHoldingsResponse = {
   },
 }
 
+function buildHoldingsHookReturn(overrides: Record<string, unknown> = {}) {
+  return {
+    data: undefined,
+    holdings: [],
+    cash: undefined,
+    insights: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    fetchStatus: 'idle',
+    isSuccess: false,
+    ...overrides,
+  } as unknown as ReturnType<typeof usePortfolioHoldings>
+}
+
 async function renderPage(initialPath = '/portfolio') {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   const rootRoute = createRootRoute()
@@ -203,12 +234,7 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
@@ -222,16 +248,70 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
     expect(screen.getByRole('heading', { name: /portfolio/i })).toBeInTheDocument()
+  })
+
+  it('PortfolioPage - on mount - default active tab is Insights', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
+
+    await renderPage()
+
+    const insightsTab = screen.getByRole('tab', { name: 'Insights' })
+    expect(insightsTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('insights-tab')).toBeInTheDocument()
+  })
+
+  it('PortfolioPage - clicking Holdings tab - renders PortfolioHoldingsTable', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
+
+    await renderPage()
+
+    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+
+    expect(screen.getByTestId('holdings-table')).toBeInTheDocument()
+    // Verify usePortfolioHoldings was not called extra times due to tab switch (it may render twice in React 19)
+    expect(mockUsePortfolioHoldings.mock.calls.length).toBeLessThanOrEqual(2)
+  })
+
+  it('PortfolioPage - clicking Advanced Insights tab - renders empty placeholder', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
+
+    await renderPage()
+
+    fireEvent.click(screen.getByRole('tab', { name: /advanced insights/i }))
+
+    expect(screen.getByTestId('advanced-insights-placeholder')).toBeInTheDocument()
   })
 
   it('PortfolioPage - accounts loading - shows loading text', async () => {
@@ -241,19 +321,14 @@ describe('PortfolioPage', () => {
       isLoading: true,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
     expect(screen.getByText(/loading accounts/i)).toBeInTheDocument()
   })
 
-  it('PortfolioPage - holdings loading - renders loading state', async () => {
+  it('PortfolioPage - holdings loading - InsightsTab receives isLoading true', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseActiveAccounts.mockReturnValue({
@@ -261,19 +336,14 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn({ isLoading: true }))
 
     await renderPage()
 
-    expect(screen.getByText(/loading\.\.\./i)).toBeInTheDocument()
+    expect(screen.getByTestId('insights-loading')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - holdings loaded - renders PortfolioHoldingsTable', async () => {
+  it('PortfolioPage - holdings error - InsightsTab receives isError true', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseActiveAccounts.mockReturnValue({
@@ -281,19 +351,19 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: mockHoldingsResponse,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({
+        isError: true,
+        error: Object.assign(new Error('err'), { isAxiosError: true, response: { status: 502 } }),
+      }),
+    )
 
     await renderPage()
 
-    expect(screen.getByTestId('holdings-table')).toBeInTheDocument()
+    expect(screen.getByTestId('insights-error')).toBeInTheDocument()
   })
 
-  it('PortfolioPage - 502 price error - renders price unavailable message', async () => {
+  it('PortfolioPage - 502 price error on Holdings tab - renders price unavailable message', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const priceError = Object.assign(new Error('Bad Gateway'), {
@@ -308,21 +378,20 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: priceError,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ isError: true, error: priceError }),
+    )
 
     await renderPage()
+
+    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
 
     expect(
       screen.getByText('Could not load portfolio. Price data unavailable.'),
     ).toBeInTheDocument()
   })
 
-  it('PortfolioPage - 502 balance error - renders balance unavailable message', async () => {
+  it('PortfolioPage - 502 balance error on Holdings tab - renders balance unavailable message', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     const balanceError = Object.assign(new Error('Bad Gateway'), {
@@ -337,14 +406,13 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: balanceError,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ isError: true, error: balanceError }),
+    )
 
     await renderPage()
+
+    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
 
     expect(
       screen.getByText('Could not load portfolio. Balance data unavailable.'),
@@ -358,12 +426,7 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
@@ -378,12 +441,7 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: true,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
@@ -403,12 +461,9 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: authError,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ isError: true, error: authError }),
+    )
 
     await renderPage()
 
@@ -428,12 +483,9 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: mockHoldingsResponse,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
 
     await renderPage()
 
@@ -445,18 +497,12 @@ describe('PortfolioPage', () => {
 
   it('PortfolioPage - default account selection - selects first account when none stored', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
-    // selectedAccountId is null, accounts loads → useEffect should select first
     mockUseActiveAccounts.mockReturnValue({
       data: { accounts: [mockAccount] },
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(buildHoldingsHookReturn())
 
     await renderPage()
 
@@ -473,16 +519,15 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: mockHoldingsResponse,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
 
     await renderPage()
 
-    // The table mock captures onSell — call it directly
+    // Switch to Holdings tab first to see the table
+    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+
     capturedOnSell?.('AAPL', 10)
 
     expect(openSellPanel).toHaveBeenCalledWith('AAPL', 10)
@@ -499,12 +544,9 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: mockHoldingsResponse,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
 
     await renderPage()
 
@@ -522,12 +564,9 @@ describe('PortfolioPage', () => {
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof useActiveAccounts>)
-    mockUsePortfolioHoldings.mockReturnValue({
-      data: mockHoldingsResponse,
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof usePortfolioHoldings>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
 
     await renderPage()
 

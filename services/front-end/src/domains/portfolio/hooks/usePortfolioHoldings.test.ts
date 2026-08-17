@@ -13,6 +13,27 @@ vi.mock('../api/portfolioApi', () => ({
 import { fetchPortfolioHoldings } from '../api/portfolioApi'
 const mockFetchPortfolioHoldings = vi.mocked(fetchPortfolioHoldings)
 
+const mockInsights = {
+  assetClassBreakdown: {
+    stockPercent: 75.0,
+    cashPercent: 25.0,
+    totalPortfolioValue: 2000.0,
+  },
+  stockBreakdown: [
+    {
+      ticker: 'AAPL',
+      currentValue: 1500.0,
+      percentOfStockPortfolio: 100.0,
+    },
+  ],
+  unrealisedPnLContribution: [
+    {
+      ticker: 'AAPL',
+      unrealisedPnL: 50.0,
+    },
+  ],
+}
+
 const mockHoldingsResponse: PortfolioHoldingsResponse = {
   holdings: [
     {
@@ -31,6 +52,25 @@ const mockHoldingsResponse: PortfolioHoldingsResponse = {
     balance: 500.0,
     currency: 'USD',
     portfolioPercent: 25.0,
+  },
+  insights: mockInsights,
+}
+
+const mockHoldingsResponseNoCash: PortfolioHoldingsResponse = {
+  holdings: [],
+  cash: {
+    balance: 500.0,
+    currency: 'USD',
+    portfolioPercent: null,
+  },
+  insights: {
+    assetClassBreakdown: {
+      stockPercent: 0,
+      cashPercent: 100,
+      totalPortfolioValue: 500,
+    },
+    stockBreakdown: [],
+    unrealisedPnLContribution: [],
   },
 }
 
@@ -106,5 +146,37 @@ describe('usePortfolioHoldings', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mockFetchPortfolioHoldings).toHaveBeenCalledWith('acc-1', 'u1')
+  })
+
+  it('usePortfolioHoldings - insights returned - insights is defined and populated', async () => {
+    mockFetchPortfolioHoldings.mockResolvedValueOnce(mockHoldingsResponse)
+
+    const { result } = renderHook(() => usePortfolioHoldings('acc-1', 'u1'), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.insights).toBeDefined()
+    expect(result.current.insights?.assetClassBreakdown.totalPortfolioValue).toBe(2000.0)
+    expect(result.current.insights?.stockBreakdown).toHaveLength(1)
+  })
+
+  it('usePortfolioHoldings - no stock positions - insights.stockBreakdown is empty array', async () => {
+    mockFetchPortfolioHoldings.mockResolvedValueOnce(mockHoldingsResponseNoCash)
+
+    const { result } = renderHook(() => usePortfolioHoldings('acc-1', 'u1'), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.insights?.stockBreakdown).toEqual([])
+  })
+
+  it('usePortfolioHoldings - data is undefined (disabled) - insights is undefined', () => {
+    const { result } = renderHook(() => usePortfolioHoldings(null, 'u1'), {
+      wrapper: createWrapper(),
+    })
+
+    expect(result.current.insights).toBeUndefined()
   })
 })
