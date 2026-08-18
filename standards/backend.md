@@ -8,7 +8,7 @@
 | JDK | 21 |
 | Framework | Spring Boot `4.1.0` |
 | ORM | Hibernate (via Spring Data JPA) |
-| Database | H2 (relational, in-memory) |
+| Database | H2 file-based (local dev / test) · PostgreSQL (production) |
 | Unit testing | KoTest + Mockito (`mockito-kotlin`) |
 | Build | Gradle (Kotlin DSL — `build.gradle.kts`) |
 | API | REST (JSON over HTTP) |
@@ -42,7 +42,9 @@ src/
         GlobalExceptionHandler.kt   # Root level — handles all domains
         TradingLabApplication.kt
     resources/
-      application.yml
+      application.yml         # Default (local dev) — file-based H2
+      application-prod.yml    # Production — PostgreSQL via env vars
+      application-test.yml    # Tests — in-memory H2 with create-drop
   test/
     kotlin/
       org/dpp/tradelab/
@@ -84,11 +86,38 @@ These IDs match those used by the decomposer agent.
 
 ## Database
 
-- H2 in-memory, auto-configured by Spring Boot.
-- `ddl-auto: create-drop` — schema generated from JPA entities on startup.
-- `h2.console.enabled: true` in development for inspection.
+Database configuration is Spring-profile-driven. Three profiles exist:
+
+| Profile | Database | `ddl-auto` | When used |
+|---------|----------|------------|-----------|
+| default (no profile) | H2 file-based `./data/tradelab` | `update` | Local development — data persists across restarts |
+| `test` | H2 in-memory | `create-drop` | All automated tests — clean schema per run |
+| `prod` | PostgreSQL | `validate` | Cloud / production — schema managed externally |
+
+### Common rules (all profiles)
 - All `datetime` fields stored in UTC.
 - UUIDs used as primary keys for all entities.
+- H2 console enabled only in the default (local dev) profile.
+
+### Local development (default profile)
+
+```yaml
+spring:
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+```
+
+The `./data/` directory is git-ignored. The file can be deleted to get a fresh schema.
+
+### Test profile (`application-test.yml`)
 
 ```yaml
 spring:
@@ -98,11 +127,27 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: false
-  h2:
-    console:
-      enabled: true
 ```
+
+Activate by setting `spring.profiles.active=test` (Spring Boot test slices do this automatically).
+
+### Production profile (`application-prod.yml`)
+
+```yaml
+spring:
+  datasource:
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+```
+
+Required environment variables: `DATASOURCE_URL`, `DATASOURCE_USERNAME`, `DATASOURCE_PASSWORD`.  
+Activate with: `SPRING_PROFILES_ACTIVE=prod`.
 
 ---
 
