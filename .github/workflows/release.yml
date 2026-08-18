@@ -45,12 +45,11 @@ jobs:
 
       - name: Build and push Docker image with Jib
         working-directory: services/backend
-        env:
-          JIB_TO_AUTH_USERNAME: ${{ github.actor }}
-          JIB_TO_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./gradlew jib \
             -PimageVersion=v${{ needs.extract-version.outputs.version }} \
+            -Djib.to.auth.username=${{ github.actor }} \
+            -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }} \
             -Djib.console=plain
           echo "✅ Backend image built and pushed: ${{ env.IMAGE_NAME_BACKEND }}:v${{ needs.extract-version.outputs.version }}"
 
