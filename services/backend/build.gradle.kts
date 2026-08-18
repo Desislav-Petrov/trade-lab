@@ -210,6 +210,9 @@ dependencies {
     implementation("de.codecentric:spring-boot-admin-starter-server:$springBootAdminVersion")
     implementation("de.codecentric:spring-boot-admin-starter-client:$springBootAdminVersion")
     runtimeOnly("com.h2database:h2")
+    // PostgreSQL driver — used when the 'prod' profile is active (application-prod.yml).
+    // Version managed by the Spring Boot BOM.
+    runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:$jwtVersion")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jwtVersion")
 
