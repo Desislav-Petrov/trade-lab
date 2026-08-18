@@ -14,7 +14,7 @@ plugins {
     id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.openapi.generator") version "7.13.0"
-    id("com.google.cloud.tools.jib") version "3.4.0"
+    id("com.google.cloud.tools.jib") version "3.5.4"
 }
 
 group = "org.dpp.tradelab"
@@ -37,7 +37,7 @@ repositories {
     mavenCentral()
 }
 
-// ── Jib Docker configuration ───────────────────────────────────────────────────
+// ── Jib Docker configuration ───────────────────────────────────────────────
 val imageVersion = project.findProperty("imageVersion")?.toString() ?: "latest"
 
 jib {
@@ -63,7 +63,7 @@ jib {
     }
 }
 
-// ── OpenAPI generation ───────────────────────────────────────────────────────
+// ── OpenAPI generation ───────────────────────────────────────────────
 // One task per domain. Add a new task block for each new domain YAML.
 
 val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
@@ -185,7 +185,7 @@ tasks.named("compileKotlin") {
     dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateFinnhubApi)
 }
 
-// ── Dependencies ─────────────────────────────────────────────────────────────
+// ── Dependencies ─────────────────────────────────────────────────────
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
