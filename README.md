@@ -180,7 +180,7 @@ For the full guide (local validation, troubleshooting, commit conventions) see *
 | Google OAuth2 client secret | `GOOGLE_CLIENT_SECRET` | `not-configured` | Google OAuth2 client secret. See [Google Cloud Console](https://console.cloud.google.com/). |
 | GitHub OAuth2 client ID | `GITHUB_CLIENT_ID` | `not-configured` | GitHub OAuth2 client ID for social login. |
 | GitHub OAuth2 client secret | `GITHUB_CLIENT_SECRET` | `not-configured` | GitHub OAuth2 client secret. |
-| Finnhub API key | `FINNHUB_API_KEY` | `demo` | API key for Finnhub market data. The `demo` key is heavily rate-limited; supply a real key for meaningful data. |
+| Finnhub API key | `FINNHUB_API_KEY` | *(none)* | API key for Finnhub market data. Supply a real key for meaningful data. |
 | Frontend allowed origin (CORS) | `FRONTEND_ORIGIN` | `http://localhost:5173` | Origin the backend permits for CORS and OAuth2 redirects. Set to the production frontend URL in production. |
 | Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
 | Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
@@ -195,6 +195,8 @@ For the full guide (local validation, troubleshooting, commit conventions) see *
 | `FRONTEND_VERSION` | `latest` | Docker image tag for the frontend container. |
 | `GOOGLE_CLIENT_ID` | *(none)* | Passed into the backend container for Google OAuth2. |
 | `GOOGLE_CLIENT_SECRET` | *(none)* | Passed into the backend container for Google OAuth2. |
+| `GITHUB_CLIENT_ID` | *(none)* | Passed into the backend container for GitHub OAuth2. |
+| `GITHUB_CLIENT_SECRET` | *(none)* | Passed into the backend container for GitHub OAuth2. |
 
 ### Frontend (`services/front-end/.env.development`)
 
