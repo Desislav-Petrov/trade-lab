@@ -23,7 +23,10 @@ GET http://localhost:8080/api/v1/hello
 ```
 
 The H2 console is available at `http://localhost:8080/h2-console`  
-(JDBC URL: `jdbc:h2:mem:tradelab`, no credentials required).
+(JDBC URL: `jdbc:h2:file:./data/tradelab`, no credentials required).
+
+Data is persisted in `./data/tradelab.mv.db` and survives restarts.  
+To switch to a different database, set the `DATASOURCE_URL` environment variable before starting (see [Database configuration](#database-configuration) below).
 
 ### Other Gradle tasks
 
@@ -171,6 +174,40 @@ For the full guide (local validation, troubleshooting, commit conventions) see *
 
 ## Important Configuration Settings
 
+### Database configuration {#database-configuration}
+
+The backend ships with three Spring profiles for database connectivity:
+
+| Profile | Database | `ddl-auto` | When used |
+|---|---|---|---|
+| *(default)* | H2 file `./data/tradelab` | `update` | Local dev — data persists across restarts |
+| `test` | H2 in-memory | `create-drop` | Automated tests (`./gradlew test`) |
+| `prod` | PostgreSQL | `validate` | Cloud / production |
+
+#### Switching to a custom local H2 path
+
+Override the datasource URL with the `DATASOURCE_URL` environment variable:
+
+```bash
+DATASOURCE_URL=jdbc:h2:file:/path/to/my/db ./gradlew bootRun
+```
+
+#### Running against PostgreSQL in production
+
+Set the following environment variables before starting the application:
+
+```bash
+SPRING_PROFILES_ACTIVE=prod
+DATASOURCE_URL=jdbc:postgresql://<host>:<port>/<dbname>
+DATASOURCE_USERNAME=<user>
+DATASOURCE_PASSWORD=<password>
+```
+
+With the `prod` profile Hibernate **validates** the schema only — run your
+migrations externally (e.g. Flyway / Liquibase) before starting the app.
+
+---
+
 ### Backend (`services/backend/src/main/resources/application.yml` / environment variables)
 
 | Setting | Env Variable | Default | Description |
@@ -185,7 +222,10 @@ For the full guide (local validation, troubleshooting, commit conventions) see *
 | Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
 | Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
 | H2 console | `SPRING_H2_CONSOLE_ENABLED` | `true` | Enables the in-memory H2 web console at `/h2-console`. Disable in production. |
-| Active Spring profile | `SPRING_PROFILES_ACTIVE` | *(none)* | Set to `dev` locally or via Docker Compose. Controls profile-specific behaviour. |
+| Active Spring profile | `SPRING_PROFILES_ACTIVE` | *(none)* | Set to `prod` for PostgreSQL. Controls profile-specific behaviour (see [Database configuration](#database-configuration)). |
+| Datasource URL | `DATASOURCE_URL` | `jdbc:h2:file:./data/tradelab;AUTO_SERVER=TRUE` | JDBC URL for the database. Override to point at a custom H2 path or a PostgreSQL instance. |
+| Datasource username | `DATASOURCE_USERNAME` | *(none — not required for H2)* | Database username. Required when `SPRING_PROFILES_ACTIVE=prod`. |
+| Datasource password | `DATASOURCE_PASSWORD` | *(none — not required for H2)* | Database password. Required when `SPRING_PROFILES_ACTIVE=prod`. |
 
 ### Docker Compose (`.env` — copy from `.env.example`)
 
