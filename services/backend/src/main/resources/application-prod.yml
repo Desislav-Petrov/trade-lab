@@ -1,0 +1,26 @@
+# Production profile — activate with: SPRING_PROFILES_ACTIVE=prod
+#
+# All sensitive values must be supplied via environment variables.
+# Never commit real credentials to source control.
+
+spring:
+  datasource:
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      # 'validate' — Hibernate checks the schema but does NOT modify it.
+      # Schema changes must be applied externally (Flyway or manual DDL)
+      # before deploying a new application version.
+      ddl-auto: validate
+    show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  h2:
+    console:
+      enabled: false   # H2 console is unavailable in production

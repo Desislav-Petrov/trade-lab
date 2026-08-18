@@ -1,14 +1,20 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:tradelab;DB_CLOSE_DELAY=-1
+    # Local development: file-based H2 so data persists across application restarts.
+    # Override via DATASOURCE_URL environment variable if needed.
+    # Production profile (application-prod.yml) replaces this with PostgreSQL.
+    url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # 'update' — schema evolves with entities; existing data is preserved.
+      # Tests override this to 'create-drop' via application-test.yml.
+      # Production overrides this to 'validate' via application-prod.yml.
+      ddl-auto: update
     show-sql: false
   h2:
     console:
-      enabled: true
+      enabled: true   # Inspect local DB at http://localhost:8080/h2-console
   boot:
     admin:
       context-path: /admin   # Spring Boot Admin UI served at /admin

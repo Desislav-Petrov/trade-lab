@@ -1,0 +1,17 @@
+# Test profile — activated automatically by Spring Boot test slices
+# (@DataJpaTest, @SpringBootTest) when spring.profiles.active=test.
+#
+# Restores pure in-memory H2 with create-drop so every test run starts
+# from a clean schema, regardless of any local ./data/ files.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:tradelab;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: false
