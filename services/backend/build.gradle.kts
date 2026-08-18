@@ -61,14 +61,6 @@ jib {
             "org.opencontainers.image.created" to System.currentTimeMillis().toString()
         )
     }
-    extraDirectories {
-        paths {
-            path {
-                setFrom("${layout.projectDirectory}/src/main/docker")
-                into = "/app"
-            }
-        }
-    }
 }
 
 // ── OpenAPI generation ───────────────────────────────────────────────────────
