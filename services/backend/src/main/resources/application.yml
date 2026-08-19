@@ -52,14 +52,26 @@ management:
     web:
       base-path: /actuator
       exposure:
-        # Only health is exposed by default (dev/local).
-        # Full actuator exposure is enabled in the prod profile (application-prod.yml).
-        # To activate the prod profile set: SPRING_PROFILES_ACTIVE=prod
+        # Full actuator endpoints exposed in dev/non-prod environments only.
+        # The prod profile (application-prod.yml) restricts this to health only.
         include:
           - health
+          - info
+          - metrics
+          - mappings
+          - env
+          - beans
+          - loggers
+          - threaddump
+          - conditions
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
+    env:
+      show-values: never   # never expose secret property values
+  info:
+    env:
+      enabled: true
 
 info:
   app:

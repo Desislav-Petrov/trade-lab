@@ -30,21 +30,9 @@ management:
     web:
       base-path: /actuator
       exposure:
+        # Restrict actuator to health only in production.
         include:
           - health
-          - info
-          - metrics
-          - mappings
-          - env
-          - beans
-          - loggers
-          - threaddump
-          - conditions
   endpoint:
     health:
-      show-details: always
-    env:
-      show-values: never   # never expose secret property values
-  info:
-    env:
-      enabled: true
+      show-details: when-authorized
