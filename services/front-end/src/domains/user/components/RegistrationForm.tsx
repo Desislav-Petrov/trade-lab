@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useRegisterUser } from '../hooks/useRegisterUser'
 import type { AxiosError } from 'axios'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 interface RegistrationFormProps {
   onSuccess?: () => void
@@ -68,27 +72,18 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       {serverConflict && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-        >
-          {serverConflict}
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{serverConflict}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="firstName"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          First name
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="firstName">First name</Label>
+        <Input
           id="firstName"
           name="firstName"
           value={fields.firstName}
           onChange={handleChange}
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         {fieldErrors.firstName && (
           <span role="alert" className="text-xs text-[var(--color-danger)]">
@@ -97,19 +92,13 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="lastName"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Last name
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="lastName">Last name</Label>
+        <Input
           id="lastName"
           name="lastName"
           value={fields.lastName}
           onChange={handleChange}
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         {fieldErrors.lastName && (
           <span role="alert" className="text-xs text-[var(--color-danger)]">
@@ -118,19 +107,13 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="address"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Address
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="address">Address</Label>
+        <Input
           id="address"
           name="address"
           value={fields.address}
           onChange={handleChange}
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         {fieldErrors.address && (
           <span role="alert" className="text-xs text-[var(--color-danger)]">
@@ -139,20 +122,14 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="email"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Email
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input
           id="email"
           name="email"
           type="email"
           value={fields.email}
           onChange={handleChange}
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         {fieldErrors.email && (
           <span role="alert" className="text-xs text-[var(--color-danger)]">
@@ -161,13 +138,9 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="mt-2 w-full rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      <Button type="submit" className="mt-2 w-full" disabled={isPending}>
         {isPending ? 'Submitting…' : 'Submit'}
-      </button>
+      </Button>
     </form>
   )
 }
