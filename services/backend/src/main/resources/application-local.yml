@@ -1,0 +1,16 @@
+# Local profile — activate with: SPRING_PROFILES_ACTIVE=local
+#
+# Uses a persistent file-based H2 database so data survives application restarts.
+# This profile is also used by docker-compose for local container runs.
+
+spring:
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # 'update' — schema evolves with entities; existing data is preserved.
+      ddl-auto: update
+  h2:
+    console:
+      enabled: true   # Inspect local DB at http://localhost:8080/h2-console
