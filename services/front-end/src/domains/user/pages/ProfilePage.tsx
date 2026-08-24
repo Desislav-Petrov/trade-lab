@@ -1,13 +1,10 @@
-import { useState } from 'react'
 import { Navigate } from '@tanstack/react-router'
 import { useSessionStore } from '../hooks/useSessionStore'
 import { PlatformSettingsSection } from '../components/PlatformSettingsSection'
-
-type Tab = 'profile' | 'settings'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
 
 export function ProfilePage() {
   const user = useSessionStore((s) => s.user)
-  const [activeTab, setActiveTab] = useState<Tab>('profile')
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -32,45 +29,36 @@ export function ProfilePage() {
       <h1 className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">
         {user.firstName} {user.lastName}
       </h1>
-
       <p className="mb-6 text-xs text-[var(--color-text-muted)]">{today}</p>
 
-      <div className="mb-6 flex gap-4 border-b border-[var(--color-border)]">
-        <button
-          type="button"
-          onClick={() => setActiveTab('profile')}
-          className={`pb-2 text-xs ${activeTab === 'profile' ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}
-        >
-          Profile Information
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('settings')}
-          className={`pb-2 text-xs ${activeTab === 'settings' ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}
-        >
-          Platform Settings
-        </button>
-      </div>
+      <Tabs defaultValue="profile">
+        <TabsList className="mb-6 w-full justify-start">
+          <TabsTrigger value="profile">Profile Information</TabsTrigger>
+          <TabsTrigger value="settings">Platform Settings</TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'profile' && (
-        <dl className="space-y-3">
-          {(
-            [
-              ['Email', user.email],
-              ['Address', user.address],
-              ['Status', user.status],
-              ['Member since', joinedDate],
-            ] as [string, string][]
-          ).map(([label, value]) => (
-            <div key={label} className="flex flex-col gap-0.5">
-              <dt className="text-xs text-[var(--color-text-muted)]">{label}</dt>
-              <dd className="text-xs text-[var(--color-text-primary)]">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+        <TabsContent value="profile">
+          <dl className="space-y-3">
+            {(
+              [
+                ['Email', user.email],
+                ['Address', user.address],
+                ['Status', user.status],
+                ['Member since', joinedDate],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="flex flex-col gap-0.5">
+                <dt className="text-xs text-[var(--color-text-muted)]">{label}</dt>
+                <dd className="text-xs text-[var(--color-text-primary)]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </TabsContent>
 
-      {activeTab === 'settings' && <PlatformSettingsSection />}
+        <TabsContent value="settings">
+          <PlatformSettingsSection />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
