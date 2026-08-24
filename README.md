@@ -22,11 +22,8 @@ Verify it is running:
 GET http://localhost:8080/api/v1/hello
 ```
 
-The H2 console is available at `http://localhost:8080/h2-console`  
-(JDBC URL: `jdbc:h2:file:./data/tradelab`, no credentials required).
-
-Data is persisted in `./data/tradelab.mv.db` and survives restarts.  
-To switch to a different database, set the `DATASOURCE_URL` environment variable before starting (see [Database configuration](#database-configuration) below).
+By default the app uses an **in-memory H2 database** — data is lost on each restart.
+Start with the `local` profile to get a persistent file-backed H2 database and the H2 console (see [Spring profiles](#spring-profiles) below).
 
 ### Other Gradle tasks
 
@@ -174,22 +171,40 @@ For the full guide (local validation, troubleshooting, commit conventions) see *
 
 ## Important Configuration Settings
 
-### Database configuration {#database-configuration}
+### Spring profiles {#spring-profiles}
 
-The backend ships with three Spring profiles for database connectivity:
+The backend ships with four Spring profiles:
 
-| Profile | Database | `ddl-auto` | When used |
-|---|---|---|---|
-| *(default)* | H2 file `./data/tradelab` | `update` | Local dev — data persists across restarts |
-| `test` | H2 in-memory | `create-drop` | Automated tests (`./gradlew test`) |
-| `prod` | PostgreSQL | `validate` | Cloud / production |
+| Profile | Activate with | Database | `ddl-auto` | H2 console | Actuator | When used |
+|---|---|---|---|---|---|---|
+| *(default)* | *(none set)* | H2 in-memory | `create-drop` | off | full set | Ephemeral dev — clean slate on every restart |
+| `local` | `SPRING_PROFILES_ACTIVE=local` | H2 file `./data/tradelab` | `update` | **on** (`/h2-console`) | full set | Persistent local dev — data survives restarts |
+| `test` | set automatically by test runner | H2 in-memory | `create-drop` | off | full set | Automated tests (`./gradlew test`) |
+| `prod` | `SPRING_PROFILES_ACTIVE=prod` | PostgreSQL | `validate` | off | **health only** | Cloud / production |
+
+**Profile differences at a glance:**
+
+- **default vs local** — both use H2, but `local` stores data in a file so it persists across restarts and enables the H2 web console. The default profile starts from an empty schema every time.
+- **default vs test** — functionally identical (both are ephemeral H2 in-memory), but `test` is activated automatically by the test classpath config with isolated test credentials and debug security logging, ensuring tests never accidentally use local data.
+- **local/default/test vs prod** — `prod` switches to PostgreSQL with `validate` mode (Hibernate never touches the schema), restricts Actuator to the `/health` endpoint only, and hides health details unless the caller is authorised. All three datasource credentials (`DATASOURCE_URL`, `DATASOURCE_USERNAME`, `DATASOURCE_PASSWORD`) are required with no fallback.
+
+#### Running the `local` profile (recommended for day-to-day development)
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+```
+
+The H2 console is available at `http://localhost:8080/h2-console`
+(JDBC URL: `jdbc:h2:file:./data/tradelab`, no credentials required).
+
+Data is persisted in `./data/tradelab.mv.db` and survives restarts.
 
 #### Switching to a custom local H2 path
 
 Override the datasource URL with the `DATASOURCE_URL` environment variable:
 
 ```bash
-DATASOURCE_URL=jdbc:h2:file:/path/to/my/db ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local DATASOURCE_URL=jdbc:h2:file:/path/to/my/db ./gradlew bootRun
 ```
 
 #### Running against PostgreSQL in production
@@ -222,8 +237,8 @@ migrations externally (e.g. Flyway / Liquibase) before starting the app.
 | Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
 | Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
 | H2 console | `SPRING_H2_CONSOLE_ENABLED` | `true` | Enables the in-memory H2 web console at `/h2-console`. Disable in production. |
-| Active Spring profile | `SPRING_PROFILES_ACTIVE` | *(none)* | Set to `prod` for PostgreSQL. Controls profile-specific behaviour (see [Database configuration](#database-configuration)). |
-| Datasource URL | `DATASOURCE_URL` | `jdbc:h2:file:./data/tradelab;AUTO_SERVER=TRUE` | JDBC URL for the database. Override to point at a custom H2 path or a PostgreSQL instance. |
+| Active Spring profile | `SPRING_PROFILES_ACTIVE` | *(none)* | Set to `local` for persistent local dev, `prod` for PostgreSQL. Controls profile-specific behaviour (see [Spring profiles](#spring-profiles)). |
+| Datasource URL | `DATASOURCE_URL` | `jdbc:h2:mem:tradelab` (default) / `jdbc:h2:file:./data/tradelab;AUTO_SERVER=TRUE` (local) | JDBC URL for the database. Override to point at a custom H2 path or a PostgreSQL instance. |
 | Datasource username | `DATASOURCE_USERNAME` | *(none — not required for H2)* | Database username. Required when `SPRING_PROFILES_ACTIVE=prod`. |
 | Datasource password | `DATASOURCE_PASSWORD` | *(none — not required for H2)* | Database password. Required when `SPRING_PROFILES_ACTIVE=prod`. |
 
