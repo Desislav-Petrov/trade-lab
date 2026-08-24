@@ -2,6 +2,7 @@ import { FeedTypeSelector } from './FeedTypeSelector'
 import { usePatchUserSettings } from '../hooks/usePatchUserSettings'
 import { useSessionStore } from '../hooks/useSessionStore'
 import type { FeedType } from '../types/userSettings'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 export interface PlatformSettingsSectionProps {}
 
@@ -33,9 +34,9 @@ export function PlatformSettingsSection(_props: PlatformSettingsSectionProps) {
         errorStatus={errorStatus}
       />
       {isSuccess && (
-        <p className="mt-2 text-xs text-green-600" role="status">
-          Saved
-        </p>
+        <Alert variant="success" role="status" className="mt-2">
+          <AlertDescription>Saved</AlertDescription>
+        </Alert>
       )}
     </section>
   )

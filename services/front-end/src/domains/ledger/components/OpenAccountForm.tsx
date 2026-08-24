@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 interface OpenAccountFormProps {
   onSubmit: (currency: 'USD' | 'GBP' | 'EUR', name?: string) => void
@@ -33,26 +37,18 @@ export function OpenAccountForm({ onSubmit, isLoading, error, onCancel }: OpenAc
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       {error && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-        >
-          {error}
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="currency"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Base currency
-        </label>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="currency">Base currency</Label>
         <select
           id="currency"
           name="currency"
           defaultValue=""
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+          className="flex h-8 w-full rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
         >
           <option value="" disabled>
             — select currency —
@@ -68,36 +64,18 @@ export function OpenAccountForm({ onSubmit, isLoading, error, onCancel }: OpenAc
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="name"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Account name (optional)
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
-        />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="name">Account name (optional)</Label>
+        <Input id="name" name="name" type="text" />
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex-1 rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" className="flex-1" disabled={isLoading}>
           {isLoading ? 'Opening…' : 'Open account'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded border border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   )

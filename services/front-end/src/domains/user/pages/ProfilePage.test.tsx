@@ -97,7 +97,7 @@ describe('ProfilePage', () => {
     await renderProfilePage()
 
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /platform settings/i }))
+    await user.click(screen.getByRole('tab', { name: /platform settings/i }))
 
     expect(screen.getByText('General Platform Settings')).toBeInTheDocument()
   })

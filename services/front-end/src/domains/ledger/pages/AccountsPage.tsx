@@ -7,6 +7,15 @@ import { AccountList } from '../components/AccountList'
 import { OpenAccountForm } from '../components/OpenAccountForm'
 import { TopUpModal } from '../components/TopUpModal'
 import type { AccountResponse } from '../types/account'
+import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent } from '@/shared/components/ui/card'
+import { Skeleton } from '@/shared/components/ui/skeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog'
 
 export function AccountsPage() {
   const user = useSessionStore((s) => s.user)
@@ -73,29 +82,30 @@ export function AccountsPage() {
           <h1 className="text-sm font-medium text-[var(--color-text-primary)]">Accounts</h1>
         </div>
         {!showForm && (
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className="rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)]"
-          >
-            Open new account
-          </button>
+          <Button onClick={() => setShowForm(true)}>Open new account</Button>
         )}
       </div>
 
       {showForm && (
-        <div className="mb-6 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <OpenAccountForm
-            onSubmit={handleOpenAccountSubmit}
-            isLoading={openAccount.isPending}
-            error={formError}
-            onCancel={handleCancel}
-          />
-        </div>
+        <Card className="mb-6">
+          <CardContent className="pt-4">
+            <OpenAccountForm
+              onSubmit={handleOpenAccountSubmit}
+              isLoading={openAccount.isPending}
+              error={formError}
+              onCancel={handleCancel}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {isLoadingAccounts ? (
-        <p className="text-xs text-[var(--color-text-muted)]">Loading accounts…</p>
+        <div className="flex flex-col gap-3" data-testid="loading-indicator">
+          <span className="sr-only">Loading accounts</span>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
+        </div>
       ) : (
         <AccountList
           accounts={accounts}
@@ -108,47 +118,60 @@ export function AccountsPage() {
         />
       )}
 
-      {selectedAccount && (
-        <TopUpModal
-          account={selectedAccount}
-          isLoading={topUpAccount.isPending}
-          isSuccess={topUpAccount.isSuccess}
-          error={topUpError}
-          onConfirm={(amount) => {
-            topUpAccount.mutate(
-              { accountId: selectedAccount.id, request: { userId: user!.userId, amount } },
-              {
-                onSuccess: () => {
-                  // isSuccess will be true — TopUpModal shows confirmation
-                  // onClose will clear selectedAccount after user dismisses
-                },
-                onError: (err) => {
-                  const axiosError = err as AxiosError
-                  const status = axiosError?.response?.status
-                  if (status === 401) {
-                    navigate({ to: '/login', replace: true })
-                  } else {
-                    setTopUpError(
-                      status === 400
-                        ? 'Invalid amount. Please check your input.'
-                        : status === 403
-                          ? 'This account is not available for top-up.'
-                          : status === 404
-                            ? 'Account not found.'
-                            : 'Something went wrong. Please try again.',
-                    )
-                  }
-                },
-              },
-            )
-          }}
-          onClose={() => {
+      <Dialog
+        open={selectedAccount !== null}
+        onOpenChange={(open) => {
+          if (!open) {
             setSelectedAccount(null)
             setTopUpError(undefined)
             topUpAccount.reset()
-          }}
-        />
-      )}
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Top Up</DialogTitle>
+          </DialogHeader>
+          {selectedAccount && (
+            <TopUpModal
+              account={selectedAccount}
+              isLoading={topUpAccount.isPending}
+              isSuccess={topUpAccount.isSuccess}
+              error={topUpError}
+              onConfirm={(amount) => {
+                topUpAccount.mutate(
+                  { accountId: selectedAccount.id, request: { userId: user!.userId, amount } },
+                  {
+                    onSuccess: () => {},
+                    onError: (err) => {
+                      const axiosError = err as AxiosError
+                      const status = axiosError?.response?.status
+                      if (status === 401) {
+                        navigate({ to: '/login', replace: true })
+                      } else {
+                        setTopUpError(
+                          status === 400
+                            ? 'Invalid amount. Please check your input.'
+                            : status === 403
+                              ? 'This account is not available for top-up.'
+                              : status === 404
+                                ? 'Account not found.'
+                                : 'Something went wrong. Please try again.',
+                        )
+                      }
+                    },
+                  },
+                )
+              }}
+              onClose={() => {
+                setSelectedAccount(null)
+                setTopUpError(undefined)
+                topUpAccount.reset()
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -17,6 +17,8 @@ import { AddTickerPanel } from '../components/AddTickerPanel'
 import { RemoveTickerBar } from '../components/RemoveTickerBar'
 import { MarketDataGrid } from '../components/MarketDataGrid'
 import { BuyPanel } from '../components/BuyPanel'
+import { Button } from '@/shared/components/ui/button'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 interface BuyContext {
   ticker: string
@@ -38,11 +40,7 @@ export function StockTradingPage() {
   const [addError, setAddError] = useState<string | null>(null)
   const [buyContext, setBuyContext] = useState<BuyContext | null>(null)
 
-  const {
-    data: subscriptionsData,
-    isLoading,
-    error: loadError,
-  } = useSubscriptions(user?.userId ?? '')
+  const { data: subscriptionsData, isLoading, error: loadError } = useSubscriptions(user?.userId ?? '')
   const { data: supportedTickersData } = useSupportedTickers()
   const bulkAdd = useBulkAddSubscriptions()
   const bulkRemove = useBulkRemoveSubscriptions()
@@ -55,11 +53,7 @@ export function StockTradingPage() {
   const { rows, feedStatus } = useMarketDataFeed(user?.userId ?? '', subscribedTickers)
   const deferredRows = useDeferredValue(rows)
 
-  const {
-    data: activeAccountsData,
-    isLoading: isAccountsLoading,
-    isError: isAccountsError,
-  } = useActiveAccounts()
+  const { data: activeAccountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
   const selectedAccountId = useStockTradingStore((s) => s.selectedAccountId)
   const setSelectedAccountId = useStockTradingStore((s) => s.setSelectedAccountId)
 
@@ -75,7 +69,6 @@ export function StockTradingPage() {
 
   const subscriptions = subscriptionsData ?? []
   const supportedTickers = supportedTickersData ?? []
-
   const subscribedSet = new Set(subscriptions.map((s) => s.ticker))
   const availableTickers = supportedTickers.filter((t) => !subscribedSet.has(t.ticker))
 
@@ -84,12 +77,8 @@ export function StockTradingPage() {
     bulkAdd.mutate(
       { userId: user!.userId, tickers },
       {
-        onSuccess: () => {
-          setIsAddPanelOpen(false)
-        },
-        onError: (err) => {
-          setAddError(extractErrorMessage(err))
-        },
+        onSuccess: () => setIsAddPanelOpen(false),
+        onError: (err) => setAddError(extractErrorMessage(err)),
       },
     )
   }
@@ -99,12 +88,8 @@ export function StockTradingPage() {
     bulkRemove.mutate(
       { userId: user!.userId, tickers: selectedTickers },
       {
-        onSuccess: () => {
-          setSelectedTickers([])
-        },
-        onError: (err) => {
-          setRemoveError(extractErrorMessage(err))
-        },
+        onSuccess: () => setSelectedTickers([]),
+        onError: (err) => setRemoveError(extractErrorMessage(err)),
       },
     )
   }
@@ -117,13 +102,7 @@ export function StockTradingPage() {
           <h1 className="text-sm font-medium text-[var(--color-text-primary)]">Stock Trading</h1>
         </div>
         {!isAddPanelOpen && (
-          <button
-            type="button"
-            onClick={() => setIsAddPanelOpen(true)}
-            className="rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)]"
-          >
-            Add tickers
-          </button>
+          <Button onClick={() => setIsAddPanelOpen(true)}>Add tickers</Button>
         )}
       </div>
 
@@ -138,15 +117,15 @@ export function StockTradingPage() {
       </div>
 
       {loadError && (
-        <p role="alert" className="mb-4 text-xs text-[var(--color-danger)]">
-          Failed to load subscriptions. Please try again.
-        </p>
+        <Alert variant="destructive" role="alert" className="mb-4">
+          <AlertDescription>Failed to load subscriptions. Please try again.</AlertDescription>
+        </Alert>
       )}
 
       {removeError && (
-        <p role="alert" className="mb-4 text-xs text-[var(--color-danger)]">
-          {removeError}
-        </p>
+        <Alert variant="destructive" role="alert" className="mb-4">
+          <AlertDescription>{removeError}</AlertDescription>
+        </Alert>
       )}
 
       {isAddPanelOpen && (
@@ -154,10 +133,7 @@ export function StockTradingPage() {
           <AddTickerPanel
             availableTickers={availableTickers}
             onAdd={handleAdd}
-            onClose={() => {
-              setIsAddPanelOpen(false)
-              setAddError(null)
-            }}
+            onClose={() => { setIsAddPanelOpen(false); setAddError(null) }}
             isLoading={bulkAdd.isPending}
             errorMessage={addError}
           />

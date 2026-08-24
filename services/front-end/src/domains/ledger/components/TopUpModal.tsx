@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import type { AccountResponse } from '../types/account'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 interface TopUpModalProps {
   account: AccountResponse
@@ -59,30 +63,20 @@ export function TopUpModal({
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       {error && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-        >
-          {error}
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="flex flex-col gap-1">
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Account: <span className="text-[var(--color-text-primary)]">{account.name}</span>
-          &nbsp;&middot;&nbsp;
-          <span className="text-[var(--color-text-primary)]">{account.currency}</span>
-        </p>
-      </div>
+      <p className="text-xs text-[var(--color-text-muted)]">
+        Account: <span className="text-[var(--color-text-primary)]">{account.name}</span>
+        &nbsp;&middot;&nbsp;
+        <span className="text-[var(--color-text-primary)]">{account.currency}</span>
+      </p>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="top-up-amount"
-          className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-        >
-          Amount
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="top-up-amount">Amount</Label>
+        <Input
           id="top-up-amount"
           name="amount"
           type="text"
@@ -90,7 +84,6 @@ export function TopUpModal({
           value={amountRaw}
           onChange={handleAmountChange}
           disabled={isLoading}
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
         />
         {touched && validationError && (
           <p role="alert" className="text-xs text-[var(--color-danger)]">
@@ -100,20 +93,12 @@ export function TopUpModal({
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isConfirmDisabled}
-          className="flex-1 rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" className="flex-1" disabled={isConfirmDisabled}>
           {isLoading ? 'Confirming…' : 'Confirm'}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded border border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={onClose}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   )

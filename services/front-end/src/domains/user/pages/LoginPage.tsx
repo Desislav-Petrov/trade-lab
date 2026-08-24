@@ -6,6 +6,9 @@ import { LoginWithGoogleButton } from '../components/LoginWithGoogleButton'
 import { LoginWithGithubButton } from '../components/LoginWithGithubButton'
 import { redirectToGoogleLogin, redirectToGithubLogin } from '../api/oidcApi'
 import type { LoginResponse } from '../types/user'
+import { Card, CardContent, CardHeader } from '@/shared/components/ui/card'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Separator } from '@/shared/components/ui/separator'
 
 interface LocationState {
   banner?: string
@@ -48,54 +51,51 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-full items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-        <p className="mb-1 text-xs tracking-widest text-[var(--color-accent)]">TRADE-LAB</p>
-        <h1 className="mb-6 text-sm font-medium text-[var(--color-text-primary)]">Log in</h1>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="pb-2">
+          <p className="text-xs tracking-widest text-[var(--color-accent)]">TRADE-LAB</p>
+          <h1 className="text-sm font-medium text-[var(--color-text-primary)]">Log in</h1>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {banner && (
+            <Alert variant="success" role="status">
+              <AlertDescription>{banner}</AlertDescription>
+            </Alert>
+          )}
 
-        {banner && (
-          <p
-            role="status"
-            className="mb-4 border-l-2 border-[var(--color-accent)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-accent)]"
-          >
-            {banner}
+          {oidcError && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{oidcError}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <LoginWithGoogleButton onClick={handleGoogleLogin} />
+            <LoginWithGithubButton onClick={handleGithubLogin} />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Separator className="flex-1" />
+            <span className="text-xs text-[var(--color-text-muted)]">or continue with email</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <LoginForm onSuccess={handleSuccess} />
+
+          {profileError && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>Unable to load your profile. Please try again.</AlertDescription>
+            </Alert>
+          )}
+
+          <p className="text-xs text-[var(--color-text-muted)]">
+            No account?{' '}
+            <a href="/register" className="text-[var(--color-accent)] hover:underline">
+              Register
+            </a>
           </p>
-        )}
-
-        {oidcError && (
-          <p
-            role="alert"
-            className="mb-4 border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-          >
-            {oidcError}
-          </p>
-        )}
-
-        <div className="mb-6">
-          <LoginWithGoogleButton onClick={handleGoogleLogin} />
-          <LoginWithGithubButton onClick={handleGithubLogin} />
-        </div>
-
-        <div className="mb-4 flex items-center gap-2">
-          <hr className="flex-1 border-[var(--color-border)]" />
-          <span className="text-xs text-[var(--color-text-muted)]">or continue with email</span>
-          <hr className="flex-1 border-[var(--color-border)]" />
-        </div>
-
-        <LoginForm onSuccess={handleSuccess} />
-
-        {profileError && (
-          <p role="alert" className="mt-3 text-xs text-[var(--color-danger)]">
-            Unable to load your profile. Please try again.
-          </p>
-        )}
-
-        <p className="mt-6 text-xs text-[var(--color-text-muted)]">
-          No account?{' '}
-          <a href="/register" className="text-[var(--color-accent)] hover:underline">
-            Register
-          </a>
-        </p>
-      </div>
+        </CardContent>
+      </Card>
     </main>
   )
 }

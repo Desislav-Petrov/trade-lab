@@ -1,13 +1,16 @@
+import { Button } from '@/shared/components/ui/button'
+
 export interface LoginWithGithubButtonProps {
   onClick: () => void
 }
 
 export function LoginWithGithubButton({ onClick }: LoginWithGithubButtonProps) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      className="w-full"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg)] focus:outline-none"
     >
       <svg
         aria-hidden="true"
@@ -23,6 +26,6 @@ export function LoginWithGithubButton({ onClick }: LoginWithGithubButtonProps) {
         />
       </svg>
       Login with GitHub
-    </button>
+    </Button>
   )
 }

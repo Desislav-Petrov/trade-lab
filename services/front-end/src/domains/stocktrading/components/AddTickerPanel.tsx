@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import type { SubscriptionResponse } from '../../marketdata/types/subscription'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Card } from '@/shared/components/ui/card'
 
 interface AddTickerPanelProps {
   availableTickers: SubscriptionResponse[]
@@ -36,22 +40,18 @@ export function AddTickerPanel({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <Card className="flex flex-col gap-4 p-4">
       {errorMessage && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-        >
-          {errorMessage}
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       )}
 
-      <input
+      <Input
         type="text"
         placeholder="Filter tickers…"
         value={filterText}
         onChange={(e) => setFilterText(e.target.value)}
-        className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
         aria-label="Filter tickers"
       />
 
@@ -83,22 +83,18 @@ export function AddTickerPanel({
       </ul>
 
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
+          className="flex-1"
           onClick={handleAdd}
           disabled={selectedTickers.length === 0 || isLoading}
-          className="flex-1 rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isLoading ? 'Adding…' : 'Add'}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded border border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={onClose}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }

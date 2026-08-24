@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { createElement } from 'react'
 import {
   createMemoryHistory,
@@ -288,7 +289,8 @@ describe('PortfolioPage', () => {
 
     await renderPage()
 
-    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: /holdings/i }))
 
     expect(screen.getByTestId('holdings-table')).toBeInTheDocument()
     // Verify usePortfolioHoldings was not called extra times due to tab switch (it may render twice in React 19)
@@ -309,7 +311,8 @@ describe('PortfolioPage', () => {
 
     await renderPage()
 
-    fireEvent.click(screen.getByRole('tab', { name: /advanced insights/i }))
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: /advanced insights/i }))
 
     expect(screen.getByTestId('advanced-insights-placeholder')).toBeInTheDocument()
   })
@@ -384,7 +387,8 @@ describe('PortfolioPage', () => {
 
     await renderPage()
 
-    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+    const user1 = userEvent.setup()
+    await user1.click(screen.getByRole('tab', { name: /holdings/i }))
 
     expect(
       screen.getByText('Could not load portfolio. Price data unavailable.'),
@@ -412,7 +416,8 @@ describe('PortfolioPage', () => {
 
     await renderPage()
 
-    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+    const user2 = userEvent.setup()
+    await user2.click(screen.getByRole('tab', { name: /holdings/i }))
 
     expect(
       screen.getByText('Could not load portfolio. Balance data unavailable.'),
@@ -526,7 +531,8 @@ describe('PortfolioPage', () => {
     await renderPage()
 
     // Switch to Holdings tab first to see the table
-    fireEvent.click(screen.getByRole('tab', { name: /holdings/i }))
+    const user3 = userEvent.setup()
+    await user3.click(screen.getByRole('tab', { name: /holdings/i }))
 
     capturedOnSell?.('AAPL', 10)
 
