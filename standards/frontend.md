@@ -10,8 +10,88 @@
 | Server state | TanStack Query v5 |
 | Client state | Zustand |
 | HTTP client | Axios |
+| Styling | Tailwind CSS v4 |
+| Design system | Shadcn/ui (source-owned, Radix UI primitives) |
+| Icons | Lucide React |
 | Testing | Vitest + React Testing Library |
 | Package manager | pnpm |
+
+---
+
+## Design System — Shadcn/ui
+
+See `decisions/2026-08-24-design-system-shadcn.md` for the full rationale.
+
+Shadcn/ui components live in `src/shared/components/ui/`. They are **source
+files owned by this repo**, not a node_modules package. They can be modified
+freely.
+
+### Available components
+
+| Component | File | Use case |
+|---|---|---|
+| `Button` | `ui/button.tsx` | All clickable actions |
+| `Input` | `ui/input.tsx` | Text, number inputs |
+| `Label` | `ui/label.tsx` | Form field labels |
+| `Card` / `CardHeader` / `CardContent` / `CardFooter` | `ui/card.tsx` | Summary panels |
+| `Badge` | `ui/badge.tsx` | Status tags (order status, asset class) |
+| `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` | `ui/tabs.tsx` | Tabbed views |
+| `Dialog` / `DialogContent` / `DialogHeader` | `ui/dialog.tsx` | Confirmation modals |
+| `Select` / `SelectTrigger` / `SelectContent` / `SelectItem` | `ui/select.tsx` | Dropdowns |
+| `Table` / `TableHeader` / `TableBody` / `TableRow` / `TableCell` | `ui/table.tsx` | Data tables |
+| `Toast` | `ui/toast.tsx` + `Toaster.tsx` | Notifications |
+| `Skeleton` | `ui/skeleton.tsx` | Loading placeholders |
+| `Alert` | `ui/alert.tsx` | Inline error/warning/success messages |
+| `Separator` | `ui/separator.tsx` | Layout dividers |
+| `Tooltip` / `TooltipContent` | `ui/tooltip.tsx` | Hover explanations |
+
+### `cn()` utility
+
+All class composition must use `cn()` from `@/shared/lib/utils`:
+
+```ts
+import { cn } from '@/shared/lib/utils'
+
+<div className={cn('base-class', condition && 'conditional-class', className)} />
+```
+
+Never manually concatenate Tailwind strings — use `cn()` to avoid conflicts.
+
+### CSS variable convention
+
+- Inside `src/shared/components/ui/`: use Shadcn semantic tokens
+  (`hsl(var(--primary))`, `hsl(var(--border))`, etc.)
+- In domain components: use trade-lab palette tokens
+  (`var(--color-accent)`, `var(--color-border)`, etc.) via Tailwind utility
+  classes (`text-[var(--color-accent)]`)
+
+### Badge variants for trading
+
+The `Badge` component extends Shadcn defaults with:
+- `success` — green, for filled orders / positive P&L
+- `warning` — amber, for pending states
+- `danger` — red, for cancelled / negative states
+
+### Toast
+
+Use the `useToast` hook from `@/shared/hooks/useToast` for programmatic toasts:
+
+```ts
+import { useToast } from '@/shared/hooks/useToast'
+
+const { toast } = useToast()
+toast({ title: 'Order placed', variant: 'success' })  // or 'destructive'
+```
+
+`<Toaster />` is mounted once in `App.tsx`.
+
+### Rules
+
+- All new UI primitives must use Shadcn components from `src/shared/components/ui/`
+  before creating custom ones.
+- No Radix UI primitives imported directly in domain components — always use
+  the Shadcn wrapper from `ui/`.
+- No new component library may be added without a decision log entry.
 
 ---
 
@@ -46,7 +126,9 @@ services/front-end/
     shared/
       api/            # Axios instance, base config, interceptors
       components/     # Shared UI components
-      hooks/          # Shared hooks
+        ui/           # Shadcn/ui primitive components (source-owned)
+      hooks/          # Shared hooks (incl. useToast)
+      lib/            # Utilities (cn, etc.)
       types/          # Shared TypeScript types
     app/
       App.tsx         # Root component
@@ -152,3 +234,4 @@ These IDs match those used by the decomposer agent.
   local timezone only at the display layer.
 - Import order: external libraries, then `shared/`, then same-domain modules.
   No imports from another domain's folder.
+- Use `cn()` from `@/shared/lib/utils` for all Tailwind class composition.
