@@ -100,7 +100,8 @@ export function AccountsPage() {
       )}
 
       {isLoadingAccounts ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-testid="loading-indicator">
+          <span className="sr-only">Loading accounts</span>
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-28 w-full" />
           ))}

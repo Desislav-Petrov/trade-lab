@@ -42,7 +42,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       )}
 
       {isLoading && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-testid="loading-indicator">
+          <span className="sr-only">Loading accounts</span>
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-8 w-full" />
         </div>

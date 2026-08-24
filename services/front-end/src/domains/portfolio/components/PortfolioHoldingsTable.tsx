@@ -158,9 +158,9 @@ export function PortfolioHoldingsTable({
               <TableCell
                 className={
                   holding.unrealisedPnL > 0
-                    ? 'text-[var(--color-success)]'
+                    ? 'pnl-positive text-[var(--color-success)]'
                     : holding.unrealisedPnL < 0
-                      ? 'text-[var(--color-danger)]'
+                      ? 'pnl-negative text-[var(--color-danger)]'
                       : ''
                 }
               >

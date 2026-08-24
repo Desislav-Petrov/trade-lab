@@ -18,7 +18,12 @@ export function AccountSelector({
   isError,
 }: AccountSelectorProps) {
   if (isLoading) {
-    return <Skeleton className="h-8 w-64" />
+    return (
+      <div data-testid="loading-indicator">
+        <span className="sr-only">Loading accounts</span>
+        <Skeleton className="h-8 w-64" />
+      </div>
+    )
   }
 
   if (isError) {

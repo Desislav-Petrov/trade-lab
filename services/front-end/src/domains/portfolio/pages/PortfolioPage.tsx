@@ -58,7 +58,12 @@ export function PortfolioPage() {
   }
 
   function renderAccountSelector() {
-    if (isAccountsLoading) return <Skeleton className="h-8 w-64" />
+    if (isAccountsLoading) return (
+      <div data-testid="loading-indicator">
+        <span className="sr-only">Loading accounts</span>
+        <Skeleton className="h-8 w-64" />
+      </div>
+    )
     if (isAccountsError) {
       return (
         <Alert variant="destructive">
