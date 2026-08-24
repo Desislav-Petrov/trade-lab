@@ -2,9 +2,61 @@
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 
+/*
+ * Shadcn/ui CSS variable layer.
+ * All design tokens are defined here. Shadcn components reference these
+ * variables via the `hsl(var(--xxx))` pattern.
+ *
+ * Trade-lab uses a dark-only terminal aesthetic. The "light" root vars below
+ * are intentionally identical to the dark ones — we do not support a light
+ * mode, but the variables must exist for Shadcn components to resolve.
+ */
+@layer base {
+  :root {
+    /* Shadcn semantic tokens — mapped to trade-lab palette */
+    --background: 0 0% 5%;           /* #0d0d0d — --color-bg */
+    --foreground: 0 0% 91%;          /* #e8e8e8 — --color-text-primary */
+
+    --card: 0 0% 8%;                 /* #141414 — --color-surface */
+    --card-foreground: 0 0% 91%;
+
+    --popover: 0 0% 10%;             /* #1a1a1a — --color-surface-raised */
+    --popover-foreground: 0 0% 91%;
+
+    --primary: 151 100% 50%;         /* #00ff88 — --color-accent */
+    --primary-foreground: 0 0% 5%;   /* dark text on accent bg */
+
+    --secondary: 0 0% 10%;           /* --color-surface-raised */
+    --secondary-foreground: 0 0% 91%;
+
+    --muted: 0 0% 12%;               /* slightly lighter surface */
+    --muted-foreground: 0 0% 61%;    /* #9ca3af — --color-text-secondary */
+
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 91%;
+
+    --destructive: 0 84% 60%;        /* #ef4444 — --color-danger */
+    --destructive-foreground: 0 0% 91%;
+
+    --border: 0 0% 16%;              /* #2a2a2a — --color-border */
+    --input: 0 0% 16%;
+    --ring: 151 100% 50%;            /* accent for focus rings */
+
+    --radius: 0.25rem;               /* tight radius for terminal feel */
+
+    /* Chart palette (used by recharts via CSS vars) */
+    --chart-1: 151 100% 50%;
+    --chart-2: 38 92% 50%;
+    --chart-3: 0 84% 60%;
+    --chart-4: 217 91% 60%;
+    --chart-5: 280 65% 60%;
+  }
+}
+
 @theme {
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* Raw trade-lab palette tokens — used directly in Tailwind classes */
   --color-bg: #0d0d0d;
   --color-surface: #141414;
   --color-surface-raised: #1a1a1a;
@@ -40,8 +92,8 @@
   }
 
   body {
-    background-color: var(--color-bg);
-    color: var(--color-text-primary);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: var(--font-mono);
     font-size: 13px;
     line-height: 1.5;
