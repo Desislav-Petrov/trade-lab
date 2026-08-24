@@ -2,6 +2,10 @@ import type { AxiosError } from 'axios'
 import { useActiveUserEmails } from '../hooks/useActiveUserEmails'
 import { useLoginUser } from '../hooks/useLoginUser'
 import type { LoginResponse } from '../types/user'
+import { Button } from '@/shared/components/ui/button'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Skeleton } from '@/shared/components/ui/skeleton'
 
 interface LoginFormProps {
   onSuccess?: (data: LoginResponse) => void
@@ -32,20 +36,22 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       {serverError && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-        >
-          {serverError}
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{serverError}</AlertDescription>
+        </Alert>
       )}
 
-      {isLoading && <p className="text-xs text-[var(--color-text-muted)]">Loading accounts…</p>}
+      {isLoading && (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      )}
 
       {isError && (
-        <p role="alert" className="text-xs text-[var(--color-danger)]">
-          Failed to load accounts. Please refresh.
-        </p>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>Failed to load accounts. Please refresh.</AlertDescription>
+        </Alert>
       )}
 
       {hasNoUsers && (
@@ -55,18 +61,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       )}
 
       {!isLoading && !isError && emails.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="email"
-            className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]"
-          >
-            Select account
-          </label>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">Select account</Label>
           <select
             id="email"
             name="email"
             defaultValue=""
-            className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"
+            className="flex h-8 w-full rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
           >
             <option value="" disabled>
               — choose an email —
@@ -80,13 +81,13 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
+        className="mt-2 w-full"
         disabled={isPending || isLoading || emails.length === 0}
-        className="mt-2 w-full rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isPending ? 'Logging in…' : 'Log in'}
-      </button>
+      </Button>
     </form>
   )
 }
