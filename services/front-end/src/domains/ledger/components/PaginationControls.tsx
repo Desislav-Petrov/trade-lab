@@ -1,3 +1,5 @@
+import { Button } from '@/shared/components/ui/button'
+
 interface PaginationControlsProps {
   currentPage: number
   totalPages: number
@@ -23,25 +25,20 @@ export function PaginationControls({
 
   return (
     <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={handlePrevious}
-        disabled={currentPage === 0}
-        className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)] disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      <Button variant="outline" size="sm" onClick={handlePrevious} disabled={currentPage === 0}>
         Previous
-      </button>
+      </Button>
       <span className="text-xs text-[var(--color-text-muted)]">
         Page {currentPage + 1} of {totalPages}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="sm"
         onClick={handleNext}
         disabled={currentPage === totalPages - 1}
-        className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next
-      </button>
+      </Button>
     </div>
   )
 }
