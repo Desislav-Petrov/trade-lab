@@ -1,4 +1,6 @@
 import type { FeedType } from '../types/userSettings'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 export interface FeedTypeSelectorProps {
   currentFeedType: FeedType
@@ -28,13 +30,8 @@ export function FeedTypeSelector({
       : null
 
   return (
-    <div>
-      <label
-        htmlFor="feed-type-select"
-        className="mb-1 block text-xs text-[var(--color-text-muted)]"
-      >
-        Market Feed Type
-      </label>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="feed-type-select">Market Feed Type</Label>
       <div className="flex items-center gap-2">
         <select
           id="feed-type-select"
@@ -42,7 +39,7 @@ export function FeedTypeSelector({
           onChange={handleChange}
           disabled={isPending}
           aria-busy={isPending}
-          className="text-xs text-[var(--color-text-primary)] disabled:opacity-50"
+          className="flex h-8 rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option
             value="SYNTHETIC"
@@ -64,9 +61,9 @@ export function FeedTypeSelector({
         )}
       </div>
       {errorMessage && (
-        <p className="mt-1 text-xs text-red-500" role="alert">
-          {errorMessage}
-        </p>
+        <Alert variant="destructive" role="alert" className="mt-1">
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       )}
     </div>
   )
