@@ -1,5 +1,10 @@
 import { useState } from 'react'
 import { usePlaceOrder } from '../hooks/usePlaceOrder'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 
 interface BuyPanelProps {
   ticker: string
@@ -20,13 +25,9 @@ function computeEstimatedCost(quantity: string, priceSnapshot: string): string {
 }
 
 function validateQuantity(value: string): string | null {
-  if (value === '' || isNaN(Number(value))) {
-    return 'Please enter a valid number.'
-  }
+  if (value === '' || isNaN(Number(value))) return 'Please enter a valid number.'
   const num = parseFloat(value)
-  if (num <= 0) {
-    return 'Quantity must be greater than zero.'
-  }
+  if (num <= 0) return 'Quantity must be greater than zero.'
   return null
 }
 
@@ -65,32 +66,14 @@ export function BuyPanel({
 
   function handleConfirm() {
     const error = validateQuantity(quantity)
-    if (error) {
-      setQuantityError(error)
-      return
-    }
-
+    if (error) { setQuantityError(error); return }
     setStage('loading')
-
     mutation.mutate(
-      {
-        idempotencyKey,
-        accountId,
-        userId,
-        ticker,
-        quantity,
-        side: 'BUY',
-        orderType: 'MARKET',
-        priceSnapshot,
-      },
+      { idempotencyKey, accountId, userId, ticker, quantity, side: 'BUY', orderType: 'MARKET', priceSnapshot },
       {
         onSuccess: (data) => {
           if (data.status === 'FILLED') {
-            setFilledData({
-              executionPrice: data.executionPrice ?? '—',
-              totalCost: data.totalCost ?? '—',
-              quantity: data.quantity,
-            })
+            setFilledData({ executionPrice: data.executionPrice ?? '—', totalCost: data.totalCost ?? '—', quantity: data.quantity })
             setStage('filled')
           } else {
             setRejectedReason(data.rejectionReason ?? 'Unknown reason')
@@ -105,142 +88,108 @@ export function BuyPanel({
     )
   }
 
-  function handleDecline() {
-    onClose()
-  }
-
   if (stage === 'filled' && filledData) {
     return (
-      <div
-        role="dialog"
-        aria-label="Buy Panel"
-        className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
-      >
-        <p className="mb-2 font-medium text-[var(--color-success)]">Order filled ✓</p>
+      <Card role="dialog" aria-label="Buy Panel" className="w-80 p-4 text-xs">
+        <Alert variant="success" className="mb-3">
+          <AlertDescription>Order filled ✓</AlertDescription>
+        </Alert>
         <p className="mb-1 text-[var(--color-text-primary)]">Ticker: {ticker}</p>
         <p className="mb-1 text-[var(--color-text-primary)]">Quantity: {filledData.quantity}</p>
-        <p className="mb-1 text-[var(--color-text-primary)]">
-          Execution price: {filledData.executionPrice}
-        </p>
+        <p className="mb-1 text-[var(--color-text-primary)]">Execution price: {filledData.executionPrice}</p>
         <p className="mb-3 text-[var(--color-text-primary)]">Total cost: {filledData.totalCost}</p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)]"
-        >
-          Close
-        </button>
-      </div>
+        <Button onClick={onClose}>Close</Button>
+      </Card>
     )
   }
 
   if (stage === 'rejected') {
     return (
-      <div
-        role="dialog"
-        aria-label="Buy Panel"
-        className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
-      >
-        <p className="mb-2 font-medium text-[var(--color-danger)]">
-          Order rejected: {rejectedReason}
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded bg-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-bg)]"
-        >
-          Close
-        </button>
-      </div>
+      <Card role="dialog" aria-label="Buy Panel" className="w-80 p-4 text-xs">
+        <Alert variant="destructive" className="mb-3">
+          <AlertDescription>Order rejected: {rejectedReason}</AlertDescription>
+        </Alert>
+        <Button onClick={onClose}>Close</Button>
+      </Card>
     )
   }
 
   const isLoading = stage === 'loading'
 
   return (
-    <div
-      role="dialog"
-      aria-label="Buy Panel"
-      className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
-    >
-      <p className="mb-1 font-medium text-[var(--color-text-primary)]">{ticker}</p>
-      <p className="mb-2 text-[var(--color-text-secondary)]">{companyName}</p>
+    <Card role="dialog" aria-label="Buy Panel" className="w-80">
+      <CardHeader className="pb-2">
+        <CardTitle>{ticker}</CardTitle>
+        <p className="text-xs text-[var(--color-text-muted)]">{companyName}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="buy-panel-order-type">Order Type</Label>
+          <select
+            id="buy-panel-order-type"
+            value="MARKET"
+            disabled
+            aria-label="Order Type"
+            className="flex h-8 w-full rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] disabled:opacity-70"
+            onChange={() => undefined}
+          >
+            <option value="MARKET">MARKET</option>
+          </select>
+        </div>
 
-      <div className="mb-2">
-        <label
-          htmlFor="buy-panel-order-type"
-          className="mb-1 block text-[var(--color-text-primary)]"
-        >
-          Order Type
-        </label>
-        <select
-          id="buy-panel-order-type"
-          value="MARKET"
-          disabled
-          aria-label="Order Type"
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text-primary)] disabled:opacity-70"
-          onChange={() => undefined}
-        >
-          <option value="MARKET">MARKET</option>
-        </select>
-      </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="buy-panel-quantity">Quantity</Label>
+          <Input
+            id="buy-panel-quantity"
+            type="number"
+            value={quantity}
+            onChange={handleQuantityChange}
+            onBlur={handleQuantityBlur}
+            disabled={isLoading}
+            min="0"
+            step="any"
+            aria-describedby={quantityError ? 'buy-panel-quantity-error' : undefined}
+          />
+          {quantityError && (
+            <p id="buy-panel-quantity-error" role="alert" className="text-xs text-[var(--color-danger)]">
+              {quantityError}
+            </p>
+          )}
+        </div>
 
-      <div className="mb-2">
-        <label htmlFor="buy-panel-quantity" className="mb-1 block text-[var(--color-text-primary)]">
-          Quantity
-        </label>
-        <input
-          id="buy-panel-quantity"
-          type="number"
-          value={quantity}
-          onChange={handleQuantityChange}
-          onBlur={handleQuantityBlur}
-          disabled={isLoading}
-          min="0"
-          step="any"
-          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text-primary)]"
-          aria-describedby={quantityError ? 'buy-panel-quantity-error' : undefined}
-        />
-        {quantityError && (
-          <p id="buy-panel-quantity-error" role="alert" className="mt-1 text-[var(--color-danger)]">
-            {quantityError}
-          </p>
-        )}
-      </div>
-
-      <p className="mb-3 text-[var(--color-text-secondary)]">
-        Estimated cost: {isQuantityValid ? computeEstimatedCost(quantity, priceSnapshot) : '—'}{' '}
-        (Estimated)
-      </p>
-
-      {stage === 'error' && (
-        <p role="alert" className="mb-2 text-[var(--color-danger)]">
-          Something went wrong. Please try again.
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Estimated cost: {isQuantityValid ? computeEstimatedCost(quantity, priceSnapshot) : '—'} (Estimated)
         </p>
-      )}
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={isLoading || !isQuantityValid}
-          aria-label="Confirm buy"
-          title="Confirm"
-          className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-success)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
-        >
-          {isLoading ? <span aria-label="Loading">⏳</span> : <span aria-hidden="true">✓</span>}
-        </button>
-        <button
-          type="button"
-          onClick={handleDecline}
-          disabled={isLoading}
-          aria-label="Decline buy"
-          title="Decline"
-          className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-danger)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
-        >
-          <span aria-hidden="true">✗</span>
-        </button>
-      </div>
-    </div>
+        {stage === 'error' && (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>Something went wrong. Please try again.</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isLoading || !isQuantityValid}
+            aria-label="Confirm buy"
+            title="Confirm"
+            className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-success)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
+          >
+            {isLoading ? <span aria-label="Loading">⏳</span> : <span aria-hidden="true">✓</span>}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            aria-label="Decline buy"
+            title="Decline"
+            className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-danger)] text-base font-bold text-[var(--color-bg)] disabled:opacity-50"
+          >
+            <span aria-hidden="true">✗</span>
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
