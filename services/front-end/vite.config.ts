@@ -1,10 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { resolve } from 'path'
 import type { IncomingMessage, ClientRequest } from 'http'
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  resolve: {
+    alias: {
+      // Matches the @/* path alias in tsconfig.json.
+      // Required so shadcn component imports (e.g. "@/shared/lib/utils") resolve.
+      '@': resolve(__dirname, 'src'),
+    },
+  },
   server: {
     proxy: {
       // All /api/* XHR/fetch calls are proxied to the backend.
