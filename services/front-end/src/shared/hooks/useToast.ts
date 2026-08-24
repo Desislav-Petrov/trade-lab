@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { type ToastProps } from './toast'
+import { type ToastProps } from '../components/ui/toast'
 
 const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 4000
@@ -93,7 +93,7 @@ function toast(props: Omit<ToasterToast, 'id'>) {
       ...props,
       id,
       open: true,
-      onOpenChange: (open) => {
+      onOpenChange: (open: boolean) => {
         if (!open) dismiss()
       },
     },
