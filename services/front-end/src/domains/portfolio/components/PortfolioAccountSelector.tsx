@@ -1,4 +1,5 @@
 import type { AccountResponse } from '../../ledger/types/account'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 
 interface PortfolioAccountSelectorProps {
   accounts: AccountResponse[]
@@ -12,7 +13,11 @@ export function PortfolioAccountSelector({
   onAccountChange,
 }: PortfolioAccountSelectorProps) {
   if (accounts.length === 0) {
-    return <p>No accounts available. Open an account first.</p>
+    return (
+      <Alert>
+        <AlertDescription>No accounts available. Open an account first.</AlertDescription>
+      </Alert>
+    )
   }
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
@@ -20,7 +25,12 @@ export function PortfolioAccountSelector({
   }
 
   return (
-    <select value={selectedAccountId ?? ''} onChange={handleChange} aria-label="Select account">
+    <select
+      value={selectedAccountId ?? ''}
+      onChange={handleChange}
+      aria-label="Select account"
+      className="flex h-8 rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
+    >
       <option value="" disabled hidden />
       {accounts.map((account) => (
         <option key={account.id} value={account.id}>
