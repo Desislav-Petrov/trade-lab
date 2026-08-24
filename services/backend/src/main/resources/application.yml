@@ -1,20 +1,20 @@
 spring:
   datasource:
-    # Local development: file-based H2 so data persists across application restarts.
-    # Override via DATASOURCE_URL environment variable if needed.
-    # Production profile (application-prod.yml) replaces this with PostgreSQL.
-    url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
+    # Default profile: in-memory H2, wiped on application close.
+    # Use the local profile (application-local.yml) for a persistent H2 database.
+    # Use the prod profile (application-prod.yml) for PostgreSQL.
+    url: ${DATASOURCE_URL:jdbc:h2:mem:tradelab;DB_CLOSE_DELAY=-1}
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      # 'update' — schema evolves with entities; existing data is preserved.
-      # Tests override this to 'create-drop' via application-test.yml.
-      # Production overrides this to 'validate' via application-prod.yml.
-      ddl-auto: update
+      # 'create-drop' — schema is created on startup and dropped on shutdown.
+      # The local profile overrides this to 'update' for persistence.
+      # The prod profile overrides this to 'validate'.
+      ddl-auto: create-drop
     show-sql: false
   h2:
     console:
-      enabled: true   # Inspect local DB at http://localhost:8080/h2-console
+      enabled: false
   boot:
     admin:
       context-path: /admin   # Spring Boot Admin UI served at /admin
@@ -52,7 +52,7 @@ management:
     web:
       base-path: /actuator
       exposure:
-        # Full actuator endpoints exposed in dev/non-prod environments only.
+        # Full actuator endpoints exposed in default/local (non-prod) environments only.
         # The prod profile (application-prod.yml) restricts this to health only.
         include:
           - health

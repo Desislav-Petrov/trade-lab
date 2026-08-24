@@ -23,7 +23,7 @@ spring:
           time_zone: UTC
   h2:
     console:
-      enabled: false   # H2 console is unavailable in production
+      enabled: false   # H2 console disabled in production (default is already false)
 
 management:
   endpoints:
