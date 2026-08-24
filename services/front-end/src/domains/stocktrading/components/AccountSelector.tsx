@@ -1,4 +1,6 @@
 import type { AccountResponse } from '../../ledger/types/account'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Skeleton } from '@/shared/components/ui/skeleton'
 
 export interface AccountSelectorProps {
   accounts: AccountResponse[]
@@ -16,15 +18,23 @@ export function AccountSelector({
   isError,
 }: AccountSelectorProps) {
   if (isLoading) {
-    return <p>Loading accounts…</p>
+    return <Skeleton className="h-8 w-64" />
   }
 
   if (isError) {
-    return <p role="alert">Could not load accounts.</p>
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Could not load accounts.</AlertDescription>
+      </Alert>
+    )
   }
 
   if (accounts.length === 0) {
-    return <p>No accounts available. Open an account first.</p>
+    return (
+      <p className="text-xs text-[var(--color-text-muted)]">
+        No accounts available. Open an account first.
+      </p>
+    )
   }
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
@@ -32,7 +42,12 @@ export function AccountSelector({
   }
 
   return (
-    <select value={selectedAccountId ?? ''} onChange={handleChange} aria-label="Select account">
+    <select
+      value={selectedAccountId ?? ''}
+      onChange={handleChange}
+      aria-label="Select account"
+      className="flex h-8 rounded border border-[hsl(var(--border))] bg-transparent px-3 py-1 text-xs text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
+    >
       <option value="" disabled hidden />
       {accounts.map((account) => (
         <option key={account.id} value={account.id}>
