@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import type { TransactionResponse } from '../types/transaction'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table'
+import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import { Skeleton } from '@/shared/components/ui/skeleton'
 
 export interface TransactionTableProps {
   transactions: TransactionResponse[]
@@ -52,20 +62,15 @@ function compareRows(
   direction: SortDirection,
 ): number {
   if (column === null || direction === 'none') return 0
-
   const aVal = a[column]
   const bVal = b[column]
-
   const aStr = aVal === null || aVal === undefined ? '' : String(aVal)
   const bStr = bVal === null || bVal === undefined ? '' : String(bVal)
-
   const cmp = aStr.localeCompare(bStr, undefined, { numeric: true })
   return direction === 'asc' ? cmp : -cmp
 }
 
 export function TransactionTable({ transactions, isLoading, isError }: TransactionTableProps) {
-  // Default state: createdAt descending — matches server order, so treated as "none" (unsorted).
-  // The comment here: server sends createdAt DESC by default; we don't need to re-sort for that.
   const [sortColumn, setSortColumn] = useState<SortColumn>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('none')
 
@@ -73,9 +78,7 @@ export function TransactionTable({ transactions, isLoading, isError }: Transacti
     if (sortColumn === column) {
       const next = nextSortDirection(sortDirection)
       setSortDirection(next)
-      if (next === 'none') {
-        setSortColumn(null)
-      }
+      if (next === 'none') setSortColumn(null)
     } else {
       setSortColumn(column)
       setSortDirection('asc')
@@ -84,24 +87,19 @@ export function TransactionTable({ transactions, isLoading, isError }: Transacti
 
   if (isLoading) {
     return (
-      <div
-        role="status"
-        aria-label="Loading transactions"
-        className="flex items-center justify-center py-8"
-      >
-        <span className="text-xs text-[var(--color-text-muted)]">Loading…</span>
+      <div role="status" aria-label="Loading transactions" className="flex flex-col gap-2 py-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
       </div>
     )
   }
 
   if (isError) {
     return (
-      <p
-        role="alert"
-        className="border-l-2 border-[var(--color-danger)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-danger)]"
-      >
-        Could not load transactions.
-      </p>
+      <Alert variant="destructive" role="alert">
+        <AlertDescription>Could not load transactions.</AlertDescription>
+      </Alert>
     )
   }
 
@@ -115,45 +113,36 @@ export function TransactionTable({ transactions, isLoading, isError }: Transacti
       : transactions
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr>
-            {COLUMNS.map(({ key, label }) => (
-              <th
-                key={label}
-                onClick={() => handleHeaderClick(key)}
-                className="cursor-pointer border-b border-[var(--color-border)] py-2 px-3 text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] select-none"
-              >
-                {label}
-                {sortColumn === key ? sortIndicator(sortDirection) : ''}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((tx) => (
-            <tr
-              key={tx.id}
-              className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)]"
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {COLUMNS.map(({ key, label }) => (
+            <TableHead
+              key={label}
+              onClick={() => handleHeaderClick(key)}
+              className="cursor-pointer select-none hover:text-[hsl(var(--foreground))]"
             >
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.type}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.assetType}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">
-                {formatValue(tx.amount, tx.currency)}
-              </td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.ticker ?? ''}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">
-                {tx.shares !== null && tx.shares !== undefined ? tx.shares.toString() : ''}
-              </td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">{tx.description ?? ''}</td>
-              <td className="py-2 px-3 text-[var(--color-text-primary)]">
-                {formatDate(tx.createdAt)}
-              </td>
-            </tr>
+              {label}
+              {sortColumn === key ? sortIndicator(sortDirection) : ''}
+            </TableHead>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.map((tx) => (
+          <TableRow key={tx.id}>
+            <TableCell>{tx.type}</TableCell>
+            <TableCell>{tx.assetType}</TableCell>
+            <TableCell>{formatValue(tx.amount, tx.currency)}</TableCell>
+            <TableCell>{tx.ticker ?? ''}</TableCell>
+            <TableCell>
+              {tx.shares !== null && tx.shares !== undefined ? tx.shares.toString() : ''}
+            </TableCell>
+            <TableCell>{tx.description ?? ''}</TableCell>
+            <TableCell>{formatDate(tx.createdAt)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
