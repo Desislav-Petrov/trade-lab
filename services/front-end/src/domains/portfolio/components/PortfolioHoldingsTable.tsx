@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import type { StockHolding, CashHolding } from '../types/portfolio.types'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table'
 
 interface PortfolioHoldingsTableProps {
   holdings: StockHolding[]
@@ -41,20 +49,15 @@ const DEFAULT_SORT: SortState = { column: 'ticker', direction: 'asc' }
 
 function sortHoldings(holdings: StockHolding[], sort: SortState): StockHolding[] {
   const effectiveSort: SortState = sort.direction === 'default' ? DEFAULT_SORT : sort
-
   return [...holdings].sort((a, b) => {
     const col = effectiveSort.column
     const aVal = a[col] ?? -Infinity
     const bVal = b[col] ?? -Infinity
-
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       const cmp = aVal.localeCompare(bVal)
       return effectiveSort.direction === 'desc' ? -cmp : cmp
     }
-
-    const aNum = aVal as number
-    const bNum = bVal as number
-    return effectiveSort.direction === 'desc' ? bNum - aNum : aNum - bNum
+    return effectiveSort.direction === 'desc' ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number)
   })
 }
 
@@ -93,17 +96,10 @@ export function PortfolioHoldingsTable({
 
   useEffect(() => {
     if (!contextMenu) return
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setContextMenu(null)
-    }
-
+    function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') setContextMenu(null) }
     function onMouseDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setContextMenu(null)
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setContextMenu(null)
     }
-
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('mousedown', onMouseDown)
     return () => {
@@ -120,94 +116,83 @@ export function PortfolioHoldingsTable({
 
   return (
     <>
-      <table>
-        <thead>
-          <tr>
+      <Table>
+        <TableHeader>
+          <TableRow>
             {COLUMNS.map(({ key, label }) => (
-              <th
+              <TableHead
                 key={key}
                 onClick={() => handleHeaderClick(key)}
-                style={{ cursor: 'pointer' }}
+                className="cursor-pointer select-none"
                 aria-sort={
                   sort.column === key && sort.direction !== 'default'
-                    ? sort.direction === 'asc'
-                      ? 'ascending'
-                      : 'descending'
+                    ? sort.direction === 'asc' ? 'ascending' : 'descending'
                     : 'none'
                 }
               >
-                {label}
-                {sortIndicator(sort, key)}
-              </th>
+                {label}{sortIndicator(sort, key)}
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sortedHoldings.map((holding) => (
-            <tr
+            <TableRow
               key={holding.ticker}
               onContextMenu={
                 onSell
                   ? (e) => {
                       e.preventDefault()
-                      setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        ticker: holding.ticker,
-                        quantity: holding.quantity,
-                      })
+                      setContextMenu({ x: e.clientX, y: e.clientY, ticker: holding.ticker, quantity: holding.quantity })
                     }
                   : undefined
               }
             >
-              <td>{holding.ticker}</td>
-              <td>{holding.quantity}</td>
-              <td>{formatMoney(holding.currentValue)}</td>
-              <td>{formatMoney(holding.minPrice)}</td>
-              <td>{formatMoney(holding.maxPrice)}</td>
-              <td>{formatMoney(holding.avgPrice)}</td>
-              <td>
-                {holding.portfolioPercent !== null ? formatMoney(holding.portfolioPercent) : '—'}
-              </td>
-              <td
+              <TableCell>{holding.ticker}</TableCell>
+              <TableCell>{holding.quantity}</TableCell>
+              <TableCell>{formatMoney(holding.currentValue)}</TableCell>
+              <TableCell>{formatMoney(holding.minPrice)}</TableCell>
+              <TableCell>{formatMoney(holding.maxPrice)}</TableCell>
+              <TableCell>{formatMoney(holding.avgPrice)}</TableCell>
+              <TableCell>{holding.portfolioPercent !== null ? formatMoney(holding.portfolioPercent) : '—'}</TableCell>
+              <TableCell
                 className={
                   holding.unrealisedPnL > 0
-                    ? 'pnl-positive'
+                    ? 'text-[var(--color-success)]'
                     : holding.unrealisedPnL < 0
-                      ? 'pnl-negative'
+                      ? 'text-[var(--color-danger)]'
                       : ''
                 }
               >
                 {formatMoney(holding.unrealisedPnL)}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-          <tr data-testid="cash-row">
-            <td>{currency}</td>
-            <td>—</td>
-            <td>{formatMoney(cash.balance)}</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>{cash.portfolioPercent !== null ? formatMoney(cash.portfolioPercent) : '—'}</td>
-            <td>—</td>
-          </tr>
-        </tbody>
-      </table>
+          <TableRow data-testid="cash-row">
+            <TableCell>{currency}</TableCell>
+            <TableCell>—</TableCell>
+            <TableCell>{formatMoney(cash.balance)}</TableCell>
+            <TableCell>—</TableCell>
+            <TableCell>—</TableCell>
+            <TableCell>—</TableCell>
+            <TableCell>{cash.portfolioPercent !== null ? formatMoney(cash.portfolioPercent) : '—'}</TableCell>
+            <TableCell>—</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
 
       {contextMenu && (
         <div
           ref={menuRef}
           role="menu"
           style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
+          className="z-50 rounded border border-[hsl(var(--border))] bg-[hsl(var(--popover))] py-1 shadow-lg"
         >
           <button
             type="button"
             role="menuitem"
-            onClick={() => {
-              onSell?.(contextMenu.ticker, contextMenu.quantity)
-              setContextMenu(null)
-            }}
+            onClick={() => { onSell?.(contextMenu.ticker, contextMenu.quantity); setContextMenu(null) }}
+            className="block w-full px-4 py-2 text-left text-xs text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]"
           >
             Sell
           </button>
