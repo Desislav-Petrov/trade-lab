@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Navigate } from '@tanstack/react-router'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -8,6 +8,7 @@ import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings'
 import { PortfolioAccountSelector } from '../components/PortfolioAccountSelector'
 import { PortfolioHoldingsTable } from '../components/PortfolioHoldingsTable'
 import { InsightsTab } from '../components/InsightsTab'
+import { AdvancedInsightsTab } from '../components/AdvancedInsightsTab'
 import { useSellPanel } from '../../stocktrading/hooks/useSellPanel'
 import { SellPanel } from '../../stocktrading/components/SellPanel'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
@@ -29,8 +30,12 @@ export function PortfolioPage() {
 
   const { isOpen, ticker, maxQuantity, openSellPanel } = useSellPanel()
 
-  const { data: accountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
-  const accounts = accountsData?.accounts ?? []
+  const {
+    data: accountsData,
+    isLoading: isAccountsLoading,
+    isError: isAccountsError,
+  } = useActiveAccounts()
+  const accounts = useMemo(() => accountsData?.accounts ?? [], [accountsData])
 
   useEffect(() => {
     if (selectedAccountId === null && accounts.length > 0) {
@@ -58,12 +63,13 @@ export function PortfolioPage() {
   }
 
   function renderAccountSelector() {
-    if (isAccountsLoading) return (
-      <div data-testid="loading-indicator">
-        <span className="sr-only">Loading accounts</span>
-        <Skeleton className="h-8 w-64" />
-      </div>
-    )
+    if (isAccountsLoading)
+      return (
+        <div data-testid="loading-indicator">
+          <span className="sr-only">Loading accounts</span>
+          <Skeleton className="h-8 w-64" />
+        </div>
+      )
     if (isAccountsError) {
       return (
         <Alert variant="destructive">
@@ -83,17 +89,25 @@ export function PortfolioPage() {
   const currency = holdingsData?.cash.currency ?? 'USD'
 
   function renderHoldingsContent() {
-    if (isAccountsError || (accounts.length === 0 && !isAccountsLoading) || selectedAccountId === null) return null
+    if (
+      isAccountsError ||
+      (accounts.length === 0 && !isAccountsLoading) ||
+      selectedAccountId === null
+    )
+      return null
     if (isHoldingsLoading) {
       return (
         <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
         </div>
       )
     }
     if (isHoldingsError) {
       const status = (holdingsError as AxiosError)?.response?.status
-      const message = status === 502 ? getHoldings502ErrorMessage(holdingsError) : 'Could not load portfolio.'
+      const message =
+        status === 502 ? getHoldings502ErrorMessage(holdingsError) : 'Could not load portfolio.'
       return (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{message}</AlertDescription>
@@ -130,7 +144,9 @@ export function PortfolioPage() {
         </TabsList>
 
         <TabsContent value="insights">
-          {!isAccountsError && !(accounts.length === 0 && !isAccountsLoading) && selectedAccountId !== null ? (
+          {!isAccountsError &&
+          !(accounts.length === 0 && !isAccountsLoading) &&
+          selectedAccountId !== null ? (
             <InsightsTab
               insights={insights}
               isLoading={isHoldingsLoading}
@@ -140,12 +156,10 @@ export function PortfolioPage() {
           ) : null}
         </TabsContent>
 
-        <TabsContent value="holdings">
-          {renderHoldingsContent()}
-        </TabsContent>
+        <TabsContent value="holdings">{renderHoldingsContent()}</TabsContent>
 
         <TabsContent value="advanced">
-          <div data-testid="advanced-insights-placeholder" />
+          <AdvancedInsightsTab accountId={selectedAccountId} />
         </TabsContent>
       </Tabs>
 

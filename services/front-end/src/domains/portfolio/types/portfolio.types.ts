@@ -44,3 +44,25 @@ export interface PortfolioHoldingsResponse {
   cash: CashHolding
   insights?: PortfolioInsights
 }
+
+export type FillSide = 'BUY' | 'SELL'
+
+export interface FillDataPoint {
+  filledAt: string
+  executionPrice: number
+  quantity: number
+  side: FillSide
+}
+
+export interface FillHistoryEntry {
+  ticker: string
+  dataPoints: FillDataPoint[]
+}
+
+export interface FillHistoryResponse {
+  page: number
+  size: number
+  totalPages: number
+  totalElements: number
+  fills: FillHistoryEntry[]
+}

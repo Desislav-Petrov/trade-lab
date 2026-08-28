@@ -81,10 +81,25 @@ vi.mock('../components/InsightsTab', () => ({
     insights: unknown
     currency: string
   }) => {
-    if (isLoading) return createElement('div', { 'data-testid': 'insights-loading' }, 'Loading insights...')
-    if (isError) return createElement('div', { 'data-testid': 'insights-error' }, 'Could not load insights. Please try again.')
+    if (isLoading)
+      return createElement('div', { 'data-testid': 'insights-loading' }, 'Loading insights...')
+    if (isError)
+      return createElement(
+        'div',
+        { 'data-testid': 'insights-error' },
+        'Could not load insights. Please try again.',
+      )
     return createElement('div', { 'data-testid': 'insights-tab' }, 'Insights')
   },
+}))
+
+vi.mock('../components/AdvancedInsightsTab', () => ({
+  AdvancedInsightsTab: ({ accountId }: { accountId: string | null }) =>
+    createElement(
+      'div',
+      { 'data-testid': 'advanced-insights-tab' },
+      `accountId=${accountId ?? ''}`,
+    ),
 }))
 
 vi.mock('../../stocktrading/hooks/useSellPanel', () => ({
@@ -224,7 +239,7 @@ describe('PortfolioPage', () => {
     capturedOnSell = undefined
     act(() => {
       useSessionStore.getState().clearSession()
-      usePortfolioStore.setState({ selectedAccountId: null })
+      usePortfolioStore.setState({ selectedAccountId: null, hiddenSymbols: new Set() })
     })
     mockUseSellPanel.mockReturnValue(buildSellPanelHook())
   })
@@ -297,7 +312,7 @@ describe('PortfolioPage', () => {
     expect(mockUsePortfolioHoldings.mock.calls.length).toBeLessThanOrEqual(2)
   })
 
-  it('PortfolioPage - clicking Advanced Insights tab - renders empty placeholder', async () => {
+  it('PortfolioPage - clicking Advanced Insights tab - renders AdvancedInsightsTab', async () => {
     act(() => useSessionStore.getState().setSession(mockProfile))
     act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
     mockUseActiveAccounts.mockReturnValue({
@@ -314,7 +329,35 @@ describe('PortfolioPage', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('tab', { name: /advanced insights/i }))
 
-    expect(screen.getByTestId('advanced-insights-placeholder')).toBeInTheDocument()
+    expect(screen.getByTestId('advanced-insights-tab')).toHaveTextContent('accountId=acc-1')
+  })
+
+  it('PortfolioPage - account selection change - passes new accountId to AdvancedInsightsTab', async () => {
+    act(() => useSessionStore.getState().setSession(mockProfile))
+    act(() => usePortfolioStore.setState({ selectedAccountId: 'acc-1' }))
+    const secondAccount: AccountResponse = {
+      ...mockAccount,
+      id: 'acc-2',
+      name: 'Second Account',
+    }
+    mockUseActiveAccounts.mockReturnValue({
+      data: { accounts: [mockAccount, secondAccount] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useActiveAccounts>)
+    mockUsePortfolioHoldings.mockReturnValue(
+      buildHoldingsHookReturn({ data: mockHoldingsResponse }),
+    )
+
+    await renderPage()
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: /advanced insights/i }))
+    fireEvent.change(screen.getByRole('combobox', { name: /select account/i }), {
+      target: { value: 'acc-2' },
+    })
+
+    expect(screen.getByTestId('advanced-insights-tab')).toHaveTextContent('accountId=acc-2')
   })
 
   it('PortfolioPage - accounts loading - shows loading text', async () => {
