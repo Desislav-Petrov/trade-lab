@@ -9,7 +9,10 @@ import org.dpp.tradelab.portfolio.exception.PortfolioAccountAccessDeniedExceptio
 import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
+import org.dpp.tradelab.portfolio.model.PositionFill
+import org.dpp.tradelab.portfolio.repository.PositionFillRepository
 import org.dpp.tradelab.portfolio.repository.PositionRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -63,9 +66,18 @@ data class PortfolioHoldingsResult(
     val insights: PortfolioInsights
 )
 
+data class FillHistoryPage(
+    val fills: Map<String, List<PositionFill>>,
+    val page: Int,
+    val size: Int,
+    val totalPages: Int,
+    val totalElements: Long
+)
+
 @Service
 class PortfolioQueryService(
     private val positionRepository: PositionRepository,
+    private val positionFillRepository: PositionFillRepository,
     private val ledgerApi: LedgerApi,
     private val ledgerAccountApi: LedgerAccountApi,
     private val marketDataApi: MarketDataApi
@@ -173,6 +185,24 @@ class PortfolioQueryService(
                 portfolioPercent = cashPortfolioPercent
             ),
             insights = insights
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getFillHistory(userId: UUID, accountId: UUID, page: Int, size: Int): FillHistoryPage {
+        val pageable = PageRequest.of(page, size.coerceAtMost(100))
+        val fillPage = positionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc(
+            userId = userId,
+            accountId = accountId,
+            pageable = pageable
+        )
+
+        return FillHistoryPage(
+            fills = fillPage.content.groupBy { it.ticker },
+            page = fillPage.number,
+            size = fillPage.size,
+            totalPages = fillPage.totalPages,
+            totalElements = fillPage.totalElements
         )
     }
 

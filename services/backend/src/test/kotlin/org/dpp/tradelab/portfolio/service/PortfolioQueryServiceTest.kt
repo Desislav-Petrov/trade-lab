@@ -17,11 +17,20 @@ import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
 import org.dpp.tradelab.portfolio.model.AssetType
+import org.dpp.tradelab.portfolio.model.FillSide
 import org.dpp.tradelab.portfolio.model.Position
+import org.dpp.tradelab.portfolio.model.PositionFill
+import org.dpp.tradelab.portfolio.repository.PositionFillRepository
 import org.dpp.tradelab.portfolio.repository.PositionRepository
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -29,11 +38,12 @@ import java.util.UUID
 class PortfolioQueryServiceTest : FunSpec({
 
     val positionRepository = mock<PositionRepository>()
+    val positionFillRepository = mock<PositionFillRepository>()
     val ledgerApi = mock<LedgerApi>()
     val ledgerAccountApi = mock<LedgerAccountApi>()
     val marketDataApi = mock<MarketDataApi>()
 
-    val service = PortfolioQueryService(positionRepository, ledgerApi, ledgerAccountApi, marketDataApi)
+    val service = PortfolioQueryService(positionRepository, positionFillRepository, ledgerApi, ledgerAccountApi, marketDataApi)
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
@@ -60,8 +70,21 @@ class PortfolioQueryServiceTest : FunSpec({
         lastUpdated = Instant.now()
     )
 
+    fun buildFill(ticker: String, filledAt: Instant) = PositionFill(
+        id = UUID.randomUUID(),
+        userId = userId,
+        accountId = accountId,
+        ticker = ticker,
+        assetType = AssetType.STOCK,
+        side = FillSide.BUY,
+        executionPrice = BigDecimal("150.0000"),
+        quantity = BigDecimal("2.0000"),
+        filledAt = filledAt,
+        idempotencyKey = UUID.randomUUID()
+    )
+
     beforeEach {
-        org.mockito.kotlin.reset(positionRepository, ledgerApi, ledgerAccountApi, marketDataApi)
+        org.mockito.kotlin.reset(positionRepository, positionFillRepository, ledgerApi, ledgerAccountApi, marketDataApi)
     }
 
     // ── Happy path ────────────────────────────────────────────────────────────
@@ -211,6 +234,56 @@ class PortfolioQueryServiceTest : FunSpec({
         val result = service.getPositionQuantity(accountId, ticker)
 
         result shouldBe BigDecimal.ZERO
+    }
+
+    // ── getFillHistory ───────────────────────────────────────────────────────
+
+    test("getFillHistory_fillsExist_returnsGroupedFillsWithPaginationMetadata") {
+        val first = buildFill("AAPL", Instant.parse("2026-08-28T10:00:00Z"))
+        val second = buildFill("MSFT", Instant.parse("2026-08-28T11:00:00Z"))
+        val third = buildFill("AAPL", Instant.parse("2026-08-28T12:00:00Z"))
+        val pageable = PageRequest.of(0, 100)
+        whenever(positionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc(userId, accountId, pageable))
+            .thenReturn(PageImpl(listOf(first, second, third), pageable, 3))
+
+        val result = service.getFillHistory(userId, accountId, page = 0, size = 100)
+
+        result.page shouldBe 0
+        result.size shouldBe 100
+        result.totalPages shouldBe 1
+        result.totalElements shouldBe 3
+        result.fills.keys shouldBe setOf("AAPL", "MSFT")
+        result.fills["AAPL"] shouldBe listOf(first, third)
+        result.fills["MSFT"] shouldBe listOf(second)
+    }
+
+    test("getFillHistory_sizeGreaterThan100_capsPageRequestSize") {
+        whenever(positionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc(any(), any(), any()))
+            .thenReturn(PageImpl(emptyList(), PageRequest.of(0, 100), 0))
+
+        service.getFillHistory(userId, accountId, page = 0, size = 250)
+
+        val captor = argumentCaptor<Pageable>()
+        verify(positionFillRepository).findByUserIdAndAccountIdOrderByFilledAtAsc(
+            eq(userId),
+            eq(accountId),
+            captor.capture()
+        )
+        captor.firstValue.pageSize shouldBe 100
+    }
+
+    test("getFillHistory_noFills_returnsEmptyMapWithMetadata") {
+        val pageable = PageRequest.of(1, 25)
+        whenever(positionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc(userId, accountId, pageable))
+            .thenReturn(PageImpl(emptyList(), pageable, 0))
+
+        val result = service.getFillHistory(userId, accountId, page = 1, size = 25)
+
+        result.fills shouldBe emptyMap()
+        result.page shouldBe 1
+        result.size shouldBe 25
+        result.totalPages shouldBe 0
+        result.totalElements shouldBe 0
     }
 
     // ── Insights: mixed positive and negative unrealisedPnL ─────────────────
