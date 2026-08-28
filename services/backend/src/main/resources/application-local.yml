@@ -2,10 +2,17 @@
 #
 # Uses a persistent file-based H2 database so data survives application restarts.
 # This profile is also used by docker-compose for local container runs.
+#
+# DATASOURCE_URL — if set, must be a full JDBC URL, e.g.:
+#   jdbc:h2:file:/absolute/path/to/db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+# H2_DB_PATH — optional bare file path override (no jdbc: prefix).
+#   When set, takes precedence and is composed into the full JDBC URL automatically.
+#   Example: H2_DB_PATH=/tmp/mydb  →  jdbc:h2:file:/tmp/mydb;...
+#   Leave unset to use the default ./data/tradelab path relative to the working directory.
 
 spring:
   datasource:
-    url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
+    url: "jdbc:h2:file:${H2_DB_PATH:./data/tradelab};DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE"
     driver-class-name: org.h2.Driver
   jpa:
     # Explicit dialect — Hibernate 6 (Spring Boot 4) removed the automatic
