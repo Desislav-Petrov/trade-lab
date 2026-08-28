@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axiosInstance from '../../../shared/api/axiosInstance'
-import { fetchPortfolioHoldings, PORTFOLIO_HOLDINGS_KEY } from './portfolioApi'
-import type { PortfolioHoldingsResponse } from '../types/portfolio.types'
+import {
+  fetchFillHistory,
+  fetchPortfolioHoldings,
+  FILL_HISTORY_QUERY_KEY,
+  PORTFOLIO_HOLDINGS_KEY,
+} from './portfolioApi'
+import type { FillHistoryResponse, PortfolioHoldingsResponse } from '../types/portfolio.types'
 
 vi.mock('../../../shared/api/axiosInstance', () => ({
   default: { get: vi.fn() },
@@ -101,5 +106,62 @@ describe('fetchPortfolioHoldings', () => {
 describe('PORTFOLIO_HOLDINGS_KEY', () => {
   it('PORTFOLIO_HOLDINGS_KEY - is defined as expected string', () => {
     expect(PORTFOLIO_HOLDINGS_KEY).toBe('portfolioHoldings')
+  })
+})
+
+const mockFillHistoryResponse: FillHistoryResponse = {
+  page: 0,
+  size: 100,
+  totalPages: 1,
+  totalElements: 2,
+  fills: [
+    {
+      ticker: 'AAPL',
+      dataPoints: [
+        {
+          filledAt: '2026-08-28T10:00:00Z',
+          executionPrice: 150,
+          quantity: 2,
+          side: 'BUY',
+        },
+        {
+          filledAt: '2026-08-28T11:00:00Z',
+          executionPrice: 155,
+          quantity: 1,
+          side: 'SELL',
+        },
+      ],
+    },
+  ],
+}
+
+describe('fetchFillHistory', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('fetchFillHistory - defaults - sends accountId page and size query params', async () => {
+    mockGet.mockResolvedValueOnce({ data: mockFillHistoryResponse })
+
+    const result = await fetchFillHistory('acc-1')
+
+    expect(result).toEqual(mockFillHistoryResponse)
+    expect(mockGet).toHaveBeenCalledWith('/v1/portfolio/fills', {
+      params: { accountId: 'acc-1', page: 0, size: 100 },
+    })
+  })
+
+  it('fetchFillHistory - custom paging - sends provided page and size query params', async () => {
+    mockGet.mockResolvedValueOnce({ data: { ...mockFillHistoryResponse, page: 2, size: 50 } })
+
+    await fetchFillHistory('acc-2', 2, 50)
+
+    expect(mockGet).toHaveBeenCalledWith('/v1/portfolio/fills', {
+      params: { accountId: 'acc-2', page: 2, size: 50 },
+    })
+  })
+})
+
+describe('FILL_HISTORY_QUERY_KEY', () => {
+  it('FILL_HISTORY_QUERY_KEY - is defined as expected string', () => {
+    expect(FILL_HISTORY_QUERY_KEY).toBe('fillHistory')
   })
 })
