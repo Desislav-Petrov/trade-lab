@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Navigate } from '@tanstack/react-router'
 import type { AxiosError } from 'axios'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
@@ -8,6 +8,7 @@ import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings'
 import { PortfolioAccountSelector } from '../components/PortfolioAccountSelector'
 import { PortfolioHoldingsTable } from '../components/PortfolioHoldingsTable'
 import { InsightsTab } from '../components/InsightsTab'
+import { AdvancedInsightsTab } from '../components/AdvancedInsightsTab'
 import { useSellPanel } from '../../stocktrading/hooks/useSellPanel'
 import { SellPanel } from '../../stocktrading/components/SellPanel'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
@@ -30,7 +31,7 @@ export function PortfolioPage() {
   const { isOpen, ticker, maxQuantity, openSellPanel } = useSellPanel()
 
   const { data: accountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
-  const accounts = accountsData?.accounts ?? []
+  const accounts = useMemo(() => accountsData?.accounts ?? [], [accountsData])
 
   useEffect(() => {
     if (selectedAccountId === null && accounts.length > 0) {
@@ -145,7 +146,7 @@ export function PortfolioPage() {
         </TabsContent>
 
         <TabsContent value="advanced">
-          <div data-testid="advanced-insights-placeholder" />
+          <AdvancedInsightsTab accountId={selectedAccountId} />
         </TabsContent>
       </Tabs>
 
