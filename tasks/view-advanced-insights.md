@@ -4,6 +4,8 @@
 
 An authenticated user views a step-line price history chart in the **Advanced Insights** tab on the Portfolio page. The chart shows every individual BUY (green dot) and SELL (red dot) fill per stock symbol over time. Symbols are toggleable via a legend. All chart data is served by the Portfolio backend from a new `PositionFill` read model populated by consuming the existing `OrderFilledEvent`.
 
+The fill history endpoint is **paginated** — up to 100 fills per page, ordered by `filledAt` ascending. The frontend fetches all pages before rendering the chart.
+
 **Flows:** `domain/flows/view-advanced-insights.md` (Flows A, B, C)  
 **Models:** `domain/model/position-fill.md` (new), `domain/model/session.md`  
 **Decision log:** `decisions/2026-08-28-portfolio-position-fill-read-model.md`
@@ -65,16 +67,16 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** Repository  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 3: query all fills for a given `accountId` and `userId` ordered by `filledAt` ascending  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 3: paginated query of fills for a given `accountId` and `userId` ordered by `filledAt` ascending, max 100 per page  
 **Inputs:**  
 - `PositionFill` entity (DB-1)  
 **Outputs:**  
 - `org.dpp.tradelab.portfolio.repository.PositionFillRepository` — Spring Data JPA interface  
 **Acceptance criteria:**  
 - [ ] Interface extends `JpaRepository<PositionFill, UUID>`.  
-- [ ] Custom query method: `findByUserIdAndAccountIdOrderByFilledAtAsc(userId: UUID, accountId: UUID): List<PositionFill>`.  
+- [ ] Custom query method: `findByUserIdAndAccountIdOrderByFilledAtAsc(userId: UUID, accountId: UUID, pageable: Pageable): Page<PositionFill>`.  
 - [ ] No business logic in the interface.  
-- [ ] Repository test using `@SpringBootTest` + `@AutoConfigureTestEntityManager` + `@Transactional` with H2 covers: results ordered by `filledAt` ascending, results scoped to both `userId` and `accountId`.  
+- [ ] Repository test using `@SpringBootTest` + `@AutoConfigureTestEntityManager` + `@Transactional` with H2 covers: results ordered by `filledAt` ascending, results scoped to both `userId` and `accountId`, page size respected (inserts 150 fills, requests page 0 size 100 → 100 results, page 1 size 100 → 50 results).  
 **Depends on:** DB-1
 
 ---
@@ -109,19 +111,23 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** Service  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 3–4: query `PositionFill` rows and return grouped fill history  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 3–4: paginated query of `PositionFill` rows returning grouped fill history for one page  
 **Inputs:**  
 - `accountId: UUID`  
 - `userId: UUID` (resolved from session context by the controller)  
+- `page: Int` — zero-based page index (default 0)  
+- `size: Int` — page size, maximum 100 (default 100)  
 - `PositionFillRepository` (REPO-1)  
 **Outputs:**  
-- `getFillHistory(userId: UUID, accountId: UUID): Map<String, List<PositionFill>>` on `PortfolioService` — fills grouped by `ticker`, ordered by `filledAt` ascending within each group  
+- `getFillHistory(userId: UUID, accountId: UUID, page: Int, size: Int): FillHistoryPage` on `PortfolioService`  
+- `FillHistoryPage` is a plain data holder containing: `fills: Map<String, List<PositionFill>>` (grouped by ticker, `filledAt` ascending within each group), `page: Int`, `size: Int`, `totalPages: Int`, `totalElements: Long`  
 **Acceptance criteria:**  
 - [ ] Method annotated `@Transactional(readOnly = true)`.  
-- [ ] Calls `PositionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc`.  
-- [ ] Groups results by `ticker` (preserving `filledAt` ordering within each group).  
-- [ ] Returns an empty map (not an error) when no fills exist.  
-- [ ] Unit tests: fills returned and grouped by ticker correctly, empty result returns empty map.  
+- [ ] Calls `PositionFillRepository.findByUserIdAndAccountIdOrderByFilledAtAsc` with a `PageRequest.of(page, size.coerceAtMost(100))` pageable — size is capped at 100 regardless of the caller's input.  
+- [ ] Groups the page's results by `ticker` (preserving `filledAt` ordering within each group).  
+- [ ] Returns pagination metadata (`page`, `size`, `totalPages`, `totalElements`) from the Spring `Page` object.  
+- [ ] Returns an empty `fills` map (not an error) when no fills exist.  
+- [ ] Unit tests: fills returned and grouped by ticker correctly, size capped at 100 when caller passes a larger value, empty result returns empty map with correct metadata.  
 **Depends on:** REPO-1
 
 ---
@@ -155,9 +161,11 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** Controller  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 2–4: `GET /api/v1/portfolio/fills?accountId={accountId}`  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 2–4: `GET /api/v1/portfolio/fills?accountId={accountId}&page={page}&size={size}`  
 **Inputs:**  
 - `accountId: UUID` — from query parameter  
+- `page: Int` — from query parameter (default 0)  
+- `size: Int` — from query parameter (default 100, maximum 100)  
 - `userId: UUID` — resolved from authenticated session context  
 - `PortfolioService.getFillHistory` (SVC-2)  
 - Generated `PortfolioApiDelegate` updated by API-CONTRACT-1  
@@ -166,12 +174,14 @@ An authenticated user views a step-line price history chart in the **Advanced In
 - Returns `ResponseEntity<FillHistoryResponse>` (generated DTO) with HTTP 200  
 **Acceptance criteria:**  
 - [ ] Delegate method maps `getFillHistory` result to the generated `FillHistoryResponse` DTO — no hand-written DTOs.  
+- [ ] `FillHistoryResponse` includes pagination fields: `page`, `size`, `totalPages`, `totalElements`.  
 - [ ] Each ticker's fills are mapped to a `FillHistoryEntry` with `ticker` and a `dataPoints` list.  
 - [ ] Each data point contains `filledAt`, `executionPrice`, `quantity`, `side`.  
-- [ ] Returns HTTP 200 with an empty `fills` array when no fills exist — not an error response.  
+- [ ] Returns HTTP 200 with an empty `fills` array and `totalElements: 0` when no fills exist.  
+- [ ] Returns HTTP 400 if `size` exceeds 100 (validated via OpenAPI contract constraint).  
 - [ ] Returns HTTP 401 when session is invalid (handled by existing auth filter — no extra code needed).  
 - [ ] No business logic in the delegate — entirely delegates to the service.  
-- [ ] `@SpringBootTest` + MockMvc tests: 200 with fills populated, 200 with empty fills array, 401 unauthenticated.  
+- [ ] `@SpringBootTest` + MockMvc tests: 200 with fills and pagination metadata, 200 with empty fills, 400 on size > 100, 401 unauthenticated.  
 **Depends on:** SVC-2, API-CONTRACT-1
 
 ---
@@ -183,22 +193,26 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** OpenAPI Contract  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` — Fill History Response Specification  
+**Implements:** `domain/flows/view-advanced-insights.md` — Fill History Response Specification (paginated)  
 **Inputs:**  
 - Path: `GET /portfolio/fills`  
-- Query parameter: `accountId` (uuid, required)  
+- Query parameters: `accountId` (uuid, required), `page` (integer, optional, default 0), `size` (integer, optional, default 100, maximum 100)  
 - Response schemas: `FillHistoryResponse`, `FillHistoryEntry`, `FillDataPoint`  
+- `FillHistoryResponse` pagination fields: `page`, `size`, `totalPages`, `totalElements`  
 - `FillDataPoint` fields: `filledAt: datetime`, `executionPrice: number`, `quantity: number`, `side: enum[BUY, SELL]`  
-- Error responses: 401, 403  
+- Error responses: 400, 401, 403  
 **Outputs:**  
 - `services/contract/portfolio-openapi.yaml` — updated with new path and three new component schemas  
 **Acceptance criteria:**  
 - [ ] `GET /portfolio/fills` added under `paths` with `operationId: getFills` and tag `Portfolio`.  
 - [ ] `accountId` query parameter: `type: string, format: uuid, required: true`.  
+- [ ] `page` query parameter: `type: integer, minimum: 0, default: 0`, not required.  
+- [ ] `size` query parameter: `type: integer, minimum: 1, maximum: 100, default: 100`, not required.  
 - [ ] 200 response references `FillHistoryResponse`.  
-- [ ] `FillHistoryResponse`: `required: [fills]`, `fills` is an array of `FillHistoryEntry`.  
+- [ ] `FillHistoryResponse`: `required: [page, size, totalPages, totalElements, fills]`. Pagination fields are `type: integer`. `fills` is an array of `FillHistoryEntry`.  
 - [ ] `FillHistoryEntry`: `required: [ticker, dataPoints]`.  
 - [ ] `FillDataPoint`: `required: [filledAt, executionPrice, quantity, side]`. `side` is `type: string, enum: [BUY, SELL]`. `filledAt` is `type: string, format: date-time`. `executionPrice` and `quantity` are `type: number`.  
+- [ ] 400 response references `ErrorResponse` (returned when `size` exceeds 100).  
 - [ ] 401 and 403 responses reference the existing `ErrorResponse` schema.  
 - [ ] No existing paths or schemas are modified.  
 - [ ] YAML is valid OpenAPI 3.0.3.  
@@ -213,22 +227,26 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** API Client  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 2: `GET /api/v1/portfolio/fills?accountId={accountId}`  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 2 and 5: `GET /api/v1/portfolio/fills?accountId={accountId}&page={page}&size={size}`  
 **Inputs:**  
 - `accountId: string` (UUID)  
+- `page: number` (zero-based, default 0)  
+- `size: number` (default 100, max 100)  
 - Shared Axios instance from `shared/api/`  
 - API-CONTRACT-1 — endpoint shape and response schema  
 **Outputs:**  
-- `fetchFillHistory(accountId: string): Promise<FillHistoryResponse>` in `services/front-end/src/domains/portfolio/api/`  
+- `fetchFillHistory(accountId: string, page?: number, size?: number): Promise<FillHistoryResponse>` in `services/front-end/src/domains/portfolio/api/`  
 - TypeScript interfaces `FillHistoryResponse`, `FillHistoryEntry`, `FillDataPoint`, `FillSide` in `services/front-end/src/domains/portfolio/types/`  
+- `FillHistoryResponse` includes: `page: number`, `size: number`, `totalPages: number`, `totalElements: number`, `fills: FillHistoryEntry[]`  
 - `FILL_HISTORY_QUERY_KEY` cache key constant exported from the api module  
 **Acceptance criteria:**  
 - [ ] Uses shared Axios instance — no new Axios instance created.  
 - [ ] `FillSide` is `type FillSide = 'BUY' | 'SELL'`.  
 - [ ] `FillDataPoint.filledAt` typed as `string` (UTC ISO 8601 — timezone conversion only at display layer).  
-- [ ] `fetchFillHistory` calls `GET /api/v1/portfolio/fills` with `accountId` as a query param.  
+- [ ] `fetchFillHistory` calls `GET /api/v1/portfolio/fills` with `accountId`, `page`, and `size` as query params.  
+- [ ] `page` defaults to `0` and `size` defaults to `100` when not provided.  
 - [ ] No endpoint URLs, HTTP methods, or payload shapes invented outside the OpenAPI contract.  
-- [ ] Test: `vi.mock` the Axios instance; assert correct URL, query param, and typed response returned.  
+- [ ] Test: `vi.mock` the Axios instance; assert correct URL, all three query params, and typed response returned.  
 **Depends on:** API-CONTRACT-1
 
 ---
@@ -240,20 +258,23 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** State  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 2 (fetch on tab activation); Flow C — Step 3 (re-fetch on account switch)  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 2 and 5 (fetch all pages before rendering); Flow C — Step 3 (re-fetch all pages on account switch)  
 **Inputs:**  
 - `accountId: string | null`  
 - `fetchFillHistory` (CLI-1)  
 - `FILL_HISTORY_QUERY_KEY` (CLI-1)  
 **Outputs:**  
 - `useFillHistory(accountId: string | null)` hook in `services/front-end/src/domains/portfolio/hooks/`  
-- Returns `{ data, isLoading, isError }`  
+- Returns `{ fills: FillHistoryEntry[], isLoading: boolean, isError: boolean }` — all pages merged and grouped by ticker before returning  
 **Acceptance criteria:**  
 - [ ] Query is enabled only when `accountId` is non-null.  
 - [ ] Query key includes `accountId` — switching accounts automatically invalidates and re-fetches.  
-- [ ] `isLoading: true` while fetching; `isError: true` on non-2xx.  
+- [ ] Hook fetches page 0 first. If `totalPages > 1`, fetches remaining pages sequentially (pages 1…totalPages-1) before resolving.  
+- [ ] `isLoading` is `true` until all pages have been fetched.  
+- [ ] All pages' `dataPoints` are merged per ticker, preserving `filledAt` ascending order across page boundaries, before being returned as `fills`.  
+- [ ] `isError: true` if any page fetch returns a non-2xx response.  
 - [ ] No Zustand state used for server data.  
-- [ ] Tests (`renderHook`): happy path returns data, null `accountId` does not trigger a fetch, error state set on API failure.  
+- [ ] Tests (`renderHook`): single-page result returned correctly, multi-page result merged correctly (two pages of 100 → 200 data points merged), null `accountId` does not trigger fetch, error on any page sets `isError`.  
 **Depends on:** CLI-1
 
 ---
@@ -287,9 +308,9 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** Component  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 5 (render chart); Flow B — Step 3 (re-render on toggle); Chart Rendering Rules  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Step 6 (render chart); Flow B — Step 3 (re-render on toggle); Chart Rendering Rules  
 **Inputs:**  
-- `fills: FillHistoryEntry[]` — from `useFillHistory` hook  
+- `fills: FillHistoryEntry[]` — from `useFillHistory` hook (all pages already merged)  
 - `hiddenSymbols: Set<string>` — from Zustand slice  
 - `onToggleSymbol: (ticker: string) => void` — callback  
 **Outputs:**  
@@ -314,7 +335,7 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Layer:** Component  
 **Domain:** portfolio  
 **Use case:** view-advanced-insights  
-**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 1–5 (tab shell: loading, error, empty, chart); Flow C — Step 3 (loading state on account switch)  
+**Implements:** `domain/flows/view-advanced-insights.md` Flow A — Steps 1–6 (tab shell: loading, error, empty, chart); Flow C — Step 3 (loading state on account switch)  
 **Inputs:**  
 - `accountId: string | null`  
 - `useFillHistory` hook (STATE-1)  
@@ -323,7 +344,7 @@ An authenticated user views a step-line price history chart in the **Advanced In
 **Outputs:**  
 - `AdvancedInsightsTab` component in `services/front-end/src/domains/portfolio/components/`  
 **Acceptance criteria:**  
-- [ ] Shows Shadcn `Skeleton` loading state while `isLoading` is true.  
+- [ ] Shows Shadcn `Skeleton` loading state while `isLoading` is true (covers multi-page fetch in progress).  
 - [ ] Shows Shadcn `Alert` error state "Could not load price history. Please try again." when `isError` is true.  
 - [ ] On successful load, renders `FillHistoryChart` passing `fills`, `hiddenSymbols`, and `onToggleSymbol`.  
 - [ ] When `accountId` prop changes, calls `resetSymbolVisibility()` — symbol visibility resets to all-on.  
