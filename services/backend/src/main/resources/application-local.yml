@@ -8,6 +8,10 @@ spring:
     url: ${DATASOURCE_URL:jdbc:h2:file:./data/tradelab;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
     driver-class-name: org.h2.Driver
   jpa:
+    # Explicit dialect — Hibernate 6 (Spring Boot 4) removed the automatic
+    # dialect detection fallback. This overrides the base application.yml value
+    # but keeps the same H2Dialect since we're still using H2 in local.
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       # 'update' — schema evolves with entities; existing data is preserved.
       ddl-auto: update
