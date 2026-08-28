@@ -1,11 +1,13 @@
 package org.dpp.tradelab.portfolio.messaging
 
 import io.kotest.core.spec.style.FunSpec
+import org.dpp.tradelab.portfolio.model.FillSide
 import org.dpp.tradelab.portfolio.service.PortfolioPositionService
 import org.dpp.tradelab.stocktrading.messaging.OrderFilledEvent
 import org.dpp.tradelab.stocktrading.model.OrderSide
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoMoreInteractions
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -30,6 +32,17 @@ class StockTradingEventListenerTest : FunSpec({
 
         listener.onOrderFilled(event)
 
-        verify(portfolioPositionService).handleOrderFilled(event)
+        verify(portfolioPositionService).handleOrderFilled(
+            orderId = event.orderId,
+            accountId = event.accountId,
+            userId = event.userId,
+            ticker = event.ticker,
+            quantity = event.quantity,
+            side = FillSide.BUY,
+            executionPrice = event.executionPrice,
+            timestamp = event.timestamp,
+            idempotencyKey = event.idempotencyKey
+        )
+        verifyNoMoreInteractions(portfolioPositionService)
     }
 })

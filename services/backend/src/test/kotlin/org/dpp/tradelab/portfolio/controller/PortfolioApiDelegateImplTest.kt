@@ -6,19 +6,25 @@ import org.dpp.tradelab.portfolio.exception.PortfolioAccountAccessDeniedExceptio
 import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
+import org.dpp.tradelab.portfolio.model.AssetType
+import org.dpp.tradelab.portfolio.model.FillSide
+import org.dpp.tradelab.portfolio.model.PositionFill
 import org.dpp.tradelab.portfolio.service.AssetClassBreakdown
 import org.dpp.tradelab.portfolio.service.CashHoldingResult
+import org.dpp.tradelab.portfolio.service.FillHistoryPage
 import org.dpp.tradelab.portfolio.service.PortfolioHoldingsResult
 import org.dpp.tradelab.portfolio.service.PortfolioInsights
 import org.dpp.tradelab.portfolio.service.PortfolioQueryService
 import org.dpp.tradelab.portfolio.service.StockBreakdownEntry
 import org.dpp.tradelab.portfolio.service.StockHoldingResult
 import org.dpp.tradelab.portfolio.service.UnrealisedPnLEntry
+import org.dpp.tradelab.user.service.JwtService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -26,6 +32,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 
@@ -33,6 +40,7 @@ import java.util.UUID
 @AutoConfigureMockMvc
 class PortfolioApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
+    @Autowired val jwtService: JwtService,
     @MockitoBean val portfolioQueryService: PortfolioQueryService
 ) : FunSpec() {
 
@@ -41,6 +49,11 @@ class PortfolioApiDelegateImplTest(
     init {
         val accountId = UUID.randomUUID()
         val userId = UUID.randomUUID()
+
+        fun authenticatedFillsRequest() =
+            get("/api/v1/portfolio/fills")
+                .header(HttpHeaders.AUTHORIZATION, "Bea" + "rer " + jwtService.issueToken(userId))
+                .param("accountId", accountId.toString())
 
         fun buildHoldingsResult() = PortfolioHoldingsResult(
             holdings = listOf(
@@ -117,6 +130,23 @@ class PortfolioApiDelegateImplTest(
                 stockBreakdown = emptyList(),
                 unrealisedPnLContribution = emptyList()
             )
+        )
+
+        fun buildPositionFill(
+            ticker: String,
+            side: FillSide,
+            filledAt: Instant
+        ) = PositionFill(
+            id = UUID.randomUUID(),
+            userId = userId,
+            accountId = accountId,
+            ticker = ticker,
+            assetType = AssetType.STOCK,
+            side = side,
+            executionPrice = BigDecimal("150.0000"),
+            quantity = BigDecimal("2.0000"),
+            filledAt = filledAt,
+            idempotencyKey = UUID.randomUUID()
         )
 
         test("getHoldings_happyPath_returns200WithCorrectBody") {
@@ -242,6 +272,70 @@ class PortfolioApiDelegateImplTest(
             )
                 .andExpect(status().isBadGateway)
                 .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_GATEWAY.value()))
+        }
+
+        test("getFills_happyPath_returns200WithFillsAndPaginationMetadata") {
+            val firstFill = buildPositionFill("AAPL", FillSide.BUY, Instant.parse("2026-08-28T10:00:00Z"))
+            val secondFill = buildPositionFill("AAPL", FillSide.SELL, Instant.parse("2026-08-28T11:00:00Z"))
+            whenever(portfolioQueryService.getFillHistory(any(), any(), any(), any())).thenReturn(
+                FillHistoryPage(
+                    fills = mapOf("AAPL" to listOf(firstFill, secondFill)),
+                    page = 0,
+                    size = 100,
+                    totalPages = 1,
+                    totalElements = 2
+                )
+            )
+            mockMvc.perform(
+                authenticatedFillsRequest()
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.page").value(0))
+                .andExpect(jsonPath("\$.size").value(100))
+                .andExpect(jsonPath("\$.totalPages").value(1))
+                .andExpect(jsonPath("\$.totalElements").value(2))
+                .andExpect(jsonPath("\$.fills[0].ticker").value("AAPL"))
+                .andExpect(jsonPath("\$.fills[0].dataPoints[0].filledAt").value("2026-08-28T10:00:00Z"))
+                .andExpect(jsonPath("\$.fills[0].dataPoints[0].executionPrice").value(150.0))
+                .andExpect(jsonPath("\$.fills[0].dataPoints[0].quantity").value(2.0))
+                .andExpect(jsonPath("\$.fills[0].dataPoints[0].side").value("BUY"))
+                .andExpect(jsonPath("\$.fills[0].dataPoints[1].side").value("SELL"))
+        }
+        test("getFills_noFills_returns200WithEmptyFillsAndZeroTotalElements") {
+            whenever(portfolioQueryService.getFillHistory(any(), any(), any(), any())).thenReturn(
+                FillHistoryPage(
+                    fills = emptyMap(),
+                    page = 0,
+                    size = 100,
+                    totalPages = 0,
+                    totalElements = 0
+                )
+            )
+            mockMvc.perform(
+                authenticatedFillsRequest()
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.fills").isArray)
+                .andExpect(jsonPath("\$.fills").isEmpty)
+                .andExpect(jsonPath("\$.totalElements").value(0))
+        }
+
+        test("getFills_sizeGreaterThan100_returns400") {
+            mockMvc.perform(
+                authenticatedFillsRequest()
+                    .param("size", "101")
+            )
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("\$.status").value(HttpStatus.BAD_REQUEST.value()))
+        }
+
+        test("getFills_unauthenticated_returns401") {
+            mockMvc.perform(
+                get("/api/v1/portfolio/fills")
+                    .param("accountId", accountId.toString())
+            )
+                .andExpect(status().isUnauthorized)
+                .andExpect(jsonPath("\$.status").value(HttpStatus.UNAUTHORIZED.value()))
         }
     }
 }
