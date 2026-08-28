@@ -4,11 +4,13 @@
 
 Covers the Advanced Insights tab on the Portfolio page (`/portfolio`). The tab renders a step-line price history chart for the selected account, showing every individual fill (BUY and SELL) for each held or previously held stock symbol over time. Each symbol is drawn as a separate step line. The user can toggle individual symbols on and off by clicking them. All chart data is served by the Portfolio backend from the `PositionFill` read model — the frontend performs no calculations.
 
+The fill history endpoint is paginated. Each page returns up to 100 fills, ordered by `filledAt` ascending. The frontend fetches all pages before rendering the chart.
+
 ---
 
 ## Flow A — Load Advanced Insights Tab
 
-The user navigates to the Advanced Insights tab. The frontend fetches the fill history for the selected account and renders the step-line chart.
+The user navigates to the Advanced Insights tab. The frontend fetches the fill history for the selected account (all pages) and renders the step-line chart.
 
 ### Actors
 
@@ -27,14 +29,15 @@ The user navigates to the Advanced Insights tab. The frontend fetches the fill h
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Click "Advanced Insights" tab | Activates the Advanced Insights tab on the Portfolio page. |
-| 2 | Guest Browser | Fetch fill history | Calls `GET /api/v1/portfolio/fills?accountId={accountId}`. |
-| 3 | System (Portfolio) | Query PositionFill rows | Retrieves all `PositionFill` rows for the given `accountId` scoped to the authenticated user's `userId`. Orders results by `filledAt` ascending. |
-| 4 | System (Portfolio) | Return HTTP 200 | Returns a response containing a `fills` array grouped by `ticker`. Each group contains an ordered list of fill data points (see Fill History Response Specification below). |
-| 5 | Guest Browser | Render step-line chart | Renders one step line per ticker symbol. Time (`filledAt`) on the x-axis; execution price (`executionPrice`) on the y-axis. Each fill is plotted as a dot: green for `BUY`, red for `SELL`. Lines connect the dots in chronological order as a step line (no interpolation — the line steps horizontally then vertically). All symbols are visible by default. |
+| 2 | Guest Browser | Fetch fill history (first page) | Calls `GET /api/v1/portfolio/fills?accountId={accountId}&page=0&size=100`. |
+| 3 | System (Portfolio) | Query PositionFill rows (paginated) | Retrieves up to 100 `PositionFill` rows for the given `accountId` scoped to the authenticated user's `userId`, ordered by `filledAt` ascending. Returns a page of results with pagination metadata (`totalPages`, `totalElements`, `page`, `size`). |
+| 4 | System (Portfolio) | Return HTTP 200 | Returns the current page of fill data grouped by `ticker`, plus pagination metadata. |
+| 5 | Guest Browser | Fetch remaining pages | If `page + 1 < totalPages`, fetches subsequent pages sequentially until all pages are retrieved. Shows a loading state throughout. |
+| 6 | Guest Browser | Render step-line chart | Once all pages are collected, renders one step line per ticker symbol. Time (`filledAt`) on the x-axis; execution price (`executionPrice`) on the y-axis. Each fill is plotted as a dot: green for `BUY`, red for `SELL`. Lines connect the dots in chronological order as a step line (no interpolation — the line steps horizontally then vertically). All symbols are visible by default. |
 
 ### Postconditions
 
-- The step-line chart is rendered with one line per symbol.
+- The step-line chart is rendered with one line per symbol, using all fills across all pages.
 - All symbols are toggled on by default.
 - Each fill dot is coloured green (BUY) or red (SELL).
 
@@ -42,8 +45,8 @@ The user navigates to the Advanced Insights tab. The frontend fetches the fill h
 
 | Scenario | Condition | Outcome |
 |----------|-----------|---------|
-| Fill history fetch fails | `GET /api/v1/portfolio/fills` returns non-2xx | Tab shows: "Could not load price history. Please try again." No chart rendered. |
-| No fills exist | `fills` array is empty | Tab shows empty state: "No trade history to display." No chart rendered. |
+| Fill history fetch fails | `GET /api/v1/portfolio/fills` returns non-2xx on any page | Tab shows: "Could not load price history. Please try again." No chart rendered. |
+| No fills exist | `totalElements` is zero | Tab shows empty state: "No trade history to display." No chart rendered. |
 | Unauthenticated request | No valid session | System returns HTTP 401. Frontend redirects to `/login`. |
 
 ---
@@ -97,7 +100,7 @@ The user selects a different account from the page-level account selector while 
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Select a different account | Chooses a new account from the page-level account selector dropdown. |
 | 2 | Guest Browser | Store selection | Updates the selected `accountId` in the `portfolio` Zustand slice. |
-| 3 | Guest Browser | Re-fetch fill history | Invalidates the TanStack Query cache for `GET /api/v1/portfolio/fills` and re-fetches using the new `accountId`. Shows a loading state on the chart while the fetch is in progress. |
+| 3 | Guest Browser | Re-fetch fill history | Invalidates the TanStack Query cache for `GET /api/v1/portfolio/fills` and re-fetches all pages using the new `accountId`. Shows a loading state on the chart while fetching. |
 | 4 | Guest Browser | Re-render chart | Replaces the chart with data for the newly selected account. All symbols are toggled on by default after a reload. |
 
 ### Postconditions
@@ -109,11 +112,23 @@ The user selects a different account from the page-level account selector while 
 
 ## Fill History Response Specification
 
-Returned by `GET /api/v1/portfolio/fills?accountId={accountId}`.
+Returned by `GET /api/v1/portfolio/fills?accountId={accountId}&page={page}&size={size}`.
+
+### Query parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|:--------:|---------|-------------|
+| accountId | uuid | yes | — | The account to retrieve fills for. |
+| page | integer | no | 0 | Zero-based page index. |
+| size | integer | no | 100 | Page size. Maximum 100. |
 
 ### Response structure
 
 ```
+page:        integer   — zero-based current page index
+size:        integer   — number of items in this page
+totalPages:  integer   — total number of pages
+totalElements: integer — total number of fills across all pages
 fills: [
   {
     ticker: string,
@@ -129,10 +144,11 @@ fills: [
 ]
 ```
 
-- One entry per ticker symbol that has at least one fill for the account.
-- `dataPoints` are ordered by `filledAt` ascending.
+- `fills` contains only the tickers that have at least one fill in this page's result set.
+- `dataPoints` within each ticker group are ordered by `filledAt` ascending.
 - `side` drives dot colour on the frontend: `BUY` → green; `SELL` → red.
 - The step line connects consecutive data points regardless of `side`.
+- Maximum page size is 100 fills per request.
 
 ---
 
@@ -145,12 +161,12 @@ fills: [
 - **Legend**: One entry per symbol. Clicking a legend entry toggles that symbol's visibility (Flow B).
 - **Tooltip**: Hovering a dot displays a tooltip with: ticker, side, executionPrice (formatted as currency), quantity, and filledAt (formatted as date/time).
 - **Empty state**: Displayed when no fill data exists for the selected account. No chart is rendered.
-- **Loading state**: A loading indicator replaces the chart area while data is being fetched.
+- **Loading state**: A loading indicator replaces the chart area while data is being fetched (including subsequent pages).
 - **No cash**: Cash is never represented on this chart.
 
 ---
 
 ## Domain Models Involved
 
-- **PositionFill**: Primary data source. Queried by `accountId` and `userId`. Fields used: `ticker`, `side`, `executionPrice`, `quantity`, `filledAt`.
+- **PositionFill**: Primary data source. Queried by `accountId` and `userId`, paginated by `filledAt` ascending. Fields used: `ticker`, `side`, `executionPrice`, `quantity`, `filledAt`.
 - **Session**: `userId` resolved server-side from session context to scope the fill query to the authenticated user.
