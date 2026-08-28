@@ -2,7 +2,7 @@
 
 ## Goal
 
-An authenticated user navigates to the Portfolio page, selects a trading account, views their current stock holdings and cash balance — enriched with live prices, computed P&L, and portfolio allocation percentages — and can explore portfolio insights via charts, all from a tabbed interface. The user can also sell any stock holding directly from the Holdings tab.
+An authenticated user navigates to the Portfolio page, selects a trading account, views their current stock holdings and cash balance — enriched with live prices, computed P&L, and portfolio allocation percentages — and can explore portfolio insights via charts, all from a tabbed interface. The user can also sell any stock holding directly from the Holdings tab, and explore their full trade price history in the Advanced Insights tab.
 
 ## Actor
 
@@ -13,7 +13,7 @@ Authenticated User — a logged-in user navigating to `/portfolio`.
 - **Route:** `/portfolio`
 - **Page:** `PortfolioPage`
 - **Entry point:** User clicks "Portfolio" in the sidebar.
-- **Tabs:** Insights (default) | Holdings | Advanced Insights (empty placeholder)
+- **Tabs:** Insights (default) | Holdings | Advanced Insights
 
 ## Trigger
 
@@ -22,6 +22,7 @@ User navigates to `/portfolio`.
 ## Domain Models
 
 - `domain/model/position`
+- `domain/model/position-fill`
 - `domain/model/account`
 - `domain/model/market-data-snapshot`
 - `domain/model/order`
@@ -31,6 +32,7 @@ User navigates to `/portfolio`.
 
 - `domain/flows/view-portfolio` (Flows A, B, C, D, E, F)
 - `domain/flows/view-portfolio-insights` (Flows A, B)
+- `domain/flows/view-advanced-insights` (Flows A, B, C)
 - `domain/flows/sell-stock` (Flows A, B, C, D)
 - `domain/flows/aggregate-stock-position` (Flow A — background, no user interaction)
 
@@ -47,11 +49,15 @@ User navigates to `/portfolio`.
    - **Chart 3** — Unrealised P&L diverging bar chart: each stock's absolute unrealised P&L (positive bars above axis, negative bars below).
 7. User clicks the **Holdings** tab. Frontend renders the holdings table from the cached response — no new API call. One row per stock holding, one pinned cash row at the bottom. Default sort is ticker ascending.
 8. User clicks a column header to re-sort the table client-side. No new API call is made.
-9. User selects a different account from the page-level account selector. Frontend re-fetches holdings for the new account; both tabs reflect the new account.
-10. User right-clicks a stock row and selects "Sell" (`view-portfolio` Flow F). The frontend fetches the indicative price from the backend and opens the sell panel (`sell-stock` Flow A).
-11. User enters a sell quantity (≤ holding quantity); the panel displays real-time estimated proceeds (`sell-stock` Flow B).
-12. User clicks "Confirm". The order is submitted; the backend fills it at `executionPrice` and the panel shows the fill confirmation with actual proceeds (`sell-stock` Flow C). The holdings table and account balance are refreshed.
-13. User clicks "Decline" at any point to close the panel without placing an order (`sell-stock` Flow D).
+9. User clicks the **Advanced Insights** tab. Frontend calls `GET /api/v1/portfolio/fills?accountId={accountId}`.
+10. Portfolio backend queries all `PositionFill` rows for the account scoped to the authenticated user, grouped by ticker and ordered by `filledAt` ascending.
+11. Frontend renders a step-line price history chart. One step line per symbol; time on the x-axis, execution price on the y-axis. Each fill is a dot: green for BUY, red for SELL. All symbols are visible by default.
+12. User clicks a symbol in the chart legend to toggle its visibility on or off. No API call is made.
+13. User selects a different account from the page-level account selector. Frontend re-fetches holdings and fill history for the new account; all tabs reflect the new account.
+14. User right-clicks a stock row on the Holdings tab and selects "Sell" (`view-portfolio` Flow F). The frontend fetches the indicative price from the backend and opens the sell panel (`sell-stock` Flow A).
+15. User enters a sell quantity (≤ holding quantity); the panel displays real-time estimated proceeds (`sell-stock` Flow B).
+16. User clicks "Confirm". The order is submitted; the backend fills it at `executionPrice` and the panel shows the fill confirmation with actual proceeds (`sell-stock` Flow C). The holdings table and account balance are refreshed.
+17. User clicks "Decline" at any point to close the panel without placing an order (`sell-stock` Flow D).
 
 ## Failure Scenarios
 
@@ -65,6 +71,8 @@ User navigates to `/portfolio`.
 | Account not owned by user (HTTP 403) | Page shows generic error message. |
 | No stock positions | Holdings tab renders cash row only. Insights Charts 2 and 3 show empty state. No error. |
 | Total portfolio value is zero | All `% of Portfolio` values rendered as `—`. All insight charts show empty state. |
+| Fill history fetch fails | Advanced Insights tab shows: "Could not load price history. Please try again." No chart rendered. |
+| No fills exist for account | Advanced Insights tab shows empty state: "No trade history to display." |
 | Indicative price fetch fails | Sell panel shows error: "Could not load price. Please try again." Panel does not open. |
 | Sell: quantity exceeds holding | Backend returns HTTP 200 with `status: REJECTED`. Panel shows: "Order rejected: Quantity exceeds holding." Order persisted as REJECTED. No ledger entries written. |
 | Sell: duplicate idempotency key | Backend returns HTTP 409. Panel shows generic error. A new `idempotencyKey` is generated; user may retry. |
@@ -82,4 +90,3 @@ User navigates to `/portfolio`.
 - Risk metrics (concentration, volatility, Sharpe ratio).
 - Crypto or other non-stock asset types.
 - Cross-account aggregation — all insights are scoped to a single selected account.
-- Advanced Insights tab content — tab exists as a placeholder only in this iteration.
