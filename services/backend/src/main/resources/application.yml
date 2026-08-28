@@ -6,6 +6,10 @@ spring:
     url: ${DATASOURCE_URL:jdbc:h2:mem:tradelab;DB_CLOSE_DELAY=-1}
     driver-class-name: org.h2.Driver
   jpa:
+    # Explicit dialect — Hibernate 6 (Spring Boot 4) removed the automatic
+    # dialect detection fallback that queried JDBC metadata at startup.
+    # Without this, an unset or empty DATASOURCE_URL causes a boot failure.
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       # 'create-drop' — schema is created on startup and dropped on shutdown.
       # The local profile overrides this to 'update' for persistence.
