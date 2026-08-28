@@ -79,7 +79,9 @@ describe('useFillHistory', () => {
   it('useFillHistory - second page fails - returns isError true', async () => {
     mockFetchFillHistory
       .mockResolvedValueOnce(makePage(0, 2, 100))
-      .mockRejectedValueOnce(Object.assign(new Error('Server error'), { response: { status: 500 } }))
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Server error'), { response: { status: 500 } }),
+      )
 
     const { result } = renderHook(() => useFillHistory('acc-1'), { wrapper: createWrapper() })
 

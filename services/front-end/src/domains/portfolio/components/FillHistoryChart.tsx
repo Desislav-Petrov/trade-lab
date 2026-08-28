@@ -1,11 +1,4 @@
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import {
   Tooltip,
   TooltipContent,
@@ -101,14 +94,13 @@ function makeDot(ticker: string) {
   }
 }
 
-export function FillHistoryChart({
-  fills,
-  hiddenSymbols,
-  onToggleSymbol,
-}: FillHistoryChartProps) {
+export function FillHistoryChart({ fills, hiddenSymbols, onToggleSymbol }: FillHistoryChartProps) {
   if (fills.length === 0) {
     return (
-      <p data-testid="fill-history-empty-state" className="text-center text-sm text-[var(--color-text-secondary)]">
+      <p
+        data-testid="fill-history-empty-state"
+        className="text-center text-sm text-[var(--color-text-secondary)]"
+      >
         No trade history to display.
       </p>
     )

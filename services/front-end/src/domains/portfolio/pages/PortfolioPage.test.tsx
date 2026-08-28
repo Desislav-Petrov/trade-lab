@@ -81,15 +81,25 @@ vi.mock('../components/InsightsTab', () => ({
     insights: unknown
     currency: string
   }) => {
-    if (isLoading) return createElement('div', { 'data-testid': 'insights-loading' }, 'Loading insights...')
-    if (isError) return createElement('div', { 'data-testid': 'insights-error' }, 'Could not load insights. Please try again.')
+    if (isLoading)
+      return createElement('div', { 'data-testid': 'insights-loading' }, 'Loading insights...')
+    if (isError)
+      return createElement(
+        'div',
+        { 'data-testid': 'insights-error' },
+        'Could not load insights. Please try again.',
+      )
     return createElement('div', { 'data-testid': 'insights-tab' }, 'Insights')
   },
 }))
 
 vi.mock('../components/AdvancedInsightsTab', () => ({
   AdvancedInsightsTab: ({ accountId }: { accountId: string | null }) =>
-    createElement('div', { 'data-testid': 'advanced-insights-tab' }, `accountId=${accountId ?? ''}`),
+    createElement(
+      'div',
+      { 'data-testid': 'advanced-insights-tab' },
+      `accountId=${accountId ?? ''}`,
+    ),
 }))
 
 vi.mock('../../stocktrading/hooks/useSellPanel', () => ({

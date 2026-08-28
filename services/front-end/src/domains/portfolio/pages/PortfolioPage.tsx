@@ -30,7 +30,11 @@ export function PortfolioPage() {
 
   const { isOpen, ticker, maxQuantity, openSellPanel } = useSellPanel()
 
-  const { data: accountsData, isLoading: isAccountsLoading, isError: isAccountsError } = useActiveAccounts()
+  const {
+    data: accountsData,
+    isLoading: isAccountsLoading,
+    isError: isAccountsError,
+  } = useActiveAccounts()
   const accounts = useMemo(() => accountsData?.accounts ?? [], [accountsData])
 
   useEffect(() => {
@@ -59,12 +63,13 @@ export function PortfolioPage() {
   }
 
   function renderAccountSelector() {
-    if (isAccountsLoading) return (
-      <div data-testid="loading-indicator">
-        <span className="sr-only">Loading accounts</span>
-        <Skeleton className="h-8 w-64" />
-      </div>
-    )
+    if (isAccountsLoading)
+      return (
+        <div data-testid="loading-indicator">
+          <span className="sr-only">Loading accounts</span>
+          <Skeleton className="h-8 w-64" />
+        </div>
+      )
     if (isAccountsError) {
       return (
         <Alert variant="destructive">
@@ -84,17 +89,25 @@ export function PortfolioPage() {
   const currency = holdingsData?.cash.currency ?? 'USD'
 
   function renderHoldingsContent() {
-    if (isAccountsError || (accounts.length === 0 && !isAccountsLoading) || selectedAccountId === null) return null
+    if (
+      isAccountsError ||
+      (accounts.length === 0 && !isAccountsLoading) ||
+      selectedAccountId === null
+    )
+      return null
     if (isHoldingsLoading) {
       return (
         <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
         </div>
       )
     }
     if (isHoldingsError) {
       const status = (holdingsError as AxiosError)?.response?.status
-      const message = status === 502 ? getHoldings502ErrorMessage(holdingsError) : 'Could not load portfolio.'
+      const message =
+        status === 502 ? getHoldings502ErrorMessage(holdingsError) : 'Could not load portfolio.'
       return (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{message}</AlertDescription>
@@ -131,7 +144,9 @@ export function PortfolioPage() {
         </TabsList>
 
         <TabsContent value="insights">
-          {!isAccountsError && !(accounts.length === 0 && !isAccountsLoading) && selectedAccountId !== null ? (
+          {!isAccountsError &&
+          !(accounts.length === 0 && !isAccountsLoading) &&
+          selectedAccountId !== null ? (
             <InsightsTab
               insights={insights}
               isLoading={isHoldingsLoading}
@@ -141,9 +156,7 @@ export function PortfolioPage() {
           ) : null}
         </TabsContent>
 
-        <TabsContent value="holdings">
-          {renderHoldingsContent()}
-        </TabsContent>
+        <TabsContent value="holdings">{renderHoldingsContent()}</TabsContent>
 
         <TabsContent value="advanced">
           <AdvancedInsightsTab accountId={selectedAccountId} />

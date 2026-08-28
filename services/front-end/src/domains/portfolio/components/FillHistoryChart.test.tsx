@@ -85,7 +85,9 @@ describe('FillHistoryChart', () => {
   })
 
   it('FillHistoryChart - hidden symbol - does not render hidden line and dims legend', () => {
-    render(<FillHistoryChart fills={fills} hiddenSymbols={new Set(['AAPL'])} onToggleSymbol={vi.fn()} />)
+    render(
+      <FillHistoryChart fills={fills} hiddenSymbols={new Set(['AAPL'])} onToggleSymbol={vi.fn()} />,
+    )
 
     expect(screen.queryByTestId('fill-history-line-AAPL')).not.toBeInTheDocument()
     expect(screen.getByTestId('fill-history-line-MSFT')).toBeInTheDocument()
@@ -96,7 +98,9 @@ describe('FillHistoryChart', () => {
     const onToggleSymbol = vi.fn()
     const user = userEvent.setup()
 
-    render(<FillHistoryChart fills={fills} hiddenSymbols={new Set()} onToggleSymbol={onToggleSymbol} />)
+    render(
+      <FillHistoryChart fills={fills} hiddenSymbols={new Set()} onToggleSymbol={onToggleSymbol} />,
+    )
 
     await user.click(screen.getByTestId('fill-history-legend-AAPL'))
 
