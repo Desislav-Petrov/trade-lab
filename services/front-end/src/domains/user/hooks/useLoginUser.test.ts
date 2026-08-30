@@ -24,9 +24,9 @@ describe('useLoginUser', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.unstubAllGlobals())
 
-  it('useLoginUser - success - assigns redirect and calls onSuccess with url', async () => {
-    const redirectUrl = '/auth/callback?token=jwt-token'
-    mockLoginUser.mockResolvedValueOnce(redirectUrl)
+  it('useLoginUser - success - assigns callback url and calls onSuccess with token', async () => {
+    const token = 'jwt-token'
+    mockLoginUser.mockResolvedValueOnce(token)
     const onSuccess = vi.fn()
     const originalLocation = window.location
     const assign = vi.fn()
@@ -43,10 +43,10 @@ describe('useLoginUser', () => {
         result.current.mutate({ email: 'a@example.com' })
       })
 
-      await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl))
-      expect(assign).toHaveBeenCalledWith(redirectUrl)
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(`/auth/callback?token=${token}`))
+      expect(assign).toHaveBeenCalledWith(`/auth/callback?token=${token}`)
       expect(onSuccess).toHaveBeenCalledOnce()
-      expect(onSuccess).toHaveBeenCalledWith(redirectUrl)
+      expect(onSuccess).toHaveBeenCalledWith(token)
     } finally {
       Object.defineProperty(window, 'location', {
         value: originalLocation,

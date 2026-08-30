@@ -11,6 +11,7 @@ import org.dpp.tradelab.user.generated.model.UserResponse
 import org.dpp.tradelab.user.generated.model.UserSettingsResponse
 import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.service.UserService
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import java.time.OffsetDateTime
@@ -29,7 +30,7 @@ class UserApiDelegateImpl(
             address = registerUserRequest.address,
             email = registerUserRequest.email
         )
-        return ResponseEntity.status(201)
+        return ResponseEntity.status(HttpStatus.CREATED)
             .body(RegisterUserResponse(userId = userId))
     }
 
