@@ -4,13 +4,11 @@ import type {
   RegisterUserResponse,
   UserEmailsResponse,
   LoginRequest,
-  LoginResponse,
   UserResponse,
 } from '../types/user'
 
 export const REGISTER_USER_KEY = ['users', 'register'] as const
 export const ACTIVE_USER_EMAILS_KEY = ['users', 'emails'] as const
-export const LOGIN_USER_KEY = ['users', 'login'] as const
 export const GET_USER_KEY = (userId: string) => ['users', userId] as const
 
 export async function createUser(request: RegisterUserRequest): Promise<RegisterUserResponse> {
@@ -23,9 +21,13 @@ export async function getActiveUserEmails(): Promise<UserEmailsResponse> {
   return response.data
 }
 
-export async function loginUser(request: LoginRequest): Promise<LoginResponse> {
-  const response = await axiosInstance.post<LoginResponse>('/v1/users/login', request)
-  return response.data
+export async function loginUser(request: LoginRequest): Promise<string> {
+  const response = await axiosInstance.post('/v1/users/login', request, {
+    maxRedirects: 0,
+    validateStatus: (s) => s === 302,
+  })
+
+  return response.headers.location as string
 }
 
 /**

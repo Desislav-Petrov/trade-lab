@@ -9,23 +9,21 @@ import {
 } from '@tanstack/react-router'
 import { createElement, act } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { LoginResponse } from '../types/user'
 import { LoginPage } from './LoginPage'
-import * as useFetchUserProfileModule from '../hooks/useFetchUserProfile'
 import * as oidcApiModule from '../api/oidcApi'
+import * as useLoginUserModule from '../hooks/useLoginUser'
 
 vi.mock('../components/LoginForm', () => ({
-  LoginForm: ({ onSuccess }: { onSuccess?: (data: LoginResponse) => void }) =>
+  LoginForm: () => {
+    const { mutate } = useLoginUserModule.useLoginUser()
+    return (
     createElement(
       'div',
       null,
       createElement('span', null, 'LoginForm'),
-      createElement(
-        'button',
-        { onClick: () => onSuccess?.({ userId: 'u1', email: 'a@example.com' }) },
-        'Trigger Success',
-      ),
-    ),
+      createElement('button', { onClick: () => mutate({ email: 'a@example.com' }) }, 'Trigger Login'),
+    ))
+  },
 }))
 
 async function renderPage(initialPath = '/login', state?: Record<string, unknown>) {
@@ -36,12 +34,7 @@ async function renderPage(initialPath = '/login', state?: Record<string, unknown
     path: '/login',
     component: LoginPage,
   })
-  const profileRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/profile',
-    component: () => createElement('div', null, 'Profile Page'),
-  })
-  const routeTree = rootRoute.addChildren([loginRoute, profileRoute])
+  const routeTree = rootRoute.addChildren([loginRoute])
   const memoryHistory = createMemoryHistory({ initialEntries: [initialPath] })
   if (state) {
     memoryHistory.push(initialPath, state)
@@ -65,12 +58,7 @@ async function renderPageWithSearch(search: string) {
     path: '/login',
     component: LoginPage,
   })
-  const profileRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/profile',
-    component: () => createElement('div', null, 'Profile Page'),
-  })
-  const routeTree = rootRoute.addChildren([loginRoute, profileRoute])
+  const routeTree = rootRoute.addChildren([loginRoute])
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [`/login${search}`] }),
@@ -138,37 +126,19 @@ describe('LoginPage', () => {
     expect(redirectSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('LoginPage - profile fetch succeeds - navigates to /profile', async () => {
-    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
-      ({ onSuccess } = {}) =>
-        ({
-          mutate: () => {
-            onSuccess?.()
-          },
-          isPending: false,
-        }) as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>,
-    )
+  it('LoginPage - login success - assigns redirect url', async () => {
+    const assign = vi.fn()
+    vi.stubGlobal('window', { location: { assign } })
+    vi.spyOn(useLoginUserModule, 'useLoginUser').mockReturnValue({
+      mutate: () => assign('/auth/callback?token=jwt-token'),
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useLoginUserModule.useLoginUser>)
 
     await renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }))
-    expect(await screen.findByText('Profile Page')).toBeInTheDocument()
-  })
-
-  it('LoginPage - profile fetch fails - shows profile error message', async () => {
-    vi.spyOn(useFetchUserProfileModule, 'useFetchUserProfile').mockImplementation(
-      ({ onError } = {}) =>
-        ({
-          mutate: () => {
-            onError?.()
-          },
-          isPending: false,
-        }) as unknown as ReturnType<typeof useFetchUserProfileModule.useFetchUserProfile>,
-    )
-
-    await renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }))
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
-    expect(screen.getByText(/unable to load your profile/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /trigger login/i }))
+    expect(assign).toHaveBeenCalledWith('/auth/callback?token=jwt-token')
   })
 
   it('LoginPage - renders - shows register link', async () => {

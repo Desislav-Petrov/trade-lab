@@ -34,17 +34,20 @@ describe('getActiveUserEmails', () => {
 describe('loginUser', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('loginUser - valid email - returns LoginResponse', async () => {
-    const payload = { userId: '550e8400-e29b-41d4-a716-446655440000', email: 'a@example.com' }
-    mockPost.mockResolvedValueOnce({ data: payload })
+  it('loginUser - valid email - returns redirect location header', async () => {
+    const location = '/auth/callback?token=jwt-token'
+    mockPost.mockResolvedValueOnce({ headers: { location } })
 
     const result = await loginUser({ email: 'a@example.com' })
 
-    expect(result).toEqual(payload)
-    expect(mockPost).toHaveBeenCalledWith('/v1/users/login', { email: 'a@example.com' })
+    expect(result).toBe(location)
+    expect(mockPost).toHaveBeenCalledWith('/v1/users/login', { email: 'a@example.com' }, {
+      maxRedirects: 0,
+      validateStatus: expect.any(Function),
+    })
   })
 
-  it('loginUser - 404 response - throws AxiosError with status 404', async () => {
+  it('loginUser - non-302 response - throws AxiosError with status 404', async () => {
     const error = Object.assign(new Error('Not Found'), {
       isAxiosError: true,
       response: { status: 404 },

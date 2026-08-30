@@ -1,11 +1,8 @@
-import { useState } from 'react'
-import { useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
+import { useRouterState, useSearch } from '@tanstack/react-router'
 import { LoginForm } from '../components/LoginForm'
-import { useFetchUserProfile } from '../hooks/useFetchUserProfile'
 import { LoginWithGoogleButton } from '../components/LoginWithGoogleButton'
 import { LoginWithGithubButton } from '../components/LoginWithGithubButton'
 import { redirectToGoogleLogin, redirectToGithubLogin } from '../api/oidcApi'
-import type { LoginResponse } from '../types/user'
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Separator } from '@/shared/components/ui/separator'
@@ -22,24 +19,12 @@ const OIDC_ERROR_MESSAGES: Record<string, string> = {
 }
 
 export function LoginPage() {
-  const navigate = useNavigate()
   const routerState = useRouterState()
   const banner = (routerState.location.state as LocationState | null)?.banner ?? null
-  const [profileError, setProfileError] = useState(false)
 
   const search = useSearch({ strict: false }) as Record<string, string | undefined>
   const errorCode = search?.error ?? null
   const oidcError = errorCode ? (OIDC_ERROR_MESSAGES[errorCode] ?? null) : null
-
-  const fetchProfile = useFetchUserProfile({
-    onSuccess: () => navigate({ to: '/profile' }),
-    onError: () => setProfileError(true),
-  })
-
-  function handleSuccess(data: LoginResponse) {
-    setProfileError(false)
-    fetchProfile.mutate(data.userId)
-  }
 
   function handleGoogleLogin() {
     redirectToGoogleLogin()
@@ -80,13 +65,7 @@ export function LoginPage() {
             <Separator className="flex-1" />
           </div>
 
-          <LoginForm onSuccess={handleSuccess} />
-
-          {profileError && (
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>Unable to load your profile. Please try again.</AlertDescription>
-            </Alert>
-          )}
+          <LoginForm />
 
           <p className="text-xs text-[var(--color-text-muted)]">
             No account?{' '}

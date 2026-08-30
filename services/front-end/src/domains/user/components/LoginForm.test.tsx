@@ -12,13 +12,13 @@ import { useLoginUser } from '../hooks/useLoginUser'
 const mockUseActiveUserEmails = vi.mocked(useActiveUserEmails)
 const mockUseLoginUser = vi.mocked(useLoginUser)
 
-function renderForm(onSuccess?: () => void) {
+function renderForm() {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return render(
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(LoginForm, { onSuccess }),
+      createElement(LoginForm),
     ),
   )
 }
