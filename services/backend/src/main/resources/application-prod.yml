@@ -36,3 +36,7 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+app:
+  features:
+    enable-no-auth: false

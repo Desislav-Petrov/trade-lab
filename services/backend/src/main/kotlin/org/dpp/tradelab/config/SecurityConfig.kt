@@ -24,7 +24,9 @@ class SecurityConfig(
     @Value("\${app.cors.allowed-origin}")
     private val corsAllowedOrigin: String,
     @Value("\${app.frontend.origin}")
-    private val frontendOrigin: String
+    private val frontendOrigin: String,
+    @Value("\${app.features.enable-no-auth:true}")
+    private val enableNoAuth: Boolean
 ) {
 
     @Bean
@@ -36,12 +38,15 @@ class SecurityConfig(
                 headers.frameOptions { it.disable() }   // needed for H2 console iframe
             }
             .authorizeHttpRequests { auth ->
+                if (enableNoAuth) {
+                    auth
+                        // Registration — public when no-auth local testing is enabled
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                        // Legacy login and email list — public when no-auth local testing is enabled
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/emails").permitAll()
+                }
                 auth
-                    // Registration — public
-                    .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
-                    // Legacy login and email list — kept public for testing
-                    .requestMatchers(HttpMethod.POST, "/api/v1/users/login").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/users/emails").permitAll()
                     // OAuth2 dance endpoints
                     .requestMatchers("/oauth2/authorization/**").permitAll()
                     .requestMatchers("/login/oauth2/code/**").permitAll()

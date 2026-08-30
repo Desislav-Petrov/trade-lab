@@ -3,6 +3,8 @@ package org.dpp.tradelab.user
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
+import io.kotest.matchers.collections.shouldHaveSize
+import org.dpp.tradelab.user.controller.NoAuthUserApiDelegateImpl
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.exception.UserNotFoundException
@@ -19,7 +21,9 @@ import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.context.ApplicationContext
 import org.springframework.http.MediaType
+import org.springframework.security.web.SecurityFilterChain
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -32,10 +36,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(properties = ["app.features.enable-no-auth=true"])
 @AutoConfigureMockMvc
 class UserApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
+    @Autowired val applicationContext: ApplicationContext,
     @MockitoBean val userService: UserService
 ) : FunSpec() {
 
@@ -68,6 +73,14 @@ class UserApiDelegateImplTest(
                 feedType = FeedType.SYNTHETIC
             ).also { it.updatedAt = Instant.parse("2026-01-01T00:00:00Z") }
             return user
+        }
+
+        test("noAuthUserApiDelegate_enableNoAuthTrue_registersBean") {
+            applicationContext.getBeanNamesForType(NoAuthUserApiDelegateImpl::class.java).toList() shouldHaveSize 1
+        }
+
+        test("securityConfig_enableNoAuthTrue_loadsFilterChain") {
+            applicationContext.getBeanNamesForType(SecurityFilterChain::class.java).toList() shouldHaveSize 1
         }
 
         test("registerUser_validRequest_returns201WithUserId") {

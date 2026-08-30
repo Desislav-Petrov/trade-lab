@@ -9,6 +9,7 @@ spring:
 
 app:
   features:
+    enable-no-auth: true
     enable-synthetic-data: true
     enable-real-data: true
   jwt:

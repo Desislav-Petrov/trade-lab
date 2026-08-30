@@ -2,6 +2,7 @@ package org.dpp.tradelab.user.controller
 
 import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.generated.api.UsersApiDelegate
+import org.dpp.tradelab.user.generated.model.LoginRequest
 import org.dpp.tradelab.user.generated.model.LoginTokenResponse
 import org.dpp.tradelab.user.generated.model.RegisterUserRequest
 import org.dpp.tradelab.user.generated.model.RegisterUserResponse
@@ -10,42 +11,45 @@ import org.dpp.tradelab.user.generated.model.UserEmailsResponse
 import org.dpp.tradelab.user.generated.model.UserResponse
 import org.dpp.tradelab.user.generated.model.UserSettingsResponse
 import org.dpp.tradelab.user.model.FeedType
+import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.service.UserService
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.annotation.Primary
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.stereotype.Controller
+import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
 
-@Controller
+@Service
+@Primary
 class UserApiDelegateImpl(
-    private val userService: UserService
+    private val userService: UserService,
+    private val noAuthUserApiDelegate: ObjectProvider<NoAuthUserApiDelegateImpl>
 ) : UsersApiDelegate {
 
-    override fun registerUser(registerUserRequest: RegisterUserRequest): ResponseEntity<RegisterUserResponse> {
-        val userId = userService.registerUser(
-            firstName = registerUserRequest.firstName,
-            lastName = registerUserRequest.lastName,
-            address = registerUserRequest.address,
-            email = registerUserRequest.email
-        )
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(RegisterUserResponse(userId = userId))
+    override fun registerUser(
+        registerUserRequest: RegisterUserRequest
+    ): ResponseEntity<RegisterUserResponse> {
+        return noAuthUserApiDelegate.ifAvailable
+            ?.registerUser(registerUserRequest)
+            ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
     override fun getActiveUserEmails(): ResponseEntity<UserEmailsResponse> {
-        val emails = userService.getActiveUserEmails()
-        return ResponseEntity.ok(UserEmailsResponse(emails = emails))
+        return noAuthUserApiDelegate.ifAvailable
+            ?.getActiveUserEmails()
+            ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
     override fun getUserById(userId: UUID): ResponseEntity<UserResponse> {
         val user = userService.getUserById(userId)
         val settings = user.settings
         val status = when (user.status) {
-            org.dpp.tradelab.user.model.UserStatus.ACTIVE -> UserResponse.Status.ACTIVE
-            org.dpp.tradelab.user.model.UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED
-            org.dpp.tradelab.user.model.UserStatus.CLOSED -> UserResponse.Status.CLOSED
+            UserStatus.ACTIVE -> UserResponse.Status.ACTIVE
+            UserStatus.SUSPENDED -> UserResponse.Status.SUSPENDED
+            UserStatus.CLOSED -> UserResponse.Status.CLOSED
         }
         val addressOrEmpty: String = user.address ?: ""
         return ResponseEntity.ok(
@@ -86,9 +90,10 @@ class UserApiDelegateImpl(
     }
 
     override fun loginUser(
-        loginRequest: org.dpp.tradelab.user.generated.model.LoginRequest
+        loginRequest: LoginRequest
     ): ResponseEntity<LoginTokenResponse> {
-        val jwt = userService.loginUser(loginRequest.email)
-        return ResponseEntity.ok(LoginTokenResponse(token = jwt))
+        return noAuthUserApiDelegate.ifAvailable
+            ?.loginUser(loginRequest)
+            ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 }
