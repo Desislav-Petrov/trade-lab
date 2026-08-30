@@ -5,6 +5,8 @@
 Allows a guest to create a new user account on the paper trading platform via the registration screen at `/register`. On successful completion, the user exists in the system with `active` status and a default `UserSettings` row, and is redirected to `/login` with a confirmation banner.
 
 > **Note:** This manual registration flow is retained alongside the primary OIDC-based authentication path (`domain/flows/oidc-login`). It is used primarily for local testing.
+>
+> **Environment gate:** This flow is only available when `ENABLE_NO_AUTH=true`. When the flag is absent or `false`, the backend endpoint (`POST /api/v1/users`) is not registered and the frontend `/register` route does not exist. See `decisions/2026-08-30-enable-no-auth-flag.md`.
 
 ## Actors
 
@@ -14,6 +16,7 @@ Allows a guest to create a new user account on the paper trading platform via th
 
 ## Preconditions
 
+- `ENABLE_NO_AUTH=true` is set in the environment (backend and frontend build).
 - The guest does not already have an account with the same email address.
 - The registration screen is accessible at `/register` to unauthenticated visitors.
 
