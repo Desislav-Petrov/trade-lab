@@ -2,10 +2,16 @@ package org.dpp.tradelab.config
 
 import org.dpp.tradelab.user.controller.JwtAuthenticationFilter
 import org.dpp.tradelab.user.controller.OidcAuthenticationSuccessHandler
+import jakarta.servlet.FilterChain
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import org.springframework.core.Ordered
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -14,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.springframework.web.filter.OncePerRequestFilter
 
 @Configuration
 @EnableWebSecurity
@@ -24,7 +31,9 @@ class SecurityConfig(
     @Value("\${app.cors.allowed-origin}")
     private val corsAllowedOrigin: String,
     @Value("\${app.frontend.origin}")
-    private val frontendOrigin: String
+    private val frontendOrigin: String,
+    @Value("\${app.features.enable-no-auth:true}")
+    private val enableNoAuth: Boolean
 ) {
 
     @Bean
@@ -36,12 +45,15 @@ class SecurityConfig(
                 headers.frameOptions { it.disable() }   // needed for H2 console iframe
             }
             .authorizeHttpRequests { auth ->
+                if (enableNoAuth) {
+                    auth
+                        // Registration — local testing only
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                        // Legacy login and email list — local testing only
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/emails").permitAll()
+                }
                 auth
-                    // Registration — public
-                    .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
-                    // Legacy login and email list — kept public for testing
-                    .requestMatchers(HttpMethod.POST, "/api/v1/users/login").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/users/emails").permitAll()
                     // OAuth2 dance endpoints
                     .requestMatchers("/oauth2/authorization/**").permitAll()
                     .requestMatchers("/login/oauth2/code/**").permitAll()
@@ -89,5 +101,27 @@ class SecurityConfig(
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)
         return source
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = ["app.features.enable-no-auth"], havingValue = "false")
+    fun disabledNoAuthNotFoundFilter(): FilterRegistrationBean<OncePerRequestFilter> {
+        val noAuthPaths = setOf("/api/v1/users", "/api/v1/users/login", "/api/v1/users/emails")
+        val filter: OncePerRequestFilter = object : OncePerRequestFilter() {
+            override fun doFilterInternal(
+                request: HttpServletRequest,
+                response: HttpServletResponse,
+                filterChain: FilterChain
+            ) {
+                if (request.requestURI in noAuthPaths) {
+                    response.sendError(HttpServletResponse.SC_NOT_FOUND)
+                    return
+                }
+                filterChain.doFilter(request, response)
+            }
+        }
+        return FilterRegistrationBean(filter).apply {
+            order = Ordered.HIGHEST_PRECEDENCE
+        }
     }
 }

@@ -32,7 +32,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(
+    properties = [
+        "app.features.enable-no-auth=true"
+    ]
+)
 @AutoConfigureMockMvc
 class UserApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
