@@ -250,9 +250,10 @@ class UserServiceTest : FunSpec({
     test("loginUser_unknownEmail_throwsUserNotFoundException") {
         whenever(userRepository.findByEmail("ghost@example.com")).thenReturn(Optional.empty())
 
-        shouldThrow<UserNotFoundException> {
+        val exception = shouldThrow<UserNotFoundException> {
             userService.loginUser("ghost@example.com")
         }
+        exception.message shouldBe "No user found with email: ghost@example.com"
         verify(jwtService, never()).issueToken(any())
         verify(eventPublisher, never()).publishEvent(any<UserLoggedInEvent>())
     }

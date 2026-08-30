@@ -225,7 +225,7 @@ class UserApiDelegateImplTest(
 
         test("loginUser_unknownEmail_returns404") {
             whenever(userService.loginUser("ghost@example.com"))
-                .thenThrow(UserNotFoundException(UUID.randomUUID()))
+                .thenThrow(UserNotFoundException("ghost@example.com"))
 
             mockMvc.perform(
                 post("/api/v1/users/login")
@@ -234,6 +234,7 @@ class UserApiDelegateImplTest(
             )
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("\$.status").value(404))
+                .andExpect(jsonPath("\$.details[0]").value("No user found with email: ghost@example.com"))
         }
 
         test("loginUser_suspendedUser_returns403") {

@@ -107,7 +107,7 @@ class UserService(
     @Transactional(readOnly = true)
     fun loginUser(email: String): String {
         val user = userRepository.findByEmail(email)
-            .orElseThrow { UserNotFoundException(UUID.fromString("00000000-0000-0000-0000-000000000000")) }
+            .orElseThrow { UserNotFoundException(email) }
         if (user.status != UserStatus.ACTIVE) {
             throw UserNotActiveException(email)
         }
