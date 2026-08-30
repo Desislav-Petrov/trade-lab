@@ -8,9 +8,9 @@ interface UseLoginUserOptions {
 export function useLoginUser({ onSuccess }: UseLoginUserOptions = {}) {
   return useMutation({
     mutationFn: loginUser,
-    onSuccess: (redirectUrl) => {
-      window.location.assign(redirectUrl)
-      onSuccess?.(redirectUrl)
+    onSuccess: (token) => {
+      window.location.assign(`/auth/callback?token=${token}`)
+      onSuccess?.(token)
     },
   })
 }

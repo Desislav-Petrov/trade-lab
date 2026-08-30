@@ -22,12 +22,8 @@ export async function getActiveUserEmails(): Promise<UserEmailsResponse> {
 }
 
 export async function loginUser(request: LoginRequest): Promise<string> {
-  const response = await axiosInstance.post('/v1/users/login', request, {
-    maxRedirects: 0,
-    validateStatus: (s) => s === 302,
-  })
-
-  return response.headers.location as string
+  const response = await axiosInstance.post<{ token: string }>('/v1/users/login', request)
+  return response.data.token
 }
 
 /**

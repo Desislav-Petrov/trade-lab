@@ -197,15 +197,12 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
-        '302':
-          description: Login successful — redirecting to frontend callback with JWT
-          headers:
-            Location:
-              description: Frontend authentication callback URL containing the issued JWT.
+        '200':
+          description: Login successful — returns the issued JWT
+          content:
+            application/json:
               schema:
-                type: string
-                format: uri
-                example: http://localhost:5173/auth/callback?token=******
+                $ref: '#/components/schemas/LoginTokenResponse'
         '403':
           description: Account is suspended or closed
           content:
@@ -353,6 +350,15 @@ components:
           type: string
           format: email
           example: jane.doe@example.com
+
+    LoginTokenResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9...
 
     ErrorResponse:
       type: object
