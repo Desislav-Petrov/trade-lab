@@ -10,7 +10,7 @@ async function getRoutePaths(enableNoAuth?: string) {
 
   const { routeTree } = await import('./router')
 
-  return routeTree.children?.map((route) => route.options.path) ?? []
+  return routeTree.children?.map((route) => route.fullPath) ?? []
 }
 
 describe('router', () => {
