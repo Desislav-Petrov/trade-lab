@@ -28,6 +28,7 @@ describe('useLoginUser', () => {
     const redirectUrl = '/auth/callback?token=jwt-token'
     mockLoginUser.mockResolvedValueOnce(redirectUrl)
     const onSuccess = vi.fn()
+    const originalLocation = window.location
     const assign = vi.fn()
     Object.defineProperty(window, 'location', {
       value: { ...window.location, assign },
@@ -35,16 +36,24 @@ describe('useLoginUser', () => {
       configurable: true,
     })
 
-    const { result } = renderHook(() => useLoginUser({ onSuccess }), { wrapper: createWrapper() })
+    try {
+      const { result } = renderHook(() => useLoginUser({ onSuccess }), { wrapper: createWrapper() })
 
-    act(() => {
-      result.current.mutate({ email: 'a@example.com' })
-    })
+      act(() => {
+        result.current.mutate({ email: 'a@example.com' })
+      })
 
-    await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl))
-    expect(assign).toHaveBeenCalledWith(redirectUrl)
-    expect(onSuccess).toHaveBeenCalledOnce()
-    expect(onSuccess).toHaveBeenCalledWith(redirectUrl)
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl))
+      expect(assign).toHaveBeenCalledWith(redirectUrl)
+      expect(onSuccess).toHaveBeenCalledOnce()
+      expect(onSuccess).toHaveBeenCalledWith(redirectUrl)
+    } finally {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      })
+    }
   })
 
   it('useLoginUser - 404 response - exposes error', async () => {
