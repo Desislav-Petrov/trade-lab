@@ -26,7 +26,8 @@ export function connectMarketDataFeed(
   onError: (code: number) => void,
   onClose: () => void,
 ): () => void {
-  const url = `ws://${window.location.host}/api/v1/market-data/feed?userId=${userId}`
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const url = `${wsProtocol}//${window.location.host}/api/v1/market-data/feed?userId=${userId}`
 
   let aborted = false
   let activeSocket: WebSocket = openSocket(url, false)
