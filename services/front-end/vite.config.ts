@@ -22,6 +22,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
+        // Do not follow redirects — pass the raw 302 through to the browser/Axios.
+        // Required for POST /api/v1/users/login which responds with 302 + Location
+        // so the frontend Axios client can capture the Location header directly.
+        followRedirects: false,
         // Explicitly forward the Authorization header.
         // Some versions of http-proxy (used by Vite internally) strip
         // the Authorization header when changeOrigin is true.
