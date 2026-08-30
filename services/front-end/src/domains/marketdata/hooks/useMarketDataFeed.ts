@@ -4,6 +4,8 @@ import type { MarketDataUpdate, FeedMessage } from '../api/marketDataFeedApi'
 
 type FeedStatus = 'connecting' | 'connected' | 'error' | 'lost'
 
+const RETRY_DELAYS_MS = [2000, 5000, 10000, 30000]
+
 export function useMarketDataFeed(
   userId: string,
   subscribedTickers: string[],
@@ -13,12 +15,21 @@ export function useMarketDataFeed(
 } {
   const [rows, setRows] = useState<MarketDataUpdate[]>([])
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('connecting')
+  const [retryCount, setRetryCount] = useState(0)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!userId) return
 
     setFeedStatus('connecting')
+
+    const scheduleRetry = (attempt: number) => {
+      const delayMs = RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)]
+      retryTimerRef.current = setTimeout(() => {
+        setRetryCount((c) => c + 1)
+      }, delayMs)
+    }
 
     const cleanup = connectMarketDataFeed(
       userId,
@@ -42,9 +53,11 @@ export function useMarketDataFeed(
       },
       (_code: number) => {
         setFeedStatus('lost')
+        scheduleRetry(retryCount)
       },
       () => {
         setFeedStatus('lost')
+        scheduleRetry(retryCount)
       },
     )
 
@@ -53,8 +66,12 @@ export function useMarketDataFeed(
     return () => {
       cleanup()
       cleanupRef.current = null
+      if (retryTimerRef.current !== null) {
+        clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = null
+      }
     }
-  }, [userId])
+  }, [userId, retryCount])
 
   useEffect(() => {
     if (subscribedTickers.length === 0) return // not loaded yet — do nothing
