@@ -5,6 +5,8 @@
 Allows a guest to identify themselves by selecting their email address and establish a fully authenticated session on the platform. The backend issues the same internal JWT as the OIDC login flows. The frontend callback path is identical to the OAuth2 callback path.
 
 > **Note:** This email-selection flow is retained for local testing only. No password or credential check is performed. The primary authentication path for real users is `domain/flows/oidc-login` (Google) or `domain/flows/github-oidc-login` (GitHub).
+>
+> **Environment gate:** This flow is only available when `ENABLE_NO_AUTH=true`. When the flag is absent or `false`, the backend endpoints (`POST /api/v1/users/login`, `GET /api/v1/users/emails`) are not registered and the frontend `/login` route does not exist. See `decisions/2026-08-30-enable-no-auth-flag.md`.
 
 ## Actors
 
@@ -14,6 +16,7 @@ Allows a guest to identify themselves by selecting their email address and estab
 
 ## Preconditions
 
+- `ENABLE_NO_AUTH=true` is set in the environment (backend and frontend build).
 - At least one user with `active` status exists in the system.
 
 ## Steps
