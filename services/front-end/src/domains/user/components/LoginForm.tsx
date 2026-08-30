@@ -1,19 +1,15 @@
+import type { ReactElement } from 'react'
 import type { AxiosError } from 'axios'
 import { useActiveUserEmails } from '../hooks/useActiveUserEmails'
 import { useLoginUser } from '../hooks/useLoginUser'
-import type { LoginResponse } from '../types/user'
 import { Button } from '@/shared/components/ui/button'
 import { Label } from '@/shared/components/ui/label'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Skeleton } from '@/shared/components/ui/skeleton'
 
-interface LoginFormProps {
-  onSuccess?: (data: LoginResponse) => void
-}
-
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm(): ReactElement {
   const { data, isLoading, isError } = useActiveUserEmails()
-  const { mutate, isPending, error } = useLoginUser({ onSuccess })
+  const { mutate, isPending, error } = useLoginUser()
 
   const emails = data?.emails ?? []
   const hasNoUsers = !isLoading && !isError && emails.length === 0

@@ -19,11 +19,6 @@ export interface LoginRequest {
   email: string
 }
 
-export interface LoginResponse {
-  userId: string
-  email: string
-}
-
 export type UserStatus = 'active' | 'suspended' | 'closed'
 
 export interface UserProfile {

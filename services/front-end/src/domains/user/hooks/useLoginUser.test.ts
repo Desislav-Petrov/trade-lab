@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
@@ -22,21 +22,38 @@ function createWrapper() {
 
 describe('useLoginUser', () => {
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.unstubAllGlobals())
 
-  it('useLoginUser - success - calls onSuccess with response data', async () => {
-    const payload = { userId: '550e8400-e29b-41d4-a716-446655440000', email: 'a@example.com' }
-    mockLoginUser.mockResolvedValueOnce(payload)
+  it('useLoginUser - success - assigns redirect and calls onSuccess with url', async () => {
+    const redirectUrl = '/auth/callback?token=jwt-token'
+    mockLoginUser.mockResolvedValueOnce(redirectUrl)
     const onSuccess = vi.fn()
-
-    const { result } = renderHook(() => useLoginUser({ onSuccess }), { wrapper: createWrapper() })
-
-    act(() => {
-      result.current.mutate({ email: 'a@example.com' })
+    const originalLocation = window.location
+    const assign = vi.fn()
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, assign },
+      writable: true,
+      configurable: true,
     })
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(onSuccess).toHaveBeenCalledOnce()
-    expect(onSuccess).toHaveBeenCalledWith(payload)
+    try {
+      const { result } = renderHook(() => useLoginUser({ onSuccess }), { wrapper: createWrapper() })
+
+      act(() => {
+        result.current.mutate({ email: 'a@example.com' })
+      })
+
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl))
+      expect(assign).toHaveBeenCalledWith(redirectUrl)
+      expect(onSuccess).toHaveBeenCalledOnce()
+      expect(onSuccess).toHaveBeenCalledWith(redirectUrl)
+    } finally {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      })
+    }
   })
 
   it('useLoginUser - 404 response - exposes error', async () => {
