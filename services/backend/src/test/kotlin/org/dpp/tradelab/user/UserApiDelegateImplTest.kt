@@ -210,7 +210,7 @@ class UserApiDelegateImplTest(
                 .andExpect(jsonPath("\$.status").value(404))
         }
 
-        test("loginUser_activeUser_returns302WithCallbackLocation") {
+        test("loginUser_activeUser_returns200WithToken") {
             whenever(userService.loginUser("jane@example.com")).thenReturn("signed-jwt")
 
             mockMvc.perform(
@@ -218,9 +218,8 @@ class UserApiDelegateImplTest(
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("email" to "jane@example.com")))
             )
-                .andExpect(status().isFound)
-                .andExpect(header().string("Location", "http://localhost:3000/auth/callback?token=signed-jwt"))
-                .andExpect(content().string(""))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.token").value("signed-jwt"))
         }
 
         test("loginUser_unknownEmail_returns404") {
