@@ -189,6 +189,7 @@ paths:
         Resolves the supplied email to an active user record and establishes a session.
         No password or credential check is performed in this iteration.
       operationId: loginUser
+      security: []
       requestBody:
         required: true
         content:
@@ -196,12 +197,15 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
-        '200':
-          description: Login successful — returns the resolved user context
-          content:
-            application/json:
+        '302':
+          description: Login successful — redirecting to frontend callback with JWT
+          headers:
+            Location:
+              description: Frontend authentication callback URL containing the issued JWT.
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                type: string
+                format: uri
+                example: http://localhost:5173/auth/callback?token=******
         '403':
           description: Account is suspended or closed
           content:
@@ -345,21 +349,6 @@ components:
       required:
         - email
       properties:
-        email:
-          type: string
-          format: email
-          example: jane.doe@example.com
-
-    LoginResponse:
-      type: object
-      required:
-        - userId
-        - email
-      properties:
-        userId:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
         email:
           type: string
           format: email

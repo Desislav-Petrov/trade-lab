@@ -24,6 +24,7 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    private val jwtService: JwtService,
     private val eventPublisher: ApplicationEventPublisher
 ) : UserLookupApi {
 
@@ -104,12 +105,13 @@ class UserService(
     }
 
     @Transactional(readOnly = true)
-    fun loginUser(email: String): User {
+    fun loginUser(email: String): String {
         val user = userRepository.findByEmail(email)
             .orElseThrow { UserNotFoundException(UUID.fromString("00000000-0000-0000-0000-000000000000")) }
         if (user.status != UserStatus.ACTIVE) {
             throw UserNotActiveException(email)
         }
+        val jwt = jwtService.issueToken(user.id)
         eventPublisher.publishEvent(
             UserLoggedInEvent(
                 userId = user.id,
@@ -117,6 +119,6 @@ class UserService(
                 timestamp = Instant.now()
             )
         )
-        return user
+        return jwt
     }
 }

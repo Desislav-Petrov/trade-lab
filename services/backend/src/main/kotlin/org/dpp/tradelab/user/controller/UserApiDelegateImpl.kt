@@ -2,7 +2,6 @@ package org.dpp.tradelab.user.controller
 
 import org.dpp.tradelab.user.exception.InvalidFeedTypeException
 import org.dpp.tradelab.user.generated.api.UsersApiDelegate
-import org.dpp.tradelab.user.generated.model.LoginResponse
 import org.dpp.tradelab.user.generated.model.RegisterUserRequest
 import org.dpp.tradelab.user.generated.model.RegisterUserResponse
 import org.dpp.tradelab.user.generated.model.UpdateUserSettingsRequest
@@ -11,15 +10,21 @@ import org.dpp.tradelab.user.generated.model.UserResponse
 import org.dpp.tradelab.user.generated.model.UserSettingsResponse
 import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.service.UserService
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
+import java.net.URI
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
 
 @Controller
-class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelegate {
+class UserApiDelegateImpl(
+    private val userService: UserService,
+    @Value("\${app.frontend.origin}")
+    private val frontendOrigin: String
+) : UsersApiDelegate {
 
     override fun registerUser(registerUserRequest: RegisterUserRequest): ResponseEntity<RegisterUserResponse> {
         val userId = userService.registerUser(
@@ -85,13 +90,10 @@ class UserApiDelegateImpl(private val userService: UserService) : UsersApiDelega
 
     override fun loginUser(
         loginRequest: org.dpp.tradelab.user.generated.model.LoginRequest
-    ): ResponseEntity<LoginResponse> {
-        val user = userService.loginUser(loginRequest.email)
-        return ResponseEntity.ok(
-            LoginResponse(
-                userId = user.id,
-                email = user.email
-            )
-        )
+    ): ResponseEntity<Unit> {
+        val jwt = userService.loginUser(loginRequest.email)
+        return ResponseEntity.status(HttpStatus.FOUND)
+            .location(URI("$frontendOrigin/auth/callback?token=$jwt"))
+            .build()
     }
 }

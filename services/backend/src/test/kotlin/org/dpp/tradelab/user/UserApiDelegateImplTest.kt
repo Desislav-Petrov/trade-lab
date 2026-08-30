@@ -25,6 +25,8 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
@@ -208,25 +210,17 @@ class UserApiDelegateImplTest(
                 .andExpect(jsonPath("\$.status").value(404))
         }
 
-        test("loginUser_activeUser_returns200WithLoginResponse") {
-            val user = User(
-                id = validId,
-                firstName = "Jane",
-                lastName = "Doe",
-                address = "123 Main St",
-                email = "jane@example.com",
-                status = UserStatus.ACTIVE
-            )
-            whenever(userService.loginUser("jane@example.com")).thenReturn(user)
+        test("loginUser_activeUser_returns302WithCallbackLocation") {
+            whenever(userService.loginUser("jane@example.com")).thenReturn("signed-jwt")
 
             mockMvc.perform(
                 post("/api/v1/users/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("email" to "jane@example.com")))
             )
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("\$.userId").value(validId.toString()))
-                .andExpect(jsonPath("\$.email").value("jane@example.com"))
+                .andExpect(status().isFound)
+                .andExpect(header().string("Location", "http://localhost:3000/auth/callback?token=signed-jwt"))
+                .andExpect(content().string(""))
         }
 
         test("loginUser_unknownEmail_returns404") {

@@ -10,6 +10,7 @@ import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException
 import org.dpp.tradelab.user.exception.UserSettingsNotFoundException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
+import org.dpp.tradelab.user.messaging.UserLoggedInEvent
 import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
 import org.dpp.tradelab.user.model.FeedType
 import org.dpp.tradelab.user.model.User
@@ -17,6 +18,7 @@ import org.dpp.tradelab.user.model.UserSettings
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
 import org.dpp.tradelab.user.repository.UserSettingsRepository
+import org.dpp.tradelab.user.service.JwtService
 import org.dpp.tradelab.user.service.UserService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -34,8 +36,9 @@ class UserServiceTest : FunSpec({
 
     val userRepository = mock<UserRepository>()
     val userSettingsRepository = mock<UserSettingsRepository>()
+    val jwtService = mock<JwtService>()
     val eventPublisher = mock<ApplicationEventPublisher>()
-    val userService = UserService(userRepository, userSettingsRepository, eventPublisher)
+    val userService = UserService(userRepository, userSettingsRepository, jwtService, eventPublisher)
     val validId = UUID.randomUUID()
 
     fun makeUser(id: UUID = validId, status: UserStatus = UserStatus.ACTIVE) =
@@ -47,7 +50,7 @@ class UserServiceTest : FunSpec({
         }
 
     beforeEach {
-        reset(userRepository, userSettingsRepository, eventPublisher)
+        reset(userRepository, userSettingsRepository, jwtService, eventPublisher)
     }
 
     test("registerUser_duplicateEmail_throwsDuplicateEmailException") {
@@ -228,13 +231,20 @@ class UserServiceTest : FunSpec({
         verify(eventPublisher).publishEvent(any<UserSettingsChangedEvent>())
     }
 
-    test("loginUser_activeUser_returnsUser") {
+    test("loginUser_activeUser_returnsJwtAndPublishesUserLoggedInEvent") {
         val user = makeUser()
         whenever(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(user))
+        whenever(jwtService.issueToken(validId)).thenReturn("signed-jwt")
 
         val result = userService.loginUser("jane@example.com")
 
-        result shouldBe user
+        result shouldBe "signed-jwt"
+        verify(jwtService).issueToken(validId)
+        val eventCaptor = argumentCaptor<UserLoggedInEvent>()
+        verify(eventPublisher).publishEvent(eventCaptor.capture())
+        eventCaptor.firstValue.userId shouldBe validId
+        eventCaptor.firstValue.email shouldBe "jane@example.com"
+        eventCaptor.firstValue.timestamp shouldNotBe null
     }
 
     test("loginUser_unknownEmail_throwsUserNotFoundException") {
@@ -243,6 +253,8 @@ class UserServiceTest : FunSpec({
         shouldThrow<UserNotFoundException> {
             userService.loginUser("ghost@example.com")
         }
+        verify(jwtService, never()).issueToken(any())
+        verify(eventPublisher, never()).publishEvent(any<UserLoggedInEvent>())
     }
 
     test("loginUser_suspendedUser_throwsUserNotActiveException") {
@@ -252,6 +264,8 @@ class UserServiceTest : FunSpec({
         shouldThrow<UserNotActiveException> {
             userService.loginUser("sus@example.com")
         }
+        verify(jwtService, never()).issueToken(any())
+        verify(eventPublisher, never()).publishEvent(any<UserLoggedInEvent>())
     }
 
     test("loginUser_closedUser_throwsUserNotActiveException") {
@@ -261,5 +275,7 @@ class UserServiceTest : FunSpec({
         shouldThrow<UserNotActiveException> {
             userService.loginUser("clo@example.com")
         }
+        verify(jwtService, never()).issueToken(any())
+        verify(eventPublisher, never()).publishEvent(any<UserLoggedInEvent>())
     }
 })
