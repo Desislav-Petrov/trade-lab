@@ -35,6 +35,20 @@ export default defineConfig({
               proxyReq.setHeader('Authorization', authValue)
             }
           })
+          // Suppress EPIPE / ECONNRESET errors that occur when the backend closes
+          // a WebSocket connection while Vite's proxy is still writing to the socket.
+          // These are expected during WS reconnects and do not affect functionality.
+          proxy.on('error', (err: NodeJS.ErrnoException, _req, res) => {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET') return
+            // For any other error, let the response know if it's still writable
+            if (res && 'writeHead' in res && typeof (res as import('http').ServerResponse).writeHead === 'function') {
+              const serverRes = res as import('http').ServerResponse
+              if (!serverRes.headersSent) {
+                serverRes.writeHead(502)
+                serverRes.end('Bad Gateway')
+              }
+            }
+          })
         },
       },
     },
