@@ -82,6 +82,22 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
     ))
 }
 
+tasks.named<GenerateTask>("openApiGenerate") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/user")
+    apiPackage.set("org.dpp.tradelab.user.generated.api")
+    modelPackage.set("org.dpp.tradelab.user.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 val generateLedgerApi = tasks.register<GenerateTask>("generateLedgerApi") {
     generatorName.set("kotlin-spring")
     inputSpec.set("${rootProject.projectDir}/../../services/contract/ledger-openapi.yaml")
