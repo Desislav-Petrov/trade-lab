@@ -13,11 +13,13 @@ const rootRoute = createRootRoute({
   component: RootLayout,
 })
 
+const enableNoAuth = import.meta.env.VITE_ENABLE_NO_AUTH === 'true'
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: () => {
-    throw redirect({ to: '/login' })
+    throw redirect({ to: enableNoAuth ? '/login' : '/oauth2/authorization/google' })
   },
 })
 
@@ -69,10 +71,11 @@ const portfolioRoute = createRoute({
   component: PortfolioPage,
 })
 
-const routeTree = rootRoute.addChildren([
+const noAuthRoutes = enableNoAuth ? [loginRoute, registerRoute] : []
+
+export const routeTree = rootRoute.addChildren([
   indexRoute,
-  loginRoute,
-  registerRoute,
+  ...noAuthRoutes,
   authCallbackRoute,
   profileRoute,
   accountsRoute,
