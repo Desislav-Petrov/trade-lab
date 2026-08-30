@@ -128,7 +128,6 @@ describe('LoginPage', () => {
 
   it('LoginPage - login success - assigns redirect url', async () => {
     const assign = vi.fn()
-    vi.stubGlobal('window', { location: { assign } })
     vi.spyOn(useLoginUserModule, 'useLoginUser').mockReturnValue({
       mutate: () => assign('/auth/callback?token=jwt-token'),
       isPending: false,
