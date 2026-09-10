@@ -31,25 +31,14 @@ class JwtAuthenticationFilter(
     ) {
         val authHeader = request.getHeader(HttpHeaders.AUTHORIZATION)
 
-        // DEBUG: log exactly what the backend receives so we can tell whether
-        // the Vite proxy is forwarding the Authorization header.
-        if (authHeader == null) {
-            log.warn("[JwtFilter] {} {} — Authorization header ABSENT",
-                request.method, request.requestURI)
-        } else if (authHeader.startsWith("Bearer ")) {
-            val prefix = authHeader.substring(7).take(20)
-            log.info("[JwtFilter] {} {} — Authorization header present, token prefix: {}…",
-                request.method, request.requestURI, prefix)
-        } else {
-            log.warn("[JwtFilter] {} {} — Authorization header present but unexpected format: {}",
-                request.method, request.requestURI, authHeader.take(30))
-        }
-
         try {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 val token = authHeader.substring("Bearer ".length)
                 val userId = jwtService.validateAndExtractUserId(token)
-                log.info("[JwtFilter] token valid — authenticated as userId={}", userId)
+                if (log.isDebugEnabled) {
+                    log.debug("[JwtFilter] {} {} — authenticated userId={}",
+                        request.method, request.requestURI, userId)
+                }
                 val authentication = UsernamePasswordAuthenticationToken(userId, null, emptyList())
                 SecurityContextHolder.getContext().authentication = authentication
             }

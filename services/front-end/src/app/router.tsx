@@ -1,13 +1,38 @@
-import { createBrowserHistory, createRouter, createRoute, createRootRoute, redirect } from '@tanstack/react-router'
+import {
+  createBrowserHistory,
+  createRouter,
+  createRoute,
+  createRootRoute,
+  lazyRouteComponent,
+  redirect,
+} from '@tanstack/react-router'
 import { RootLayout } from './layouts/RootLayout'
 import { LoginPage } from '../domains/user/pages/LoginPage'
 import { RegistrationPage } from '../domains/user/pages/RegistrationPage'
-import { ProfilePage } from '../domains/user/pages/ProfilePage'
 import { AuthCallbackPage } from '../domains/user/pages/AuthCallbackPage'
-import { AccountsPage } from '../domains/ledger/pages/AccountsPage'
-import { TransactionListPage } from '../domains/ledger/pages/TransactionListPage'
-import { StockTradingPage } from '../domains/stocktrading/pages/StockTradingPage'
-import { PortfolioPage } from '../domains/portfolio/pages/PortfolioPage'
+
+// Authenticated / chart-heavy pages are code-split so the unauthenticated
+// login & registration flows do not pull in the portfolio pages or recharts.
+const ProfilePage = lazyRouteComponent(
+  () => import('../domains/user/pages/ProfilePage'),
+  'ProfilePage',
+)
+const AccountsPage = lazyRouteComponent(
+  () => import('../domains/ledger/pages/AccountsPage'),
+  'AccountsPage',
+)
+const TransactionListPage = lazyRouteComponent(
+  () => import('../domains/ledger/pages/TransactionListPage'),
+  'TransactionListPage',
+)
+const StockTradingPage = lazyRouteComponent(
+  () => import('../domains/stocktrading/pages/StockTradingPage'),
+  'StockTradingPage',
+)
+const PortfolioPage = lazyRouteComponent(
+  () => import('../domains/portfolio/pages/PortfolioPage'),
+  'PortfolioPage',
+)
 
 const rootRoute = createRootRoute({
   component: RootLayout,

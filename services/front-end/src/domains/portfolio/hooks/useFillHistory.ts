@@ -27,13 +27,16 @@ function mergeFillPages(pages: FillHistoryResponse[]): FillHistoryEntry[] {
 
 async function fetchAllFillHistoryPages(accountId: string): Promise<FillHistoryEntry[]> {
   const firstPage = await fetchFillHistory(accountId, 0, 100)
-  const pages = [firstPage]
 
-  for (let page = 1; page < firstPage.totalPages; page += 1) {
-    pages.push(await fetchFillHistory(accountId, page, 100))
-  }
+  // The first page reveals totalPages; the remaining pages are independent, so
+  // fetch them in parallel rather than serially awaiting each one.
+  const remainingPages = await Promise.all(
+    Array.from({ length: Math.max(firstPage.totalPages - 1, 0) }, (_, index) =>
+      fetchFillHistory(accountId, index + 1, 100),
+    ),
+  )
 
-  return mergeFillPages(pages)
+  return mergeFillPages([firstPage, ...remainingPages])
 }
 
 export function useFillHistory(accountId: string | null) {

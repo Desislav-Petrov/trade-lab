@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { MarketDataUpdate } from '../../marketdata/api/marketDataFeedApi'
 
 interface MarketDataGridProps {
@@ -98,6 +98,13 @@ export const MarketDataGrid = memo(function MarketDataGrid({
 
   const previousPrices = previousPricesRef.current
 
+  // Memoised so the array is not copied and re-sorted on every render — the
+  // grid re-renders on each deferred tick, so this runs continuously otherwise.
+  const sortedRows = useMemo(
+    () => sortRows(rows, sortColumn, sortDirection),
+    [rows, sortColumn, sortDirection],
+  )
+
   useEffect(() => {
     previousPricesRef.current = new Map(rows.map((row) => [row.ticker, row.currentPrice]))
   }, [rows])
@@ -175,8 +182,6 @@ export const MarketDataGrid = memo(function MarketDataGrid({
     }
     setContextMenu(null)
   }
-
-  const sortedRows = sortRows(rows, sortColumn, sortDirection)
 
   return (
     <div className="relative overflow-x-auto overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface)]">

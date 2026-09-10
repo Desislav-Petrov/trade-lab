@@ -35,7 +35,10 @@ class MarketDataFeedServiceTest : FunSpec({
     val supportedTickerConfig = mock<SupportedTickerConfig>()
     val userSettingsApi = mock<UserSettingsApi>()
 
-    fun buildService() = MarketDataFeedService(repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi)
+    fun buildService() = MarketDataFeedService(
+        repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi,
+        { it.run() }
+    )
 
     val userId = UUID.randomUUID()
     val aaplSnapshot = MarketDataSnapshot(

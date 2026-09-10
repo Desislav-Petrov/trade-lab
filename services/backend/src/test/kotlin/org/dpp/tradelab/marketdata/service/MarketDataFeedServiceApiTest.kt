@@ -24,7 +24,10 @@ class MarketDataFeedServiceApiTest : FunSpec({
         whenever(repository.findAll()).thenReturn(emptyList())
         whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(emptyList())
         whenever(supportedTickerConfig.getAll()).thenReturn(emptyMap())
-        return MarketDataFeedService(repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi)
+        return MarketDataFeedService(
+            repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi,
+            { it.run() }
+        )
     }
 
     val aaplSnapshot = MarketDataSnapshot(

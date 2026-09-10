@@ -5,6 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.Transient
 import org.springframework.data.domain.Persistable
@@ -14,7 +15,15 @@ import java.util.UUID
 import kotlin.jvm.JvmName
 
 @Entity
-@Table(name = "position_fills")
+@Table(
+    name = "position_fills",
+    indexes = [
+        Index(
+            name = "idx_position_fill_user_account_filled",
+            columnList = "user_id, account_id, filled_at"
+        )
+    ]
+)
 class PositionFill(
     @field:Id
     @field:Column(nullable = false, updatable = false)

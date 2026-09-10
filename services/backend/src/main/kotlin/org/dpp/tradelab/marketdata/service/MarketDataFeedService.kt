@@ -13,13 +13,16 @@ import org.dpp.tradelab.user.api.UserSettingsApi
 import org.dpp.tradelab.user.messaging.UserSettingsChangedEvent
 import org.dpp.tradelab.user.model.FeedType
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
 
 /**
  * Central service managing the in-memory snapshot cache, per-user subscription lookups,
@@ -39,8 +42,17 @@ class MarketDataFeedService(
     private val assetSubscriptionRepository: AssetSubscriptionRepository,
     private val syntheticPriceFeedAdapter: SyntheticPriceFeedAdapter,
     private val supportedTickerConfig: SupportedTickerConfig,
-    private val userSettingsApi: UserSettingsApi
+    private val userSettingsApi: UserSettingsApi,
+    @Qualifier("marketDataTickDispatchExecutor")
+    private val tickDispatchExecutor: Executor
 ) : MarketDataApi {
+
+    companion object {
+        /** Max time a single send may hold the per-session lock before the session is force-closed. */
+        private const val SEND_TIME_LIMIT_MS = 10_000
+        /** Max bytes buffered per session before it is force-closed as too slow. */
+        private const val BUFFER_SIZE_LIMIT = 512 * 1024
+    }
 
     // ── Internal state ──────────────────────────────────────────────────
 
@@ -109,19 +121,33 @@ class MarketDataFeedService(
         val subscribedUsers = tickerToUsers[snapshot.ticker] ?: return
         subscribedUsers.forEach { userId ->
             val session = activeSessions[userId] ?: return@forEach
-            if (session.isOpen) {
-                val feedType = resolveFeedType(userId)
-                if (feedType == event.feedType) {
-                    sendTick(session, snapshot)
-                }
+            if (session.isOpen && resolveFeedType(userId) == event.feedType) {
+                // Offload the blocking sendMessage I/O so a slow client cannot
+                // stall delivery to other subscribers or delay the next tick.
+                tickDispatchExecutor.execute { dispatchTick(session, snapshot) }
             }
+        }
+    }
+
+    private fun dispatchTick(session: WebSocketSession, snapshot: MarketDataSnapshot) {
+        try {
+            if (session.isOpen) {
+                sendTick(session, snapshot)
+            }
+        } catch (ex: Exception) {
+            logger.warn("Failed to dispatch tick for ticker=${snapshot.ticker}: ${ex.message}")
         }
     }
 
     // ── Session management ────────────────────────────────────────────
 
     fun registerSession(userId: UUID, session: WebSocketSession) {
-        activeSessions[userId] = session
+        // Wrap in a decorator so concurrent sends from the dispatch pool are
+        // serialised per session and a slow client is buffered (then dropped)
+        // rather than blocking a shared worker thread.
+        activeSessions[userId] = ConcurrentWebSocketSessionDecorator(
+            session, SEND_TIME_LIMIT_MS, BUFFER_SIZE_LIMIT
+        )
     }
 
     fun removeSession(userId: UUID) {
@@ -131,7 +157,6 @@ class MarketDataFeedService(
     // ── Snapshot query ────────────────────────────────────────────
 
     fun getSnapshotForUser(userId: UUID): List<MarketDataSnapshot> {
-        val feedType = resolveFeedType(userId)
         val tickers = userToTickers[userId] ?: return emptyList()
         return tickers.mapNotNull { ticker -> snapshotCache[ticker] }
     }
