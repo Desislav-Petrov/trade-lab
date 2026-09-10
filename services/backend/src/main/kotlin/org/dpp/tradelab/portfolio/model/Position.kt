@@ -5,6 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.Transient
 import jakarta.persistence.UniqueConstraint
@@ -21,6 +22,9 @@ import java.util.UUID
             name = "uq_position_user_account_ticker",
             columnNames = ["user_id", "account_id", "ticker"]
         )
+    ],
+    indexes = [
+        Index(name = "idx_position_account", columnList = "account_id")
     ]
 )
 class Position(

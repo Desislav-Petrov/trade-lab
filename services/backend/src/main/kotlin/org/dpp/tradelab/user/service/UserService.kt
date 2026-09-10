@@ -69,9 +69,7 @@ class UserService(
 
     @Transactional(readOnly = true)
     fun getActiveUserEmails(): List<String> =
-        userRepository.findAll()
-            .filter { it.status == UserStatus.ACTIVE }
-            .map { it.email }
+        userRepository.findEmailsByStatus(UserStatus.ACTIVE)
 
     @Transactional(readOnly = true)
     fun getUserById(userId: UUID): User {

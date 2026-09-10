@@ -11,21 +11,13 @@ import {
   LabelList,
 } from 'recharts'
 import type { TooltipContentProps } from 'recharts'
+import { formatCurrency } from '@/shared/lib/format'
 import type { UnrealisedPnLEntry } from '../types/portfolio.types'
 import { PROFIT_COLOUR, LOSS_COLOUR } from './chartColours'
 
 export interface UnrealisedPnLDivergingBarChartProps {
   data: UnrealisedPnLEntry[]
   currency: string
-}
-
-function formatCurrency(value: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
 }
 
 function makeCustomTooltip(currency: string) {

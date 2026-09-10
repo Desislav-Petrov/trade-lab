@@ -5,6 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.Transient
 import org.hibernate.annotations.CreationTimestamp
@@ -27,7 +28,12 @@ import java.util.UUID
  * property named `id`, which collides with the Persistable.getId() override.
  */
 @Entity
-@Table(name = "ledger_entries")
+@Table(
+    name = "ledger_entries",
+    indexes = [
+        Index(name = "idx_ledger_account_created", columnList = "account_id, created_at")
+    ]
+)
 class LedgerEntry(
     @Id
     @Column(name = "id", nullable = false, updatable = false)

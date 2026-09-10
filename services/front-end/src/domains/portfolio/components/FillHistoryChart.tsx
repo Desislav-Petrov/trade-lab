@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
+import { formatCurrency } from '@/shared/lib/format'
 import type { FillDataPoint, FillHistoryEntry } from '../types/portfolio.types'
 import { CHART_COLOURS, LOSS_COLOUR, PROFIT_COLOUR } from './chartColours'
 
@@ -24,15 +25,6 @@ interface FillDotProps {
   cx?: number
   cy?: number
   payload?: unknown
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
 }
 
 function formatDateTime(value: string): string {

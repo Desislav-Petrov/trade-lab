@@ -7,7 +7,6 @@ import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.marketdata.api.MarketDataApi
 import org.dpp.tradelab.portfolio.api.PortfolioApi
 import org.dpp.tradelab.stocktrading.exception.DuplicateIdempotencyKeyException
-import org.dpp.tradelab.stocktrading.exception.InsufficientHoldingException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotActiveException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotFoundException
 import org.dpp.tradelab.stocktrading.exception.OrderAccountNotOwnedException
@@ -97,45 +96,16 @@ class StockTradingService(
         priceSnapshot: BigDecimal,
         accountSummary: org.dpp.tradelab.ledger.api.AccountSummary
     ): Order {
-        // Save Order with status=PENDING, side=BUY
-        val order = Order(
-            orderId = UUID.randomUUID(),
-            idempotencyKey = idempotencyKey,
-            accountId = accountId,
-            userId = userId,
-            ticker = ticker,
-            quantity = quantity,
-            orderType = orderType,
-            side = OrderSide.BUY,
-            status = OrderStatus.PENDING,
-            priceSnapshot = priceSnapshot
+        val order = createPendingOrder(
+            idempotencyKey, accountId, userId, ticker, quantity, orderType, priceSnapshot, OrderSide.BUY
         )
-        orderRepository.save(order)
 
-        // Get execution price from market data cache
         val executionPrice = marketDataApi.getCurrentPrice(ticker)
-
-        // Calculate required cash
         val requiredCash = quantity.multiply(executionPrice)
 
         // Fund check
         if (accountSummary.balance < requiredCash) {
-            order.status = OrderStatus.REJECTED
-            order.rejectionReason = "Insufficient funds"
-            orderRepository.save(order)
-            eventPublisher.publishEvent(
-                OrderRejectedEvent(
-                    orderId = order.orderId,
-                    accountId = accountId,
-                    userId = userId,
-                    ticker = ticker,
-                    quantity = quantity,
-                    rejectionReason = "Insufficient funds",
-                    side = OrderSide.BUY,
-                    timestamp = Instant.now()
-                )
-            )
-            return order
+            return reject(order, "Insufficient funds")
         }
 
         // Record DEBIT/CASH ledger entry (deduct cash)
@@ -162,26 +132,7 @@ class StockTradingService(
             description = "Buy $ticker x$quantity at $executionPrice"
         )
 
-        // Update order to FILLED
-        order.status = OrderStatus.FILLED
-        order.executionPrice = executionPrice
-        orderRepository.save(order)
-
-        eventPublisher.publishEvent(
-            OrderFilledEvent(
-                orderId = order.orderId,
-                accountId = accountId,
-                userId = userId,
-                ticker = ticker,
-                quantity = quantity,
-                executionPrice = executionPrice,
-                idempotencyKey = order.idempotencyKey,
-                side = OrderSide.BUY,
-                timestamp = Instant.now()
-            )
-        )
-
-        return order
+        return fill(order, executionPrice)
     }
 
     private fun placeSellOrder(
@@ -194,47 +145,16 @@ class StockTradingService(
         priceSnapshot: BigDecimal,
         accountSummary: org.dpp.tradelab.ledger.api.AccountSummary
     ): Order {
-        // Save Order with status=PENDING, side=SELL
-        val order = Order(
-            orderId = UUID.randomUUID(),
-            idempotencyKey = idempotencyKey,
-            accountId = accountId,
-            userId = userId,
-            ticker = ticker,
-            quantity = quantity,
-            orderType = orderType,
-            side = OrderSide.SELL,
-            status = OrderStatus.PENDING,
-            priceSnapshot = priceSnapshot
+        val order = createPendingOrder(
+            idempotencyKey, accountId, userId, ticker, quantity, orderType, priceSnapshot, OrderSide.SELL
         )
-        orderRepository.save(order)
 
-        // Get execution price from market data cache
         val executionPrice = marketDataApi.getCurrentPrice(ticker)
 
         // Check holding quantity
         val positionQuantity = portfolioApi.getPositionQuantity(accountId, ticker)
         if (positionQuantity < quantity) {
-            order.status = OrderStatus.REJECTED
-            order.rejectionReason = "Quantity exceeds holding"
-            orderRepository.save(order)
-            try {
-                throw InsufficientHoldingException(ticker, quantity, positionQuantity)
-            } catch (ex: InsufficientHoldingException) {
-                eventPublisher.publishEvent(
-                    OrderRejectedEvent(
-                        orderId = order.orderId,
-                        accountId = accountId,
-                        userId = userId,
-                        ticker = ticker,
-                        quantity = quantity,
-                        rejectionReason = "Quantity exceeds holding",
-                        side = OrderSide.SELL,
-                        timestamp = Instant.now()
-                    )
-                )
-                return order
-            }
+            return reject(order, "Quantity exceeds holding")
         }
 
         // Record DEBIT/STOCK_SELL ledger entry (remove shares)
@@ -262,25 +182,74 @@ class StockTradingService(
             description = "Sell $ticker x$quantity"
         )
 
-        // Update order to FILLED
-        order.status = OrderStatus.FILLED
-        order.executionPrice = executionPrice
-        orderRepository.save(order)
+        return fill(order, executionPrice)
+    }
 
+    /** Builds and persists a new PENDING order for the given side. */
+    private fun createPendingOrder(
+        idempotencyKey: UUID,
+        accountId: UUID,
+        userId: UUID,
+        ticker: String,
+        quantity: BigDecimal,
+        orderType: OrderType,
+        priceSnapshot: BigDecimal,
+        side: OrderSide
+    ): Order {
+        val order = Order(
+            orderId = UUID.randomUUID(),
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = orderType,
+            side = side,
+            status = OrderStatus.PENDING,
+            priceSnapshot = priceSnapshot
+        )
+        orderRepository.save(order)
+        return order
+    }
+
+    /** Marks an order REJECTED, persists it, and publishes an OrderRejectedEvent. */
+    private fun reject(order: Order, rejectionReason: String): Order {
+        order.status = OrderStatus.REJECTED
+        order.rejectionReason = rejectionReason
+        orderRepository.save(order)
         eventPublisher.publishEvent(
-            OrderFilledEvent(
+            OrderRejectedEvent(
                 orderId = order.orderId,
-                accountId = accountId,
-                userId = userId,
-                ticker = ticker,
-                quantity = quantity,
-                executionPrice = executionPrice,
-                idempotencyKey = order.idempotencyKey,
-                side = OrderSide.SELL,
+                accountId = order.accountId,
+                userId = order.userId,
+                ticker = order.ticker,
+                quantity = order.quantity,
+                rejectionReason = rejectionReason,
+                side = order.side,
                 timestamp = Instant.now()
             )
         )
+        return order
+    }
 
+    /** Marks an order FILLED at the execution price, persists it, and publishes an OrderFilledEvent. */
+    private fun fill(order: Order, executionPrice: BigDecimal): Order {
+        order.status = OrderStatus.FILLED
+        order.executionPrice = executionPrice
+        orderRepository.save(order)
+        eventPublisher.publishEvent(
+            OrderFilledEvent(
+                orderId = order.orderId,
+                accountId = order.accountId,
+                userId = order.userId,
+                ticker = order.ticker,
+                quantity = order.quantity,
+                executionPrice = executionPrice,
+                idempotencyKey = order.idempotencyKey,
+                side = order.side,
+                timestamp = Instant.now()
+            )
+        )
         return order
     }
 }

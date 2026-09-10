@@ -1,20 +1,12 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { PieLabelRenderProps, TooltipContentProps } from 'recharts'
+import { formatCurrency } from '@/shared/lib/format'
 import type { AssetClassBreakdown } from '../types/portfolio.types'
 import { CHART_COLOURS } from './chartColours'
 
 export interface AssetClassPieChartProps {
   data: AssetClassBreakdown | null | undefined
   currency: string
-}
-
-function formatCurrency(value: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
 }
 
 interface SliceEntry {

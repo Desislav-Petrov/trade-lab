@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { fetchUserById } from '../api/userApi'
@@ -29,57 +28,24 @@ export function AuthCallbackHandler({ onSuccess }: AuthCallbackHandlerProps) {
       const token = search?.token ?? null
 
       if (!token) {
-        console.error('[AuthCallback] FAIL: no token in URL')
-        console.groupEnd()
         setError('Authentication failed. Please try again.')
         setLoading(false)
         return
-      }
-
-      // ── Step 2: JWT decode ─────────────────────────────────────────────────
-      let rawPayload: unknown = null
-      try {
-        rawPayload = JSON.parse(atob(token.split('.')[1]))
-        console.log('[AuthCallback] decoded JWT payload:', rawPayload)
-      } catch (e) {
-        console.error('[AuthCallback] FAIL: could not base64-decode JWT payload', e)
       }
 
       const userId = decodeJwtSub(token)
-      console.log('[AuthCallback] decoded userId (sub):', userId ?? 'NULL — decode failed')
 
       if (!userId) {
-        console.error('[AuthCallback] FAIL: sub missing from JWT')
-        console.groupEnd()
         setError('Authentication failed. Please try again.')
         setLoading(false)
         return
       }
 
-      // ── Step 3: fetch user profile ─────────────────────────────────────────
-      console.log(`[AuthCallback] calling GET /v1/users/${userId} with explicit Bearer token`)
       try {
         const userResponse = await fetchUserById(userId, token)
-        console.log('[AuthCallback] fetchUserById SUCCESS:', userResponse)
         establishSession(userResponse, token)
-        console.log('[AuthCallback] session established — navigating to /trade')
-        console.groupEnd()
         onSuccess()
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          console.error(
-            '[AuthCallback] FAIL: fetchUserById HTTP error',
-            '\n  status :', err.response?.status,
-            '\n  statusText:', err.response?.statusText,
-            '\n  url :', err.config?.url,
-            '\n  baseURL :', err.config?.baseURL,
-            '\n  headers sent:', err.config?.headers,
-            '\n  response body:', err.response?.data,
-          )
-        } else {
-          console.error('[AuthCallback] FAIL: non-HTTP error during fetchUserById', err)
-        }
-        console.groupEnd()
+      } catch {
         setError('Authentication failed. Please try again.')
         setLoading(false)
       }

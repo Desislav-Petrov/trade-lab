@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useDeferredValue } from 'react'
+import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Navigate } from '@tanstack/react-router'
-import type { AxiosError } from 'axios'
+import { getApiErrorMessage } from '@/shared/lib/apiError'
 import { useSessionStore } from '../../user/hooks/useSessionStore'
 import {
   useSubscriptions,
@@ -24,11 +24,6 @@ interface BuyContext {
   ticker: string
   companyName: string
   priceSnapshot: string
-}
-
-function extractErrorMessage(error: unknown): string {
-  const axiosError = error as AxiosError<{ error?: string }>
-  return axiosError?.response?.data?.error ?? 'Something went wrong. Please try again.'
 }
 
 export function StockTradingPage() {
@@ -63,14 +58,24 @@ export function StockTradingPage() {
     }
   }, [activeAccountsData])
 
+  // Stable handler so MarketDataGrid's React.memo is not defeated by a new
+  // function identity on every live-feed tick re-render.
+  const handleBuy = useCallback(
+    (ticker: string, companyName: string, priceSnapshot: string) =>
+      setBuyContext({ ticker, companyName, priceSnapshot }),
+    [],
+  )
+
+  const availableTickers = useMemo(() => {
+    const subscribedSet = new Set((subscriptionsData ?? []).map((s) => s.ticker))
+    return (supportedTickersData ?? []).filter((t) => !subscribedSet.has(t.ticker))
+  }, [subscriptionsData, supportedTickersData])
+
   if (!user) {
     return <Navigate to="/login" replace />
   }
 
   const subscriptions = subscriptionsData ?? []
-  const supportedTickers = supportedTickersData ?? []
-  const subscribedSet = new Set(subscriptions.map((s) => s.ticker))
-  const availableTickers = supportedTickers.filter((t) => !subscribedSet.has(t.ticker))
 
   function handleAdd(tickers: string[]) {
     setAddError(null)
@@ -78,7 +83,7 @@ export function StockTradingPage() {
       { userId: user!.userId, tickers },
       {
         onSuccess: () => setIsAddPanelOpen(false),
-        onError: (err) => setAddError(extractErrorMessage(err)),
+        onError: (err) => setAddError(getApiErrorMessage(err)),
       },
     )
   }
@@ -89,7 +94,7 @@ export function StockTradingPage() {
       { userId: user!.userId, tickers: selectedTickers },
       {
         onSuccess: () => setSelectedTickers([]),
-        onError: (err) => setRemoveError(extractErrorMessage(err)),
+        onError: (err) => setRemoveError(getApiErrorMessage(err)),
       },
     )
   }
@@ -158,12 +163,7 @@ export function StockTradingPage() {
       <MarketDataGrid
         rows={deferredRows}
         feedStatus={feedStatus}
-        onBuy={
-          selectedAccountId
-            ? (ticker, companyName, priceSnapshot) =>
-                setBuyContext({ ticker, companyName, priceSnapshot })
-            : undefined
-        }
+        onBuy={selectedAccountId ? handleBuy : undefined}
       />
 
       {buyContext && selectedAccountId && (
