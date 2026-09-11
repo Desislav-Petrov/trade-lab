@@ -84,6 +84,7 @@ info:
 
 app:
   features:
+    enable-no-auth: ${ENABLE_NO_AUTH:true}
     enable-synthetic-data: ${ENABLE_SYNTHETIC_DATA:true}
     enable-real-data: ${ENABLE_REAL_DATA:true}
   jwt:

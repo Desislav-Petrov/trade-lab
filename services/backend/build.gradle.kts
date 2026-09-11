@@ -82,6 +82,49 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
     ))
 }
 
+val generateUserNoAuthApi = tasks.register<GenerateTask>("generateUserNoAuthApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-noauth-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/user-noauth")
+    apiPackage.set("org.dpp.tradelab.user.generated.noauth.api")
+    modelPackage.set("org.dpp.tradelab.user.generated.noauth.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
+val postProcessUserNoAuthApi = tasks.register("postProcessUserNoAuthApi") {
+    dependsOn(generateUserNoAuthApi)
+    doLast {
+        val apiDir = layout.buildDirectory.dir("generated/user-noauth/src/main/kotlin/org/dpp/tradelab/user/generated/noauth/api").get().asFile
+        listOf("UsersApi", "UsersApiController", "UsersApiDelegate").forEach { baseName ->
+            val source = apiDir.resolve("$baseName.kt")
+            val targetName = baseName.replace("UsersApi", "UsersNoAuthApi")
+            val target = apiDir.resolve("$targetName.kt")
+            if (source.exists()) {
+                var content = source.readText().replace("UsersApi", "UsersNoAuthApi")
+                if (targetName == "UsersNoAuthApiController" && !content.contains("ConditionalOnProperty")) {
+                    content = content.replace(
+                        "@Controller\n",
+                        "@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = [\"app.features.enable-no-auth\"], havingValue = \"true\", matchIfMissing = false)\n@Controller\n"
+                    )
+                }
+                target.writeText(content)
+                source.delete()
+            }
+        }
+    }
+}
+
+generateUserNoAuthApi.configure {
+    finalizedBy(postProcessUserNoAuthApi)
+}
+
 tasks.named<GenerateTask>("openApiGenerate") {
     generatorName.set("kotlin-spring")
     inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
@@ -186,6 +229,7 @@ sourceSets {
     main {
         kotlin {
             srcDir("${layout.buildDirectory.get()}/generated/user/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/user-noauth/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/ledger/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/stocktrading/src/main/kotlin")
@@ -193,12 +237,13 @@ sourceSets {
             srcDir("${layout.buildDirectory.get()}/generated/finnhub/src/main/kotlin")
             exclude("org/openapitools/**")
             exclude("org/dpp/tradelab/marketdata/generated/finnhub/api/**")
+            exclude("org/dpp/tradelab/user/generated/noauth/api/UsersApi*.kt")
         }
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateFinnhubApi)
+    dependsOn(generateUserApi, postProcessUserNoAuthApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateFinnhubApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────
