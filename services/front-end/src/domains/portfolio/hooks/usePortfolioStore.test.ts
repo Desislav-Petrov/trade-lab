@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { act } from '@testing-library/react'
 import { usePortfolioStore } from './usePortfolioStore'
+import { useSelectedAccountStore } from '../../../shared/hooks/useSelectedAccountStore'
 
 describe('usePortfolioStore', () => {
   beforeEach(() => {
     act(() => {
       usePortfolioStore.setState({ selectedAccountId: null, hiddenSymbols: new Set() })
+      useSelectedAccountStore.getState().clearSelectedAccountId()
     })
   })
 
@@ -30,6 +32,22 @@ describe('usePortfolioStore', () => {
       usePortfolioStore.getState().setSelectedAccountId('acc-2')
     })
     expect(usePortfolioStore.getState().selectedAccountId).toBe('acc-2')
+  })
+
+  it('usePortfolioStore - setSelectedAccountId - syncs selectedAccountId to shared store', () => {
+    act(() => {
+      usePortfolioStore.getState().setSelectedAccountId('acc-123')
+    })
+
+    expect(useSelectedAccountStore.getState().selectedAccountId).toBe('acc-123')
+  })
+
+  it('usePortfolioStore - shared store update - syncs selectedAccountId back to portfolio store', () => {
+    act(() => {
+      useSelectedAccountStore.getState().setSelectedAccountId('acc-456')
+    })
+
+    expect(usePortfolioStore.getState().selectedAccountId).toBe('acc-456')
   })
 
   it('usePortfolioStore - toggleSymbolVisibility - adds ticker when visible', () => {
