@@ -60,10 +60,13 @@ class AgentService(
                 userIdValue,
                 conversationIdValue,
                 Optional.empty()
-            ).blockingGet()
+            )
+                .map { Optional.of(it) }
+                .defaultIfEmpty(Optional.empty())
+                .blockingGet()
 
-            if (existing != null) {
-                return existing
+            if (existing.isPresent) {
+                return existing.get()
             }
 
             val state = ConcurrentHashMap<String, Any>()

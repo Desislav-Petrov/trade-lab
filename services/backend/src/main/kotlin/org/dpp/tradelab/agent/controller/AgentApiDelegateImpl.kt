@@ -7,7 +7,10 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import org.dpp.tradelab.agent.generated.api.AgentApiDelegate
 import org.dpp.tradelab.agent.generated.model.AgentQueryRequest
 import org.dpp.tradelab.agent.generated.model.AgentQueryResponse
+import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.AgentService
+import org.dpp.tradelab.ledger.api.LedgerAccountApi
+import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.user.exception.InvalidTokenException
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.InputStreamResource
@@ -29,7 +32,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class AgentApiDelegateImpl(
-    private val agentService: AgentService
+    private val agentService: AgentService,
+    private val ledgerAccountApi: LedgerAccountApi
 ) : AgentApiDelegate {
 
     private val objectMapper = jacksonObjectMapper()
@@ -37,6 +41,10 @@ class AgentApiDelegateImpl(
     override fun queryAgent(agentQueryRequest: AgentQueryRequest): ResponseEntity<Resource> {
         val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID
             ?: throw InvalidTokenException("Authentication required")
+        val account = ledgerAccountApi.getAccount(agentQueryRequest.accountId)
+        if (account.userId != userId) {
+            throw AccountOwnershipException(agentQueryRequest.accountId)
+        }
 
         val reply = agentService.query(
             userId = userId,
@@ -132,11 +140,22 @@ class AgentApiDelegateImpl(
         } == true
 
     private fun bufferedReply(conversationId: UUID, reply: Flowable<String>): ResponseEntity<Resource> {
+        val bufferedReply = reply.collectInto(StringBuilder()) { builder, chunk ->
+            if (builder.length + chunk.length > MAX_BUFFERED_REPLY_CHARS) {
+                throw AgentUnavailableException("The AI assistant response exceeded the buffered fallback limit.")
+            }
+            builder.append(chunk)
+        }
+            .map { it.toString() }
+            .blockingGet()
+
+        if (bufferedReply.isBlank()) {
+            throw AgentUnavailableException("The AI assistant returned no response.")
+        }
+
         val response = AgentQueryResponse(
             conversationId = conversationId,
-            reply = reply.collectInto(StringBuilder()) { builder, chunk -> builder.append(chunk) }
-                .map { it.toString() }
-                .blockingGet()
+            reply = bufferedReply
         )
         val body = objectMapper.writeValueAsBytes(response)
 
@@ -145,5 +164,9 @@ class AgentApiDelegateImpl(
             .contentType(MediaType.APPLICATION_JSON)
             .contentLength(body.size.toLong())
             .body(ByteArrayResource(body))
+    }
+
+    private companion object {
+        const val MAX_BUFFERED_REPLY_CHARS = 16_384
     }
 }
