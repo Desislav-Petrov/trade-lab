@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.io.IOException
 import java.util.UUID
 
 @SpringBootTest
@@ -114,6 +115,19 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("\$.conversationId").value(conversationId.toString()))
                 .andExpect(jsonPath("\$.reply").value(""))
+        }
+
+        test("queryAgent_clientDisconnect_doesNotEmitErrorEvent") {
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.error(IOException("broken pipe")))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string(""))
         }
 
         test("queryAgent_unauthenticated_returns401") {

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
 @Service
@@ -21,7 +22,7 @@ class AgentService(
     private val agentSessionService: InMemorySessionService,
     private val agentRunConfig: RunConfig
 ) {
-    private val sessionLocks = ConcurrentHashMap<String, ReentrantLock>()
+    private val sessionLocks = ConcurrentHashMap<String, SessionLock>()
 
     fun query(
         userId: UUID,
@@ -51,9 +52,8 @@ class AgentService(
         val userIdValue = userId.toString()
         val conversationIdValue = conversationId.toString()
         val lockKey = "$userIdValue:$conversationIdValue"
-        val sessionLock = sessionLocks.computeIfAbsent(lockKey) { ReentrantLock() }
+        val sessionLock = acquireSessionLock(lockKey)
 
-        sessionLock.lock()
         try {
             val existing = agentSessionService.getSession(
                 AGENT_APP_NAME,
@@ -77,10 +77,7 @@ class AgentService(
                 conversationIdValue
             ).blockingGet()
         } finally {
-            sessionLock.unlock()
-            if (!sessionLock.hasQueuedThreads()) {
-                sessionLocks.remove(lockKey, sessionLock)
-            }
+            releaseSessionLock(lockKey, sessionLock)
         }
     }
 
@@ -88,4 +85,30 @@ class AgentService(
         val chunk = event.stringifyContent()
         return if (chunk.isBlank()) Flowable.empty() else Flowable.just(chunk)
     }
+
+    private fun acquireSessionLock(lockKey: String): SessionLock {
+        val sessionLock = sessionLocks.compute(lockKey) { _, existing ->
+            (existing ?: SessionLock()).also { it.refCount.incrementAndGet() }
+        }!!
+        sessionLock.lock.lock()
+        return sessionLock
+    }
+
+    private fun releaseSessionLock(lockKey: String, sessionLock: SessionLock) {
+        sessionLock.lock.unlock()
+        sessionLocks.computeIfPresent(lockKey) { _, existing ->
+            if (existing !== sessionLock) {
+                existing
+            } else if (existing.refCount.decrementAndGet() == 0) {
+                null
+            } else {
+                existing
+            }
+        }
+    }
+
+    private class SessionLock(
+        val lock: ReentrantLock = ReentrantLock(),
+        val refCount: AtomicInteger = AtomicInteger(0)
+    )
 }
