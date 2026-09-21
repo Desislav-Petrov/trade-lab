@@ -134,15 +134,31 @@ class AgentApiDelegateImpl(
         }
     }
 
-    private fun isClientDisconnect(ex: Throwable): Boolean =
-        ex is IOException && ex.message?.lowercase()?.let { message ->
-            "pipe closed" in message || "broken pipe" in message
-        } == true
+    private fun isClientDisconnect(ex: Throwable): Boolean {
+        var current: Throwable? = ex
+        while (current != null) {
+            val message = current.message?.lowercase().orEmpty()
+            if (
+                current is IOException &&
+                ("pipe closed" in message || "broken pipe" in message || "connection reset" in message || "stream closed" in message)
+            ) {
+                return true
+            }
+            if (current::class.java.simpleName == "ClientAbortException") {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
 
     private fun bufferedReply(conversationId: UUID, reply: Flowable<String>): ResponseEntity<Resource> {
         val bufferedReply = reply.collectInto(StringBuilder()) { builder, chunk ->
             if (builder.length + chunk.length > MAX_BUFFERED_REPLY_CHARS) {
-                throw AgentUnavailableException("The AI assistant response exceeded the buffered fallback limit.")
+                throw AgentUnavailableException(
+                    "The AI assistant is temporarily unavailable.",
+                    IllegalStateException("Buffered fallback limit exceeded.")
+                )
             }
             builder.append(chunk)
         }

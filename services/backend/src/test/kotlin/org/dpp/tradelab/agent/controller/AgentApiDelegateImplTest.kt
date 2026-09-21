@@ -150,6 +150,20 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().string(""))
         }
 
+        test("queryAgent_nestedClientDisconnect_doesNotEmitErrorEvent") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.error(RuntimeException("wrapper", IOException("broken pipe"))))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string(""))
+        }
+
         test("queryAgent_accountNotOwned_returns403") {
             whenever(ledgerService.getAccount(accountId)).thenReturn(
                 AccountSummary(
