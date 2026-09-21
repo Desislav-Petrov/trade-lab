@@ -150,6 +150,20 @@ class AgentApiDelegateImplTest(
                 .andExpect(jsonPath("\$.error").value("Assistant unavailable"))
         }
 
+        test("queryAgent_oversizedBufferedReply_returns503") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.just("a".repeat(16_385)))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.APPLICATION_JSON)
+            )
+                .andExpect(status().isServiceUnavailable)
+                .andExpect(jsonPath("\$.status").value(HttpStatus.SERVICE_UNAVAILABLE.value()))
+                .andExpect(jsonPath("\$.error").value("Assistant unavailable"))
+        }
+
         test("queryAgent_clientDisconnect_doesNotEmitErrorEvent") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))

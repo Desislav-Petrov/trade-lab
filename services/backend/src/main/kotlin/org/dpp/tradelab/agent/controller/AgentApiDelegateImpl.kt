@@ -64,7 +64,7 @@ class AgentApiDelegateImpl(
 
     private fun acceptsEventStream(acceptHeader: String?): Boolean {
         if (acceptHeader.isNullOrBlank()) {
-            return false
+            return true
         }
 
         return try {

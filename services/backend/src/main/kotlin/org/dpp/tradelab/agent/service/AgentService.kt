@@ -11,10 +11,12 @@ import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.springframework.stereotype.Service
+import java.util.Collections
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import java.util.WeakHashMap
 
 @Service
 class AgentService(
@@ -22,7 +24,7 @@ class AgentService(
     private val agentSessionService: InMemorySessionService,
     private val agentRunConfig: RunConfig
 ) {
-    private val sessionLocks = ConcurrentHashMap<String, ReentrantLock>()
+    private val sessionLocks = Collections.synchronizedMap(WeakHashMap<String, ReentrantLock>())
 
     fun query(
         userId: UUID,
@@ -94,7 +96,9 @@ class AgentService(
     }
 
     private fun acquireSessionLock(lockKey: String): SessionLock {
-        val sessionLock = sessionLocks.computeIfAbsent(lockKey) { ReentrantLock() }
+        val sessionLock = synchronized(sessionLocks) {
+            sessionLocks.getOrPut(lockKey) { ReentrantLock() }
+        }
         sessionLock.lock()
         return SessionLock(sessionLock)
     }
