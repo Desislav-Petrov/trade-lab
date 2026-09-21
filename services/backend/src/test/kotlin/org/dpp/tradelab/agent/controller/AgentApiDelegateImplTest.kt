@@ -81,6 +81,25 @@ class AgentApiDelegateImplTest(
                 .andExpect(jsonPath("\$.reply").value("Buffered reply"))
         }
 
+        test("queryAgent_streamFailure_returnsErrorEvent") {
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(
+                    Flowable.concat(
+                        Flowable.just("Partial"),
+                        Flowable.error(IllegalStateException("boom"))
+                    )
+                )
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("event: error")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("The AI assistant is temporarily unavailable.")))
+        }
+
         test("queryAgent_unauthenticated_returns401") {
             mockMvc.perform(
                 post("/api/v1/agent/query")

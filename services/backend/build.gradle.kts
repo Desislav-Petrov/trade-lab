@@ -85,10 +85,10 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
 
 tasks.named<GenerateTask>("openApiGenerate") {
     generatorName.set("kotlin-spring")
-    inputSpec.set("${rootProject.projectDir}/../../services/contract/agent-openapi.yaml")
-    outputDir.set("${layout.buildDirectory.get()}/generated/agent")
-    apiPackage.set("org.dpp.tradelab.agent.generated.api")
-    modelPackage.set("org.dpp.tradelab.agent.generated.model")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/user")
+    apiPackage.set("org.dpp.tradelab.user.generated.api")
+    modelPackage.set("org.dpp.tradelab.user.generated.model")
     configOptions.set(mapOf(
         "useSpringBoot3" to "true",
         "delegatePattern" to "true",
@@ -177,6 +177,10 @@ val generateAgentApi = tasks.register<GenerateTask>("generateAgentApi") {
         "gradleBuildFile" to "false",
         "exceptionHandler" to "false"
     ))
+}
+
+tasks.named("openApiGenerate") {
+    dependsOn(generateAgentApi)
 }
 
 val generateFinnhubApi = tasks.register<GenerateTask>("generateFinnhubApi") {

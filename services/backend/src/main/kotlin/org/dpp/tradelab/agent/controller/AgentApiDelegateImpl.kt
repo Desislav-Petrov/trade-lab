@@ -63,10 +63,16 @@ class AgentApiDelegateImpl(
 
         CompletableFuture.runAsync {
             outputStream.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
-                reply.blockingForEach { chunk ->
-                    writer.write("data: ")
-                    writer.write(chunk.replace("\n", "\ndata: "))
-                    writer.write("\n\n")
+                try {
+                    reply.blockingForEach { chunk ->
+                        writer.write("data: ")
+                        writer.write(chunk.replace("\n", "\ndata: "))
+                        writer.write("\n\n")
+                        writer.flush()
+                    }
+                } catch (ex: Exception) {
+                    writer.write("event: error\n")
+                    writer.write("data: The AI assistant is temporarily unavailable.\n\n")
                     writer.flush()
                 }
             }
