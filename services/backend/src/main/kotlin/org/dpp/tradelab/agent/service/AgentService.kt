@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 
 @Service
 class AgentService(
@@ -20,7 +21,7 @@ class AgentService(
     private val agentSessionService: InMemorySessionService,
     private val agentRunConfig: RunConfig
 ) {
-    private val sessionLocks = ConcurrentHashMap<String, Any>()
+    private val sessionLocks = ConcurrentHashMap<String, ReentrantLock>()
 
     fun query(
         userId: UUID,
@@ -49,9 +50,11 @@ class AgentService(
     private fun loadOrCreateSession(userId: UUID, accountId: UUID, conversationId: UUID): Session {
         val userIdValue = userId.toString()
         val conversationIdValue = conversationId.toString()
-        val sessionLock = sessionLocks.computeIfAbsent("$userIdValue:$conversationIdValue") { Any() }
+        val lockKey = "$userIdValue:$conversationIdValue"
+        val sessionLock = sessionLocks.computeIfAbsent(lockKey) { ReentrantLock() }
 
-        synchronized(sessionLock) {
+        sessionLock.lock()
+        try {
             val existing = agentSessionService.getSession(
                 AGENT_APP_NAME,
                 userIdValue,
@@ -73,6 +76,11 @@ class AgentService(
                 state,
                 conversationIdValue
             ).blockingGet()
+        } finally {
+            sessionLock.unlock()
+            if (!sessionLock.hasQueuedThreads()) {
+                sessionLocks.remove(lockKey, sessionLock)
+            }
         }
     }
 

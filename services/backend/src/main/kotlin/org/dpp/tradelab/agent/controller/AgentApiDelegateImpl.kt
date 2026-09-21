@@ -56,8 +56,12 @@ class AgentApiDelegateImpl(
         val request = (RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes)?.request ?: return false
         val acceptHeader = request.getHeader(HttpHeaders.ACCEPT) ?: return false
 
-        return MediaType.parseMediaTypes(acceptHeader)
-            .any { it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) }
+        return try {
+            MediaType.parseMediaTypes(acceptHeader)
+                .any { it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) }
+        } catch (_: IllegalArgumentException) {
+            false
+        }
     }
 
     private fun streamReply(reply: Flowable<String>): ResponseEntity<Resource> {
@@ -130,7 +134,7 @@ class AgentApiDelegateImpl(
     private fun bufferedReply(conversationId: UUID, reply: Flowable<String>): ResponseEntity<Resource> {
         val response = AgentQueryResponse(
             conversationId = conversationId,
-            reply = reply.reduce(StringBuilder()) { builder, chunk -> builder.append(chunk) }
+            reply = reply.collectInto(StringBuilder()) { builder, chunk -> builder.append(chunk) }
                 .map { it.toString() }
                 .blockingGet()
         )

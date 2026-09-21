@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
@@ -26,6 +27,7 @@ import java.util.UUID
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AgentApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
     @Autowired val jwtService: JwtService,
@@ -98,6 +100,20 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("event: error")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("The AI assistant is temporarily unavailable.")))
+        }
+
+        test("queryAgent_emptyBufferedReply_returnsJsonWithEmptyString") {
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.empty())
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.APPLICATION_JSON)
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("\$.conversationId").value(conversationId.toString()))
+                .andExpect(jsonPath("\$.reply").value(""))
         }
 
         test("queryAgent_unauthenticated_returns401") {
