@@ -1,4 +1,4 @@
-package org.dpp.tradelab.agent.service
+package org.dpp.tradelab.config
 
 import com.google.adk.agents.RunConfig
 import io.kotest.core.spec.style.FunSpec

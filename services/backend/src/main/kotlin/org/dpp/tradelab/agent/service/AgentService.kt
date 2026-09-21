@@ -9,6 +9,7 @@ import com.google.genai.types.Content
 import com.google.genai.types.Part
 import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
+import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.springframework.stereotype.Service
 import java.util.Optional
 import java.util.UUID

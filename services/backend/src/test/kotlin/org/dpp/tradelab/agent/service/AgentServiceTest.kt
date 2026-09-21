@@ -16,6 +16,7 @@ import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
+import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
