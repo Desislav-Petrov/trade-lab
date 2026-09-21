@@ -1,0 +1,105 @@
+openapi: 3.0.3
+
+info:
+  title: Trade Lab API — Agent
+  version: 1.0.0
+  description: Agent chat endpoints
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Agent
+    description: AI assistant interactions
+
+paths:
+
+  /agent/query:
+    post:
+      tags:
+        - Agent
+      summary: Query the Trade Lab AI assistant
+      operationId: queryAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentQueryRequest'
+      responses:
+        '200':
+          description: Assistant response stream or buffered fallback
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentQueryResponse'
+        '401':
+          description: Unauthorised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Assistant unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    AgentQueryRequest:
+      type: object
+      required:
+        - accountId
+        - conversationId
+        - message
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        message:
+          type: string
+          minLength: 1
+          pattern: '.*\S.*'
+
+    AgentQueryResponse:
+      type: object
+      required:
+        - conversationId
+        - reply
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        reply:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - details
+      properties:
+        status:
+          type: integer
+          example: 503
+        error:
+          type: string
+          example: Assistant unavailable
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - "The AI assistant is temporarily unavailable."

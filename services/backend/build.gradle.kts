@@ -6,6 +6,7 @@ val kotestVersion = "5.9.1"
 val kotestSpringVersion = "1.3.0"
 val mockitoKotlinVersion = "5.4.0"
 val swaggerVersion = "2.2.28"
+val adkVersion = "1.10.1"
 
 plugins {
     kotlin("jvm") version "2.2.0"
@@ -84,10 +85,10 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
 
 tasks.named<GenerateTask>("openApiGenerate") {
     generatorName.set("kotlin-spring")
-    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
-    outputDir.set("${layout.buildDirectory.get()}/generated/user")
-    apiPackage.set("org.dpp.tradelab.user.generated.api")
-    modelPackage.set("org.dpp.tradelab.user.generated.model")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/agent-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/agent")
+    apiPackage.set("org.dpp.tradelab.agent.generated.api")
+    modelPackage.set("org.dpp.tradelab.agent.generated.model")
     configOptions.set(mapOf(
         "useSpringBoot3" to "true",
         "delegatePattern" to "true",
@@ -162,6 +163,22 @@ val generatePortfolioApi = tasks.register<GenerateTask>("generatePortfolioApi") 
     ))
 }
 
+val generateAgentApi = tasks.register<GenerateTask>("generateAgentApi") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/agent-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/agent")
+    apiPackage.set("org.dpp.tradelab.agent.generated.api")
+    modelPackage.set("org.dpp.tradelab.agent.generated.model")
+    configOptions.set(mapOf(
+        "useSpringBoot3" to "true",
+        "delegatePattern" to "true",
+        "serializationLibrary" to "jackson",
+        "enumPropertyNaming" to "UPPERCASE",
+        "gradleBuildFile" to "false",
+        "exceptionHandler" to "false"
+    ))
+}
+
 val generateFinnhubApi = tasks.register<GenerateTask>("generateFinnhubApi") {
     generatorName.set("kotlin")
     inputSpec.set("${rootProject.projectDir}/../../services/contract/finnhub-openapi.yaml")
@@ -190,6 +207,7 @@ sourceSets {
             srcDir("${layout.buildDirectory.get()}/generated/marketdata/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/stocktrading/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/portfolio/src/main/kotlin")
+            srcDir("${layout.buildDirectory.get()}/generated/agent/src/main/kotlin")
             srcDir("${layout.buildDirectory.get()}/generated/finnhub/src/main/kotlin")
             exclude("org/openapitools/**")
             exclude("org/dpp/tradelab/marketdata/generated/finnhub/api/**")
@@ -198,7 +216,7 @@ sourceSets {
 }
 
 tasks.named("compileKotlin") {
-    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateFinnhubApi)
+    dependsOn(generateUserApi, generateLedgerApi, generateMarketdataApi, generateStocktradingApi, generatePortfolioApi, generateAgentApi, generateFinnhubApi)
 }
 
 // ── Dependencies ─────────────────────────────────────────────────────
@@ -213,6 +231,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("com.google.adk:google-adk:$adkVersion")
     implementation("io.swagger.core.v3:swagger-annotations:$swaggerVersion")
     implementation("io.jsonwebtoken:jjwt-api:$jwtVersion")
     implementation("de.codecentric:spring-boot-admin-starter-server:$springBootAdminVersion")

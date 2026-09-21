@@ -13,6 +13,9 @@ app:
     enable-real-data: true
   jwt:
     secret: test-secret-key-for-testing-only
+  agent:
+    api-key: test-agent-api-key
+    model: test-gemini-model
   frontend:
     origin: http://localhost:3000
   cors:
