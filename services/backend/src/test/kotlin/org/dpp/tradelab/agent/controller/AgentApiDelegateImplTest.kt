@@ -101,6 +101,21 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().string("data: Hello\n\ndata:  world\n\n"))
         }
 
+        test("queryAgent_jsonPreferredAccept_returnsBufferedReply") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.just("Buffered", " reply"))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .header(HttpHeaders.ACCEPT, "application/json;q=1.0, text/event-stream;q=0")
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("\$.conversationId").value(conversationId.toString()))
+                .andExpect(jsonPath("\$.reply").value("Buffered reply"))
+        }
+
         test("queryAgent_bufferedFallback_returnsJsonReply") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
@@ -134,6 +149,20 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("event: error")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("The AI assistant is temporarily unavailable.")))
+        }
+
+        test("queryAgent_streamedSuccess_normalizesCarriageReturns") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.just("Hello\r\nworld\ragain"))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string("data: Hello\ndata: world\ndata: again\n\n"))
         }
 
         test("queryAgent_emptyBufferedReply_returns503") {

@@ -68,11 +68,20 @@ class AgentApiDelegateImpl(
         }
 
         return try {
-            MediaType.parseMediaTypes(acceptHeader)
-                .any {
-                    it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) ||
-                        (it.type == "*" && it.subtype == "*")
+            val mediaTypes = MediaType.parseMediaTypes(acceptHeader)
+            val bestStreamingQuality = mediaTypes
+                .filter {
+                    it.qualityValue > 0.0 &&
+                        (it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) || (it.type == "*" && it.subtype == "*"))
                 }
+                .maxOfOrNull { it.qualityValue }
+                ?: 0.0
+            val bestJsonQuality = mediaTypes
+                .filter { it.qualityValue > 0.0 && it.isCompatibleWith(MediaType.APPLICATION_JSON) }
+                .maxOfOrNull { it.qualityValue }
+                ?: 0.0
+
+            bestStreamingQuality > 0.0 && bestStreamingQuality >= bestJsonQuality
         } catch (_: IllegalArgumentException) {
             false
         }
@@ -115,8 +124,9 @@ class AgentApiDelegateImpl(
 
     private fun writeDataEvent(writer: java.io.Writer, chunk: String) {
         synchronized(writer) {
+            val normalizedChunk = chunk.replace(Regex("\r\n?|\n"), "\n")
             writer.write("data: ")
-            writer.write(chunk.replace("\n", "\ndata: "))
+            writer.write(normalizedChunk.replace("\n", "\ndata: "))
             writer.write("\n\n")
             writer.flush()
         }
