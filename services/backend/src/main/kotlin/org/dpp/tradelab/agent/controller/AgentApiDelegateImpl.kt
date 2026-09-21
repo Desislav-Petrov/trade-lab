@@ -166,7 +166,10 @@ class AgentApiDelegateImpl(
             .blockingGet()
 
         if (bufferedReply.isBlank()) {
-            throw AgentUnavailableException("The AI assistant returned no response.")
+            throw AgentUnavailableException(
+                "The AI assistant is temporarily unavailable.",
+                IllegalStateException("Buffered fallback produced no response.")
+            )
         }
 
         val response = AgentQueryResponse(
