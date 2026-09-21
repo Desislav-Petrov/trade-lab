@@ -35,6 +35,10 @@ class AgentApiDelegateImpl(
     private val agentService: AgentService,
     private val ledgerAccountApi: LedgerAccountApi
 ) : AgentApiDelegate {
+    companion object {
+        private const val SSE_PIPE_BUFFER_SIZE = 16 * 1024
+        private const val MAX_BUFFERED_REPLY_CHARS = 16_384
+    }
 
     private val objectMapper = jacksonObjectMapper()
 
@@ -74,7 +78,7 @@ class AgentApiDelegateImpl(
 
     private fun streamReply(reply: Flowable<String>): ResponseEntity<Resource> {
         val subscriptionRef = AtomicReference<Disposable?>()
-        val inputStream = object : PipedInputStream() {
+        val inputStream = object : PipedInputStream(SSE_PIPE_BUFFER_SIZE) {
             override fun close() {
                 subscriptionRef.get()?.dispose()
                 super.close()
@@ -183,9 +187,5 @@ class AgentApiDelegateImpl(
             .contentType(MediaType.APPLICATION_JSON)
             .contentLength(body.size.toLong())
             .body(ByteArrayResource(body))
-    }
-
-    private companion object {
-        const val MAX_BUFFERED_REPLY_CHARS = 16_384
     }
 }

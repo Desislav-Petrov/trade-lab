@@ -41,7 +41,11 @@ class AgentService(
             )
                 .flatMap { event -> eventToChunk(event) }
                 .onErrorResumeNext { error: Throwable ->
-                    Flowable.error(AgentUnavailableException("The AI assistant is temporarily unavailable.", error))
+                    if (error is AgentUnavailableException) {
+                        Flowable.error(error)
+                    } else {
+                        Flowable.error(AgentUnavailableException("The AI assistant is temporarily unavailable.", error))
+                    }
                 }
         } catch (ex: AgentUnavailableException) {
             Flowable.error(ex)
