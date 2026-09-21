@@ -1,5 +1,6 @@
 package org.dpp.tradelab
 
+import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.ledger.exception.AccountNotActiveException
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.ledger.exception.AccountOwnershipException
@@ -52,6 +53,11 @@ class GlobalExceptionHandler {
     fun handleOidcAuthenticationException(ex: OidcAuthenticationException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ErrorResponse(500, "Authentication error", listOf(ex.message ?: "An error occurred during authentication")))
+
+    @ExceptionHandler(AgentUnavailableException::class)
+    fun handleAgentUnavailable(ex: AgentUnavailableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(ErrorResponse(503, "Assistant unavailable", listOf(ex.message ?: "The AI assistant is temporarily unavailable.")))
 
     @ExceptionHandler(DuplicateEmailException::class)
     fun handleDuplicateEmail(ex: DuplicateEmailException): ResponseEntity<ErrorResponse> =

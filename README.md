@@ -233,6 +233,8 @@ migrations externally (e.g. Flyway / Liquibase) before starting the app.
 | GitHub OAuth2 client ID | `GITHUB_CLIENT_ID` | `not-configured` | GitHub OAuth2 client ID for social login. |
 | GitHub OAuth2 client secret | `GITHUB_CLIENT_SECRET` | `not-configured` | GitHub OAuth2 client secret. |
 | Finnhub API key | `FINNHUB_API_KEY` | *(none)* | API key for Finnhub market data. Supply a real key for meaningful data. |
+| Gemini / Google API key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | *(none)* | API key used by the AI assistant backend. Set one of these environment variables; no key is hard-coded in the app. |
+| Gemini model | `GEMINI_MODEL` | *(none)* | Gemini model name used by the AI assistant backend (for example `gemini-2.5-flash`). |
 | Frontend allowed origin (CORS) | `FRONTEND_ORIGIN` | `http://localhost:5173` | Origin the backend permits for CORS and OAuth2 redirects. Set to the production frontend URL in production. |
 | Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
 | Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
@@ -250,6 +252,9 @@ migrations externally (e.g. Flyway / Liquibase) before starting the app.
 | `FRONTEND_VERSION` | `latest` | Docker image tag for the frontend container. |
 | `GOOGLE_CLIENT_ID` | *(none)* | Passed into the backend container for Google OAuth2. |
 | `GOOGLE_CLIENT_SECRET` | *(none)* | Passed into the backend container for Google OAuth2. |
+| `GOOGLE_API_KEY` | *(none)* | Optional AI assistant API key passed into the backend container. You may set `GEMINI_API_KEY` instead. |
+| `GEMINI_API_KEY` | *(none)* | Optional alias for the AI assistant API key passed into the backend container. |
+| `GEMINI_MODEL` | *(none)* | Gemini model name passed into the backend container for the AI assistant backend. |
 | `GITHUB_CLIENT_ID` | *(none)* | Passed into the backend container for GitHub OAuth2. |
 | `GITHUB_CLIENT_SECRET` | *(none)* | Passed into the backend container for GitHub OAuth2. |
 
