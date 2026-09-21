@@ -1,7 +1,9 @@
 package org.dpp.tradelab.agent.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import org.dpp.tradelab.agent.generated.api.AgentApiDelegate
 import org.dpp.tradelab.agent.generated.model.AgentQueryRequest
 import org.dpp.tradelab.agent.generated.model.AgentQueryResponse
@@ -20,9 +22,10 @@ import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.context.request.ServletRequestAttributes
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class AgentApiDelegateImpl(
@@ -58,33 +61,71 @@ class AgentApiDelegateImpl(
     }
 
     private fun streamReply(reply: Flowable<String>): ResponseEntity<Resource> {
-        val inputStream = PipedInputStream()
-        val outputStream = PipedOutputStream(inputStream)
-
-        CompletableFuture.runAsync {
-            outputStream.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
-                try {
-                    reply.blockingForEach { chunk ->
-                        writer.write("data: ")
-                        writer.write(chunk.replace("\n", "\ndata: "))
-                        writer.write("\n\n")
-                        writer.flush()
-                    }
-                } catch (ex: Exception) {
-                    writer.write("event: error\n")
-                    writer.write("data: The AI assistant is temporarily unavailable.\n\n")
-                    writer.flush()
-                }
+        val subscriptionRef = AtomicReference<Disposable?>()
+        val inputStream = object : PipedInputStream() {
+            override fun close() {
+                subscriptionRef.get()?.dispose()
+                super.close()
             }
-        }.whenComplete { _, _ ->
-            outputStream.close()
         }
+        val outputStream = PipedOutputStream(inputStream)
+        val writer = outputStream.bufferedWriter(StandardCharsets.UTF_8)
+
+        val subscription = reply
+            .subscribeOn(Schedulers.io())
+            .subscribe(
+                { chunk ->
+                    writeDataEvent(writer, chunk)
+                },
+                { ex ->
+                    if (!isClientDisconnect(ex)) {
+                        writeErrorEvent(writer)
+                    }
+                    closeQuietly(writer)
+                },
+                {
+                    closeQuietly(writer)
+                }
+            )
+        subscriptionRef.set(subscription)
 
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
             .contentType(MediaType.TEXT_EVENT_STREAM)
             .body(InputStreamResource(inputStream))
     }
+
+    private fun writeDataEvent(writer: java.io.Writer, chunk: String) {
+        synchronized(writer) {
+            writer.write("data: ")
+            writer.write(chunk.replace("\n", "\ndata: "))
+            writer.write("\n\n")
+            writer.flush()
+        }
+    }
+
+    private fun writeErrorEvent(writer: java.io.Writer) {
+        try {
+            synchronized(writer) {
+                writer.write("event: error\n")
+                writer.write("data: The AI assistant is temporarily unavailable.\n\n")
+                writer.flush()
+            }
+        } catch (_: IOException) {
+        }
+    }
+
+    private fun closeQuietly(writer: java.io.Writer) {
+        try {
+            writer.close()
+        } catch (_: IOException) {
+        }
+    }
+
+    private fun isClientDisconnect(ex: Throwable): Boolean =
+        ex is IOException && ex.message?.lowercase()?.let { message ->
+            "pipe closed" in message || "broken pipe" in message
+        } == true
 
     private fun bufferedReply(conversationId: UUID, reply: Flowable<String>): ResponseEntity<Resource> {
         val response = AgentQueryResponse(

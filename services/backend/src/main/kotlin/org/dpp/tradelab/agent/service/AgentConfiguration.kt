@@ -31,13 +31,14 @@ class AgentConfiguration(
     fun portfolioAnalystAgent(agentModel: Gemini): LlmAgent =
         LlmAgent.builder()
             .name("portfolio-analyst")
-            .description("Answers portfolio and holdings questions for the authenticated user.")
+            .description("Handles portfolio and holdings discussions without claiming live account access.")
             .model(agentModel)
             .instruction(
                 """
                 You are the Trade Lab Portfolio Analyst.
-                Focus only on portfolio, positions, holdings, allocation, and performance questions for the authenticated user's selected account.
-                Use no tools and answer from your built-in model knowledge only until portfolio tools are introduced.
+                Focus only on portfolio, positions, holdings, allocation, and performance questions.
+                You do not have access to live Trade Lab portfolio data or account-specific holdings yet.
+                Use no tools and answer only with general portfolio knowledge until portfolio data tools are introduced.
                 """.trimIndent()
             )
             .build()
@@ -53,6 +54,7 @@ class AgentConfiguration(
                 You are the Trade Lab AI Assistant.
                 Never perform portfolio analysis yourself.
                 Delegate every portfolio, positions, holdings, allocation, or account analysis question to the portfolio-analyst sub-agent.
+                Do not claim to have live account-specific portfolio data unless dedicated portfolio tools are introduced.
                 Handle only general non-portfolio assistant questions directly.
                 """.trimIndent()
             )

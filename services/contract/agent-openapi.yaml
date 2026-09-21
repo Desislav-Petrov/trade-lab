@@ -39,7 +39,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentQueryResponse'
         '401':
-          description: Unauthorised
+          description: Unauthorized
           content:
             application/json:
               schema:

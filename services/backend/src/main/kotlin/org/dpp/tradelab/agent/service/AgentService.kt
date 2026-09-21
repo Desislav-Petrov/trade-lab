@@ -20,6 +20,7 @@ class AgentService(
     private val agentSessionService: InMemorySessionService,
     private val agentRunConfig: RunConfig
 ) {
+    private val sessionLocks = ConcurrentHashMap<String, Any>()
 
     fun query(
         userId: UUID,
@@ -48,28 +49,31 @@ class AgentService(
     private fun loadOrCreateSession(userId: UUID, accountId: UUID, conversationId: UUID): Session {
         val userIdValue = userId.toString()
         val conversationIdValue = conversationId.toString()
+        val sessionLock = sessionLocks.computeIfAbsent("$userIdValue:$conversationIdValue") { Any() }
 
-        val existing = agentSessionService.getSession(
-            AGENT_APP_NAME,
-            userIdValue,
-            conversationIdValue,
-            Optional.empty()
-        ).blockingGet()
+        synchronized(sessionLock) {
+            val existing = agentSessionService.getSession(
+                AGENT_APP_NAME,
+                userIdValue,
+                conversationIdValue,
+                Optional.empty()
+            ).blockingGet()
 
-        if (existing != null) {
-            return existing
+            if (existing != null) {
+                return existing
+            }
+
+            val state = ConcurrentHashMap<String, Any>()
+            state["userId"] = userIdValue
+            state["accountId"] = accountId.toString()
+
+            return agentSessionService.createSession(
+                AGENT_APP_NAME,
+                userIdValue,
+                state,
+                conversationIdValue
+            ).blockingGet()
         }
-
-        val state = ConcurrentHashMap<String, Any>()
-        state["userId"] = userIdValue
-        state["accountId"] = accountId.toString()
-
-        return agentSessionService.createSession(
-            AGENT_APP_NAME,
-            userIdValue,
-            state,
-            conversationIdValue
-        ).blockingGet()
     }
 
     private fun eventToChunk(event: Event): Flowable<String> {
