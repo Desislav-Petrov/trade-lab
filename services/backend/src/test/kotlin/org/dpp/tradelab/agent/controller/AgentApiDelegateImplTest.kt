@@ -87,6 +87,20 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().string("data: Hello\n\ndata:  world\n\n"))
         }
 
+        test("queryAgent_wildcardAccept_returnsEventStream") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(Flowable.just("Hello", " world"))
+
+            mockMvc.perform(
+                authenticatedRequest()
+                    .header(HttpHeaders.ACCEPT, "*/*")
+            )
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string("data: Hello\n\ndata:  world\n\n"))
+        }
+
         test("queryAgent_bufferedFallback_returnsJsonReply") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))

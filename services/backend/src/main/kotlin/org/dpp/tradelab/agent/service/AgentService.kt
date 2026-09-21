@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
 @Service
@@ -23,7 +22,7 @@ class AgentService(
     private val agentSessionService: InMemorySessionService,
     private val agentRunConfig: RunConfig
 ) {
-    private val sessionLocks = ConcurrentHashMap<String, SessionLock>()
+    private val sessionLocks = ConcurrentHashMap<String, ReentrantLock>()
 
     fun query(
         userId: UUID,
@@ -85,7 +84,7 @@ class AgentService(
                 conversationIdValue
             ).blockingGet()
         } finally {
-            releaseSessionLock(lockKey, sessionLock)
+            releaseSessionLock(sessionLock)
         }
     }
 
@@ -95,28 +94,16 @@ class AgentService(
     }
 
     private fun acquireSessionLock(lockKey: String): SessionLock {
-        val sessionLock = sessionLocks.compute(lockKey) { _, existing ->
-            (existing ?: SessionLock()).also { it.refCount.incrementAndGet() }
-        }!!
-        sessionLock.lock.lock()
-        return sessionLock
+        val sessionLock = sessionLocks.computeIfAbsent(lockKey) { ReentrantLock() }
+        sessionLock.lock()
+        return SessionLock(sessionLock)
     }
 
-    private fun releaseSessionLock(lockKey: String, sessionLock: SessionLock) {
+    private fun releaseSessionLock(sessionLock: SessionLock) {
         sessionLock.lock.unlock()
-        sessionLocks.computeIfPresent(lockKey) { _, existing ->
-            if (existing !== sessionLock) {
-                existing
-            } else if (existing.refCount.decrementAndGet() == 0) {
-                null
-            } else {
-                existing
-            }
-        }
     }
 
     private class SessionLock(
-        val lock: ReentrantLock = ReentrantLock(),
-        val refCount: AtomicInteger = AtomicInteger(0)
+        val lock: ReentrantLock
     )
 }

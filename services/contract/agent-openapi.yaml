@@ -20,7 +20,20 @@ paths:
       tags:
         - Agent
       summary: Query the Trade Lab AI assistant
+      description: >
+        Request a streamed assistant reply. Clients receive Server-Sent Events when the
+        `Accept` header is `text/event-stream` or `*/*`; send `Accept: application/json`
+        to request the buffered fallback response.
       operationId: queryAgent
+      parameters:
+        - in: header
+          name: Accept
+          required: false
+          schema:
+            type: string
+          description: >
+            Response negotiation header. Use `text/event-stream` or `*/*` for token streaming,
+            or `application/json` for the buffered fallback reply.
       requestBody:
         required: true
         content:

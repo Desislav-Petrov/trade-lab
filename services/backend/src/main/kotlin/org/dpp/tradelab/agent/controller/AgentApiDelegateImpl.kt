@@ -21,8 +21,6 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
-import org.springframework.web.context.request.RequestContextHolder
-import org.springframework.web.context.request.ServletRequestAttributes
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.io.IOException
@@ -42,7 +40,7 @@ class AgentApiDelegateImpl(
 
     private val objectMapper = jacksonObjectMapper()
 
-    override fun queryAgent(agentQueryRequest: AgentQueryRequest): ResponseEntity<Resource> {
+    override fun queryAgent(agentQueryRequest: AgentQueryRequest, accept: String?): ResponseEntity<Resource> {
         val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID
             ?: throw InvalidTokenException("Authentication required")
         val account = ledgerAccountApi.getAccount(agentQueryRequest.accountId)
@@ -57,20 +55,24 @@ class AgentApiDelegateImpl(
             message = agentQueryRequest.message
         )
 
-        return if (acceptsEventStream()) {
+        return if (acceptsEventStream(accept)) {
             streamReply(reply)
         } else {
             bufferedReply(agentQueryRequest.conversationId, reply)
         }
     }
 
-    private fun acceptsEventStream(): Boolean {
-        val request = (RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes)?.request ?: return false
-        val acceptHeader = request.getHeader(HttpHeaders.ACCEPT) ?: return false
+    private fun acceptsEventStream(acceptHeader: String?): Boolean {
+        if (acceptHeader.isNullOrBlank()) {
+            return false
+        }
 
         return try {
             MediaType.parseMediaTypes(acceptHeader)
-                .any { it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) }
+                .any {
+                    it.isCompatibleWith(MediaType.TEXT_EVENT_STREAM) ||
+                        (it.type == "*" && it.subtype == "*")
+                }
         } catch (_: IllegalArgumentException) {
             false
         }
