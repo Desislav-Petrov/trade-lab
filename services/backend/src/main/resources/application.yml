@@ -88,6 +88,9 @@ app:
     enable-real-data: ${ENABLE_REAL_DATA:true}
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-in-production-32c}
+  agent:
+    api-key: ${GOOGLE_API_KEY:${GEMINI_API_KEY:}}
+    model: ${GEMINI_MODEL:}
   frontend:
     origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   cors:

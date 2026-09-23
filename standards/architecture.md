@@ -20,6 +20,7 @@ vertical may depend on them.
 
 | Domain      | Responsibility                                                  |
 |-------------|-----------------------------------------------------------------|
+| Agent       | AI assistant conversations, orchestration, and specialist agents |
 | User        | User identity, registration, login, and lifecycle               |
 | Ledger      | Account holdings — money, stocks, and any other assets          |
 | Market Data | Sourcing and serving market data per product type               |
@@ -48,6 +49,10 @@ Each domain is a top-level sub-package with a fixed internal structure.
 
 ```
 org/dpp/tradelab/
+  agent/
+    controller/   # REST delegate implementations
+    exception/    # Domain-specific exception classes
+    service/      # Agent orchestration and chat flow
   user/
     model/        # JPA entities and enums only
     repository/   # Spring Data JPA repository interfaces
@@ -61,7 +66,7 @@ org/dpp/tradelab/
   marketdata/     # same structure
   stocktrading/   # same structure
   portfolio/      # same structure 
-  config/                     # Global Spring configuration
+  config/                     # Global/shared Spring configuration, including agent runtime wiring
   GlobalExceptionHandler.kt   # Root level — handles all domains consistently
   TradingLabApplication.kt
 ```
@@ -131,10 +136,14 @@ requires only deployment and wiring changes — no business logic rewrite.
 Frontend code lives in `services/front-end/`. Full frontend conventions are
 defined in `standards/frontend.md`.
 
-The frontend communicates with the backend exclusively via REST (JSON over HTTP).
-The API contract is defined in OpenAPI 3.0 and lives in
-`services/contract/trade-lab-openapi.yaml` — the single source of truth for all
-endpoint definitions consumed by the frontend.
+The frontend communicates with the backend via REST over HTTP. Most endpoints
+exchange JSON, and some domain contracts may also expose streaming responses
+such as `text/event-stream`.
+
+The API contracts are defined in per-domain OpenAPI 3.0 files under
+`services/contract/` (for example `user-openapi.yaml`, `ledger-openapi.yaml`,
+`agent-openapi.yaml`). Each file is the single source of truth for its domain's
+endpoint definitions.
 
 The frontend domain structure mirrors the backend domain taxonomy.
 
@@ -142,6 +151,7 @@ The frontend domain structure mirrors the backend domain taxonomy.
 services/front-end/
   src/
     domains/
+      agent/          # Assistant chat UI and streaming client
       user/           # Registration, login
       ledger/         # Account balances, holdings
       marketdata/     # Price feeds, instrument search

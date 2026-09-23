@@ -11,7 +11,7 @@
 | Database | H2 file-based (local dev / test) · PostgreSQL (production) |
 | Unit testing | KoTest + Mockito (`mockito-kotlin`) |
 | Build | Gradle (Kotlin DSL — `build.gradle.kts`) |
-| API | REST (JSON over HTTP) |
+| API | REST over HTTP (JSON by default; streaming such as SSE when the contract requires it) |
 | Minimum JDK | 21 |
 
 Dependency versions for Kotlin, Hibernate, and Spring Framework are managed by the Spring Boot BOM — do not declare them manually unless overriding.
@@ -34,11 +34,12 @@ src/
           api/          # Kotlin interfaces exposed to other domains (cross-domain sync only)
           messaging/    # Domain event definitions, publishers, listener classes
           util/         # Domain-scoped utility classes
+        agent/          # same structure, but add only the sub-packages the domain currently needs
         ledger/         # same structure
         marketdata/     # same structure
         stocktrading/   # same structure
         portfolio/      # same structure
-        config/                     # Global Spring configuration
+        config/                     # Global/shared Spring configuration (for example agent runtime wiring)
         GlobalExceptionHandler.kt   # Root level — handles all domains
         TradingLabApplication.kt
     resources/
@@ -49,6 +50,7 @@ src/
     kotlin/
       org/dpp/tradelab/
         user/
+        agent/
         ledger/
         marketdata/
         stocktrading/
@@ -264,6 +266,7 @@ The generated `{Domain}ApiController` is the `@RestController` — it is not han
 - Base path: `/api/v1`
 - Resource names are plural nouns: `/api/v1/users`, `/api/v1/accounts`
 - Controllers receive and return generated DTO types only — entity classes are never serialised directly.
+- Streaming HTTP responses (for example `text/event-stream`) are allowed when they are declared in the domain OpenAPI contract and exposed through the generated delegate/controller pair.
 
 ### HTTP methods and status codes
 

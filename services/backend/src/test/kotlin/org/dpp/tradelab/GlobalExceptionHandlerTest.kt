@@ -2,10 +2,12 @@ package org.dpp.tradelab
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
+import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -21,9 +23,18 @@ class DuplicateEmailTestController {
     }
 }
 
+@RestController
+class AgentUnavailableTestController {
+    @GetMapping("/test/agent-unavailable")
+    fun trigger(): String {
+        throw AgentUnavailableException("The AI assistant is temporarily unavailable.")
+    }
+}
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
@@ -35,6 +46,14 @@ class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
                 .andExpect(jsonPath("\$.status").value(409))
                 .andExpect(jsonPath("\$.error").value("Email already registered"))
                 .andExpect(jsonPath("\$.details[0]").value("An account with this email already exists."))
+        }
+
+        test("handleAgentUnavailable_agentUnavailableException_returns503WithErrorBody") {
+            mockMvc.perform(get("/test/agent-unavailable"))
+                .andExpect(status().isServiceUnavailable)
+                .andExpect(jsonPath("\$.status").value(503))
+                .andExpect(jsonPath("\$.error").value("Assistant unavailable"))
+                .andExpect(jsonPath("\$.details[0]").value("The AI assistant is temporarily unavailable."))
         }
     }
 }
