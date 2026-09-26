@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { router } from './router'
 import { Toaster } from '../shared/components/Toaster'
+import { AccountSelectionBootstrap } from '../shared/components/AccountSelectionBootstrap'
 import { AssistantChatPopup } from '../domains/agent/components/AssistantChatPopup'
 import { AssistantWidget } from '../domains/agent/components/AssistantWidget'
 import { useSessionStore } from '../domains/user/hooks/useSessionStore'
@@ -27,6 +28,7 @@ function App() {
       <Toaster />
       {hasActiveSession && (
         <>
+          <AccountSelectionBootstrap />
           <AssistantWidget />
           <AssistantChatPopup />
         </>
