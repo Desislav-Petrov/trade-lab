@@ -3,6 +3,12 @@ import type { QueryAgentRequest, QueryAgentResponse } from '../types/agent'
 
 export const AGENT_QUERY_KEY = 'agentQuery'
 
+// Abort the stream if no bytes arrive within this window — covers both an
+// initial connection hang and a mid-stream stall. Set slightly longer than the
+// backend's model timeout so the backend's structured error event is preferred
+// when it is the one that stalls.
+export const AGENT_STREAM_TIMEOUT_MS = 35_000
+
 type TokenHandler = (token: string) => void
 type ErrorHandler = (error: Error) => void
 type DoneHandler = () => void
@@ -78,6 +84,9 @@ async function toResponseError(response: Response): Promise<Error> {
 }
 
 function toError(error: unknown): Error {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return new Error('The assistant timed out waiting for a response. Please try again.')
+  }
   return error instanceof Error ? error : new Error('Assistant unavailable.')
 }
 
@@ -87,6 +96,21 @@ export async function queryAgent(
   onError: ErrorHandler,
   onDone: DoneHandler,
 ): Promise<void> {
+  const controller = new AbortController()
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const armTimeout = (): void => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => controller.abort(), AGENT_STREAM_TIMEOUT_MS)
+  }
+
+  const clearTimeoutHandle = (): void => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+      timeoutId = undefined
+    }
+  }
+
   try {
     const headers: Record<string, string> = {
       Accept: 'text/event-stream, application/json',
@@ -98,10 +122,12 @@ export async function queryAgent(
       headers.Authorization = authorizationHeader
     }
 
+    armTimeout()
     const response = await fetch('/api/v1/agent/query', {
       method: 'POST',
       headers,
       body: JSON.stringify(request),
+      signal: controller.signal,
     })
 
     if (!response.ok) {
@@ -123,6 +149,9 @@ export async function queryAgent(
         const { value, done } = await reader.read()
         if (done) break
 
+        // Reset the inactivity timer every time bytes arrive so a healthy,
+        // long-running stream is never aborted — only a stall triggers it.
+        armTimeout()
         buffer = flushSseBuffer(buffer + decoder.decode(value, { stream: true }), onToken)
       }
 
@@ -137,7 +166,10 @@ export async function queryAgent(
     onDone()
   } catch (error) {
     const agentError = toError(error)
+    console.error('[agent] query failed:', agentError.message, error)
     onError(agentError)
     throw agentError
+  } finally {
+    clearTimeoutHandle()
   }
 }

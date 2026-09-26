@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SESSION_STORAGE_KEY } from '../../user/types/user'
-import { AGENT_QUERY_KEY, queryAgent } from './queryAgent'
+import { AGENT_QUERY_KEY, AGENT_STREAM_TIMEOUT_MS, queryAgent } from './queryAgent'
 
 describe('queryAgent', () => {
   beforeEach(() => {
@@ -114,6 +114,67 @@ describe('queryAgent', () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error))
     expect(onDone).not.toHaveBeenCalled()
     expect(onToken).not.toHaveBeenCalled()
+  })
+
+  it('queryAgent - passes an abort signal to fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ conversationId: 'conv-1', reply: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await queryAgent(
+      { accountId: 'acc-1', conversationId: 'conv-1', message: 'Hello' },
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+    )
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('queryAgent - stalled request - aborts after the timeout with a timeout error', async () => {
+    vi.useFakeTimers()
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onToken = vi.fn()
+    const onError = vi.fn()
+    const onDone = vi.fn()
+
+    // Never resolves on its own; only rejects when the abort signal fires.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          const signal = init.signal as AbortSignal
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError')),
+          )
+        })
+      }),
+    )
+
+    const pending = queryAgent(
+      { accountId: 'acc-1', conversationId: 'conv-1', message: 'Hello' },
+      onToken,
+      onError,
+      onDone,
+    )
+    const assertion = expect(pending).rejects.toThrow(
+      'The assistant timed out waiting for a response. Please try again.',
+    )
+
+    await vi.advanceTimersByTimeAsync(AGENT_STREAM_TIMEOUT_MS)
+    await assertion
+
+    expect(onError).toHaveBeenCalledWith(expect.any(Error))
+    expect(onDone).not.toHaveBeenCalled()
+    expect(onToken).not.toHaveBeenCalled()
+
+    consoleErrorSpy.mockRestore()
+    vi.useRealTimers()
   })
 })
 
