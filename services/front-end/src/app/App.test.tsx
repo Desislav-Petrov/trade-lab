@@ -11,6 +11,12 @@ vi.mock('./router', () => ({
   router: {},
 }))
 
+// The global AccountSelectionBootstrap reads active accounts via this hook.
+// Stub it so the App-level tests do not trigger a real network fetch.
+vi.mock('../domains/ledger/hooks/useLedger', () => ({
+  useActiveAccounts: () => ({ data: undefined }),
+}))
+
 describe('App', () => {
   beforeEach(() => {
     useSessionStore.setState({
