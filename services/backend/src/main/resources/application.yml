@@ -91,6 +91,9 @@ app:
   agent:
     api-key: ${GOOGLE_API_KEY:${GEMINI_API_KEY:}}
     model: ${GEMINI_MODEL:}
+    # Max seconds to wait for a model chunk before failing the stream with a
+    # logged error instead of hanging the SSE connection indefinitely.
+    timeout-seconds: ${AGENT_TIMEOUT_SECONDS:30}
   frontend:
     origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   cors:

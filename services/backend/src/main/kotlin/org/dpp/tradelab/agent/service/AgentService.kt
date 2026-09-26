@@ -10,11 +10,15 @@ import com.google.genai.types.Part
 import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.config.AGENT_APP_NAME
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.Collections
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantLock
 import java.util.WeakHashMap
 
@@ -22,8 +26,15 @@ import java.util.WeakHashMap
 class AgentService(
     private val agentRunner: Runner,
     private val agentSessionService: InMemorySessionService,
-    private val agentRunConfig: RunConfig
+    private val agentRunConfig: RunConfig,
+    @Value("\${app.agent.timeout-seconds:30}")
+    private val timeoutSeconds: Long
 ) {
+    companion object {
+        private const val AGENT_UNAVAILABLE_MESSAGE = "The AI assistant is temporarily unavailable."
+    }
+
+    private val logger = LoggerFactory.getLogger(AgentService::class.java)
     private val sessionLocks = Collections.synchronizedMap(WeakHashMap<String, ReentrantLock>())
 
     fun query(
@@ -41,18 +52,45 @@ class AgentService(
                 agentRunConfig
             )
                 .flatMap { event -> eventToChunk(event) }
+                // Fail fast if the model produces no chunk within the window (initial
+                // hang or a stall mid-stream) instead of leaving the SSE connection —
+                // and the frontend — blocked forever.
+                .timeout(timeoutSeconds, TimeUnit.SECONDS)
                 .onErrorResumeNext { error: Throwable ->
+                    logAgentFailure(userId, conversationId, error)
                     if (error is AgentUnavailableException) {
                         Flowable.error(error)
                     } else {
-                        Flowable.error(AgentUnavailableException("The AI assistant is temporarily unavailable.", error))
+                        Flowable.error(AgentUnavailableException(AGENT_UNAVAILABLE_MESSAGE, error))
                     }
                 }
         } catch (ex: AgentUnavailableException) {
+            logAgentFailure(userId, conversationId, ex)
             Flowable.error(ex)
         } catch (ex: Exception) {
-            Flowable.error(AgentUnavailableException("The AI assistant is temporarily unavailable.", ex))
+            logAgentFailure(userId, conversationId, ex)
+            Flowable.error(AgentUnavailableException(AGENT_UNAVAILABLE_MESSAGE, ex))
         }
+
+    private fun logAgentFailure(userId: UUID, conversationId: UUID, error: Throwable) {
+        if (error is TimeoutException) {
+            logger.error(
+                "Agent query timed out after {}s with no model response for user={} conversation={}",
+                timeoutSeconds,
+                userId,
+                conversationId,
+                error
+            )
+        } else {
+            logger.error(
+                "Agent query failed for user={} conversation={}: {}",
+                userId,
+                conversationId,
+                error.message,
+                error
+            )
+        }
+    }
 
     private fun loadOrCreateSession(userId: UUID, accountId: UUID, conversationId: UUID): Session {
         val userIdValue = userId.toString()

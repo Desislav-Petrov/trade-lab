@@ -32,7 +32,7 @@ class AgentServiceTest : FunSpec({
     val agentRunConfig = RunConfig.builder()
         .streamingMode(RunConfig.StreamingMode.SSE)
         .build()
-    val agentService = AgentService(agentRunner, agentSessionService, agentRunConfig)
+    val agentService = AgentService(agentRunner, agentSessionService, agentRunConfig, timeoutSeconds = 30)
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
@@ -131,6 +131,26 @@ class AgentServiceTest : FunSpec({
 
         shouldThrow<AgentUnavailableException> {
             agentService.query(userId, accountId, conversationId, "Hi").blockingFirst()
+        }.message shouldBe "The AI assistant is temporarily unavailable."
+    }
+
+    test("query_modelStallsBeyondTimeout_surfacesAgentUnavailableException") {
+        val stallingService = AgentService(agentRunner, agentSessionService, agentRunConfig, timeoutSeconds = 1)
+        val existingSession = session()
+        whenever(
+            agentSessionService.getSession(
+                eq(AGENT_APP_NAME),
+                eq(userId.toString()),
+                eq(conversationId.toString()),
+                any()
+            )
+        ).thenReturn(Maybe.just(existingSession))
+        // Model never emits a chunk within the timeout window.
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.never())
+
+        shouldThrow<AgentUnavailableException> {
+            stallingService.query(userId, accountId, conversationId, "Hi").blockingFirst()
         }.message shouldBe "The AI assistant is temporarily unavailable."
     }
 })
