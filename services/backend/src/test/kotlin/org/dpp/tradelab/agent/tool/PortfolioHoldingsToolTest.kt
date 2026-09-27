@@ -160,7 +160,8 @@ class PortfolioHoldingsToolTest : FunSpec({
         val thrown = shouldThrow<IllegalStateException> {
             tool.getHoldings(
                 toolContextFromState(
-                    state = mapOf("accountId" to accountId.toString())
+                    state = mapOf("accountId" to accountId.toString()),
+                    sessionUserId = userId.toString()
                 )
             )
         }
@@ -191,7 +192,8 @@ class PortfolioHoldingsToolTest : FunSpec({
                     state = mapOf(
                         "userId" to "not-a-uuid",
                         "accountId" to accountId.toString()
-                    )
+                    ),
+                    sessionUserId = userId.toString()
                 )
             )
         }
