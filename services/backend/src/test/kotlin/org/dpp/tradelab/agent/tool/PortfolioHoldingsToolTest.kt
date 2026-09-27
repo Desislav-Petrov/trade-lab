@@ -107,7 +107,7 @@ class PortfolioHoldingsToolTest : FunSpec({
         whenever(portfolioApi.getHoldings(accountId, userId)).thenReturn(holdingsView())
 
         tool.getHoldings(
-            PortfolioHoldingsTool.Request(ignored = "ignored-by-tool"),
+            PortfolioHoldingsTool.Request(),
             toolContext(userId, accountId)
         )
 
@@ -187,5 +187,21 @@ class PortfolioHoldingsToolTest : FunSpec({
         }
 
         thrown.message shouldBe "Invalid accountId in agent session state"
+    }
+
+    test("getHoldings_invalidUserIdInSessionState_throwsIllegalStateException") {
+        val thrown = shouldThrow<IllegalStateException> {
+            tool.getHoldings(
+                PortfolioHoldingsTool.Request(),
+                toolContextFromState(
+                    state = mapOf(
+                        "userId" to "not-a-uuid",
+                        "accountId" to accountId.toString()
+                    )
+                )
+            )
+        }
+
+        thrown.message shouldBe "Invalid userId in agent session state"
     }
 })

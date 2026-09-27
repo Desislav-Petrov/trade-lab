@@ -39,9 +39,7 @@ class PortfolioHoldingsTool(
         }
     }
 
-    data class Request(
-        val ignored: String? = null
-    )
+    class Request
 
     data class Result(
         val status: String,
