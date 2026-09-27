@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface PortfolioApi {
     fun getPositionQuantity(accountId: UUID, ticker: String): BigDecimal
+    fun getHoldings(accountId: UUID, userId: UUID): PortfolioHoldingsView
 }

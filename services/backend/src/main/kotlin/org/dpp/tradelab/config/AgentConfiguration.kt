@@ -5,6 +5,7 @@ import com.google.adk.agents.RunConfig
 import com.google.adk.models.Gemini
 import com.google.adk.runner.Runner
 import com.google.adk.sessions.InMemorySessionService
+import org.dpp.tradelab.agent.tool.PortfolioHoldingsTool
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -28,19 +29,20 @@ class AgentConfiguration(
     }
 
     @Bean
-    fun portfolioAnalystAgent(agentModel: Gemini): LlmAgent =
+    fun portfolioAnalystAgent(agentModel: Gemini, portfolioHoldingsTool: PortfolioHoldingsTool): LlmAgent =
         LlmAgent.builder()
             .name("portfolio-analyst")
-            .description("Handles portfolio and holdings discussions without claiming live account access.")
+            .description("Handles portfolio and holdings discussions using the scoped portfolio holdings tool.")
             .model(agentModel)
             .instruction(
                 """
                 You are the Trade Lab Portfolio Analyst.
                 Focus only on portfolio, positions, holdings, allocation, and performance questions.
-                You do not have access to live Trade Lab portfolio data or account-specific holdings yet.
-                Use no tools and answer only with general portfolio knowledge until portfolio data tools are introduced.
+                Call the portfolio holdings tool to read the authenticated user's real holdings for the conversation's single account before answering account-specific portfolio questions.
+                If the tool returns an error, surface that error message to the user.
                 """.trimIndent()
             )
+            .tools(portfolioHoldingsTool.asFunctionTool())
             .build()
 
     @Bean

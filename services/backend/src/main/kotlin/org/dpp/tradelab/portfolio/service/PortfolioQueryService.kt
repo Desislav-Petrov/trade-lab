@@ -4,7 +4,6 @@ import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
 import org.dpp.tradelab.marketdata.api.MarketDataApi
-import org.dpp.tradelab.portfolio.api.PortfolioApi
 import org.dpp.tradelab.portfolio.exception.PortfolioAccountAccessDeniedException
 import org.dpp.tradelab.portfolio.exception.PortfolioAccountNotFoundException
 import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
@@ -81,10 +80,10 @@ class PortfolioQueryService(
     private val ledgerApi: LedgerApi,
     private val ledgerAccountApi: LedgerAccountApi,
     private val marketDataApi: MarketDataApi
-) : PortfolioApi {
+) {
 
     @Transactional(readOnly = true)
-    override fun getPositionQuantity(accountId: UUID, ticker: String): BigDecimal =
+    fun getPositionQuantity(accountId: UUID, ticker: String): BigDecimal =
         positionRepository.findByAccountIdAndTicker(accountId, ticker)
             .map { it.quantity }
             .orElse(BigDecimal.ZERO)
