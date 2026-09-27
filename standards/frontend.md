@@ -48,6 +48,8 @@ freely.
 ### `cn()` utility
 
 All class composition must use `cn()` from `@/shared/lib/utils`:
+AI assistant replies in `agent` components must render markdown with `react-markdown` + `remark-gfm` for assistant turns only, with no raw-HTML plugins enabled. See `decisions/2026-09-27-agent-markdown-rendering.md`.
+
 
 ```ts
 import { cn } from '@/shared/lib/utils'
