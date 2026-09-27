@@ -25,14 +25,8 @@ class PortfolioHoldingsTool(
                 status = "ok",
                 portfolio = portfolioApi.getHoldings(scope.accountId, scope.userId)
             )
-        } catch (ex: PortfolioAccountNotFoundException) {
-            Result.error("account_not_found", ex.message)
-        } catch (ex: PortfolioAccountAccessDeniedException) {
-            Result.error("account_access_denied", ex.message)
-        } catch (ex: PortfolioPriceUnavailableException) {
-            Result.error("price_unavailable", ex.message)
-        } catch (ex: PortfolioBalanceUnavailableException) {
-            Result.error("balance_unavailable", ex.message)
+        } catch (ex: RuntimeException) {
+            portfolioErrorResult(ex) ?: throw ex
         }
     }
 
@@ -57,6 +51,14 @@ class PortfolioHoldingsTool(
         val type: String,
         val message: String
     )
+
+    private fun portfolioErrorResult(error: RuntimeException): Result? = when (error) {
+        is PortfolioAccountNotFoundException -> Result.error("account_not_found", error.message)
+        is PortfolioAccountAccessDeniedException -> Result.error("account_access_denied", error.message)
+        is PortfolioPriceUnavailableException -> Result.error("price_unavailable", error.message)
+        is PortfolioBalanceUnavailableException -> Result.error("balance_unavailable", error.message)
+        else -> null
+    }
 
     private data class ToolScope(
         val userId: UUID,
