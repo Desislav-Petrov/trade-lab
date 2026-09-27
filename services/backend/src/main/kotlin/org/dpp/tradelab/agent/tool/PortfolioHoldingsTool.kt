@@ -63,11 +63,19 @@ class PortfolioHoldingsTool(
         val accountId: UUID
     ) {
         companion object {
-            fun from(toolContext: ToolContext): ToolScope =
-                ToolScope(
-                    userId = requireUuid(toolContext, "userId"),
+            fun from(toolContext: ToolContext): ToolScope {
+                val authenticatedUserId = requireAuthenticatedUserId(toolContext)
+                val stateUserId = requireUuid(toolContext, "userId")
+
+                if (stateUserId != authenticatedUserId) {
+                    throw IllegalStateException("userId in agent session state does not match authenticated user")
+                }
+
+                return ToolScope(
+                    userId = authenticatedUserId,
                     accountId = requireUuid(toolContext, "accountId")
                 )
+            }
 
             private fun requireUuid(toolContext: ToolContext, key: String): UUID {
                 val value = toolContext.state()[key]?.toString()
@@ -78,6 +86,13 @@ class PortfolioHoldingsTool(
                     throw IllegalStateException("Invalid $key in agent session state", ex)
                 }
             }
+
+            private fun requireAuthenticatedUserId(toolContext: ToolContext): UUID =
+                try {
+                    UUID.fromString(toolContext.userId())
+                } catch (ex: IllegalArgumentException) {
+                    throw IllegalStateException("Invalid authenticated userId in agent session", ex)
+                }
         }
     }
 }
