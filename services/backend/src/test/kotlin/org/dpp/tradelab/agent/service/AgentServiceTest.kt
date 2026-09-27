@@ -75,7 +75,12 @@ class AgentServiceTest : FunSpec({
             whenever(it.sessionKey()).thenReturn(SessionKey(AGENT_APP_NAME, userId.toString(), sessionId))
         }
 
+    // NOTE: build the session mock into a local val BEFORE the outer whenever(...).
+    // session() itself calls whenever(...) to stub sessionKey(); inlining it inside
+    // thenReturn(...) starts a nested stubbing and trips Mockito's
+    // UnfinishedStubbingException.
     fun stubExistingSession() {
+        val existingSession = session()
         whenever(
             agentSessionService.getSession(
                 eq(AGENT_APP_NAME),
@@ -83,7 +88,7 @@ class AgentServiceTest : FunSpec({
                 eq(conversationId.toString()),
                 any()
             )
-        ).thenReturn(Maybe.just(session()))
+        ).thenReturn(Maybe.just(existingSession))
     }
 
     beforeEach {
