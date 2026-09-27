@@ -82,7 +82,7 @@ class PortfolioHoldingsTool(
                 return try {
                     UUID.fromString(value)
                 } catch (ex: IllegalArgumentException) {
-                    throw IllegalStateException("Invalid $key in agent session state: $value", ex)
+                    throw IllegalStateException("Invalid $key in agent session state", ex)
                 }
             }
         }

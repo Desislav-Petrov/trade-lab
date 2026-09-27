@@ -4,7 +4,9 @@ import com.google.adk.agents.InvocationContext
 import com.google.adk.agents.RunConfig
 import com.google.adk.events.EventActions
 import com.google.adk.sessions.InMemorySessionService
+import com.google.adk.sessions.Session
 import com.google.adk.tools.ToolContext
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.portfolio.api.PortfolioApi
@@ -27,19 +29,14 @@ class PortfolioHoldingsToolTest : FunSpec({
     val accountId = UUID.randomUUID()
     val sessionService = InMemorySessionService()
 
-    fun toolContext(
-        userId: UUID = UUID.randomUUID(),
-        accountId: UUID = UUID.randomUUID()
+    fun toolContextFromState(
+        state: Map<String, Any>,
+        sessionUserId: String = UUID.randomUUID().toString()
     ): ToolContext {
-        val session = com.google.adk.sessions.Session.Builder("session-id")
+        val session = Session.Builder("session-id")
             .appName("trade-lab-agent")
-            .userId(userId.toString())
-            .state(
-                mapOf(
-                    "userId" to userId.toString(),
-                    "accountId" to accountId.toString()
-                )
-            )
+            .userId(sessionUserId)
+            .state(state)
             .build()
 
         val invocationContext = InvocationContext.builder()
@@ -61,6 +58,17 @@ class PortfolioHoldingsToolTest : FunSpec({
             .eventId("event-id")
             .build()
     }
+
+    fun toolContext(
+        userId: UUID = UUID.randomUUID(),
+        accountId: UUID = UUID.randomUUID()
+    ): ToolContext = toolContextFromState(
+        state = mapOf(
+            "userId" to userId.toString(),
+            "accountId" to accountId.toString()
+        ),
+        sessionUserId = userId.toString()
+    )
 
     fun holdingsView() = PortfolioHoldingsView(
         holdings = listOf(
@@ -149,5 +157,35 @@ class PortfolioHoldingsToolTest : FunSpec({
         result.status shouldBe "error"
         result.error shouldBe PortfolioHoldingsTool.Error("balance_unavailable", "Balance unavailable")
         result.portfolio shouldBe null
+    }
+
+    test("getHoldings_missingUserIdInSessionState_throwsIllegalStateException") {
+        val thrown = shouldThrow<IllegalStateException> {
+            tool.getHoldings(
+                PortfolioHoldingsTool.Request(),
+                toolContextFromState(
+                    state = mapOf("accountId" to accountId.toString())
+                )
+            )
+        }
+
+        thrown.message shouldBe "Missing userId in agent session state"
+    }
+
+    test("getHoldings_invalidAccountIdInSessionState_throwsIllegalStateException") {
+        val thrown = shouldThrow<IllegalStateException> {
+            tool.getHoldings(
+                PortfolioHoldingsTool.Request(),
+                toolContextFromState(
+                    state = mapOf(
+                        "userId" to userId.toString(),
+                        "accountId" to "not-a-uuid"
+                    ),
+                    sessionUserId = userId.toString()
+                )
+            )
+        }
+
+        thrown.message shouldBe "Invalid accountId in agent session state"
     }
 })
