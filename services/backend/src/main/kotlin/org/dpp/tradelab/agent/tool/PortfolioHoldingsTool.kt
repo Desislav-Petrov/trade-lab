@@ -25,8 +25,14 @@ class PortfolioHoldingsTool(
                 status = "ok",
                 portfolio = portfolioApi.getHoldings(scope.accountId, scope.userId)
             )
-        } catch (ex: RuntimeException) {
-            portfolioErrorResult(ex) ?: throw ex
+        } catch (ex: PortfolioAccountNotFoundException) {
+            portfolioErrorResult(ex)
+        } catch (ex: PortfolioAccountAccessDeniedException) {
+            portfolioErrorResult(ex)
+        } catch (ex: PortfolioPriceUnavailableException) {
+            portfolioErrorResult(ex)
+        } catch (ex: PortfolioBalanceUnavailableException) {
+            portfolioErrorResult(ex)
         }
     }
 
@@ -52,12 +58,12 @@ class PortfolioHoldingsTool(
         val message: String
     )
 
-    private fun portfolioErrorResult(error: RuntimeException): Result? = when (error) {
+    private fun portfolioErrorResult(error: RuntimeException): Result = when (error) {
         is PortfolioAccountNotFoundException -> Result.error("account_not_found", error.message)
         is PortfolioAccountAccessDeniedException -> Result.error("account_access_denied", error.message)
         is PortfolioPriceUnavailableException -> Result.error("price_unavailable", error.message)
         is PortfolioBalanceUnavailableException -> Result.error("balance_unavailable", error.message)
-        else -> null
+        else -> error("Unsupported portfolio exception: ${error::class.java.simpleName}")
     }
 
     private data class ToolScope(
