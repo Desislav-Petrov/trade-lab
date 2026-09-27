@@ -5,6 +5,7 @@ import com.google.adk.agents.RunConfig
 import com.google.adk.events.EventActions
 import com.google.adk.sessions.InMemorySessionService
 import com.google.adk.sessions.Session
+import com.google.adk.sessions.State
 import com.google.adk.tools.ToolContext
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -260,5 +261,32 @@ class PortfolioHoldingsToolTest : FunSpec({
         }
 
         thrown.message shouldBe "Invalid authenticated userId in agent session"
+    }
+
+    test("getHoldings_prefersToolContextUserId_overSessionUserId") {
+        val authenticatedUserId = UUID.randomUUID()
+        val sessionUserId = UUID.randomUUID()
+        val session = mock<Session>()
+        val invocationContext = mock<InvocationContext>()
+        val mockedToolContext = mock<ToolContext>()
+
+        whenever(portfolioApi.getHoldings(accountId, authenticatedUserId)).thenReturn(holdingsView())
+        whenever(session.userId()).thenReturn(sessionUserId.toString())
+        whenever(invocationContext.session()).thenReturn(session)
+        whenever(mockedToolContext.invocationContext()).thenReturn(invocationContext)
+        whenever(mockedToolContext.userId()).thenReturn(authenticatedUserId.toString())
+        whenever(mockedToolContext.state()).thenReturn(
+            State(
+                mapOf(
+                "userId" to authenticatedUserId.toString(),
+                "accountId" to accountId.toString()
+                )
+            )
+        )
+
+        val result = tool.getHoldings(mockedToolContext)
+
+        result.status shouldBe "ok"
+        verify(portfolioApi).getHoldings(accountId, authenticatedUserId)
     }
 })
