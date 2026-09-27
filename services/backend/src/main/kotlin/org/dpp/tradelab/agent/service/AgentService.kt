@@ -19,6 +19,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import java.util.WeakHashMap
 
@@ -46,12 +47,19 @@ class AgentService(
         try {
             val session = loadOrCreateSession(userId, accountId, conversationId)
 
+            // Per-subscription flag: true once we have streamed a partial (delta)
+            // text chunk for the current model turn. It lets us suppress the final
+            // aggregated event, which repeats the whole turn's text verbatim.
+            val streamedPartial = AtomicBoolean(false)
+
             agentRunner.runAsync(
                 session.sessionKey(),
                 Content.fromParts(Part.fromText(message)),
                 agentRunConfig
             )
-                .flatMap { event -> eventToChunk(event) }
+                // concatMap (not flatMap) keeps token order and makes the dedup
+                // state above deterministic by processing events sequentially.
+                .concatMap { event -> eventToChunk(event, streamedPartial) }
                 // Fail fast if the model produces no chunk within the window (initial
                 // hang or a stall mid-stream) instead of leaving the SSE connection —
                 // and the frontend — blocked forever.
@@ -128,10 +136,44 @@ class AgentService(
         }
     }
 
-    private fun eventToChunk(event: Event): Flowable<String> {
-        val chunk = event.stringifyContent()
-        return if (chunk.isBlank()) Flowable.empty() else Flowable.just(chunk)
+    /**
+     * Turns one ADK [Event] into at most one user-facing text chunk.
+     *
+     * Two things must never reach the client:
+     *  - function-call / function-response parts (agent delegation and tool I/O,
+     *    e.g. the raw `getHoldings` payload) — we surface only natural-language
+     *    text parts and drop everything else;
+     *  - the final aggregated event of a streamed turn, which repeats the whole
+     *    turn's text. In [RunConfig.StreamingMode.SSE] the model emits partial
+     *    (delta) events followed by a non-partial aggregate; forwarding both
+     *    doubles the reply, so we suppress the aggregate once deltas have been
+     *    streamed for the current turn.
+     */
+    private fun eventToChunk(event: Event, streamedPartial: AtomicBoolean): Flowable<String> {
+        val text = event.textContent()
+        if (text.isBlank()) {
+            return Flowable.empty()
+        }
+
+        if (event.partial().orElse(false)) {
+            streamedPartial.set(true)
+            return Flowable.just(text)
+        }
+
+        // Non-partial (complete) event. If it follows partial deltas it is the
+        // aggregate of those deltas and must be dropped; otherwise it is a
+        // single-shot message and must be emitted. Reset the flag so the next
+        // turn is evaluated independently.
+        return if (streamedPartial.getAndSet(false)) Flowable.empty() else Flowable.just(text)
     }
+
+    private fun Event.textContent(): String =
+        content()
+            .flatMap { it.parts() }
+            .map { parts ->
+                parts.mapNotNull { part -> part.text().orElse(null) }.joinToString(separator = "")
+            }
+            .orElse("")
 
     private fun acquireSessionLock(lockKey: String): SessionLock {
         val sessionLock = synchronized(sessionLocks) {
