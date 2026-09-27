@@ -227,4 +227,20 @@ class PortfolioHoldingsToolTest : FunSpec({
 
         thrown.message shouldBe "userId in agent session state does not match authenticated user"
     }
+
+    test("getHoldings_missingAuthenticatedUserId_throwsIllegalStateException") {
+        val thrown = shouldThrow<IllegalStateException> {
+            tool.getHoldings(
+                toolContextFromState(
+                    state = mapOf(
+                        "userId" to userId.toString(),
+                        "accountId" to accountId.toString()
+                    ),
+                    sessionUserId = ""
+                )
+            )
+        }
+
+        thrown.message shouldBe "Missing authenticated userId in agent session"
+    }
 })
