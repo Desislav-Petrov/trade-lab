@@ -17,10 +17,7 @@ class PortfolioHoldingsTool(
 ) {
     fun asFunctionTool(): FunctionTool = FunctionTool.create(this, "getHoldings")
 
-    fun getHoldings(
-        request: Request,
-        toolContext: ToolContext
-    ): Result {
+    fun getHoldings(toolContext: ToolContext): Result {
         val scope = ToolScope.from(toolContext)
 
         return try {
@@ -38,8 +35,6 @@ class PortfolioHoldingsTool(
             Result.error("balance_unavailable", ex.message)
         }
     }
-
-    class Request
 
     data class Result(
         val status: String,

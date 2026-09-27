@@ -96,7 +96,7 @@ class PortfolioHoldingsToolTest : FunSpec({
     test("getHoldings_happyPath_returnsPortfolioView") {
         whenever(portfolioApi.getHoldings(accountId, userId)).thenReturn(holdingsView())
 
-        val result = tool.getHoldings(PortfolioHoldingsTool.Request(), toolContext(userId, accountId))
+        val result = tool.getHoldings(toolContext(userId, accountId))
 
         result.status shouldBe "ok"
         result.portfolio shouldBe holdingsView()
@@ -106,10 +106,7 @@ class PortfolioHoldingsToolTest : FunSpec({
     test("getHoldings_usesSessionScope_notToolArgs") {
         whenever(portfolioApi.getHoldings(accountId, userId)).thenReturn(holdingsView())
 
-        tool.getHoldings(
-            PortfolioHoldingsTool.Request(),
-            toolContext(userId, accountId)
-        )
+        tool.getHoldings(toolContext(userId, accountId))
 
         verify(portfolioApi).getHoldings(accountId, userId)
         verifyNoMoreInteractions(portfolioApi)
@@ -119,7 +116,7 @@ class PortfolioHoldingsToolTest : FunSpec({
         whenever(portfolioApi.getHoldings(accountId, userId))
             .thenThrow(PortfolioAccountNotFoundException("Account not found"))
 
-        val result = tool.getHoldings(PortfolioHoldingsTool.Request(), toolContext(userId, accountId))
+        val result = tool.getHoldings(toolContext(userId, accountId))
 
         result.status shouldBe "error"
         result.error shouldBe PortfolioHoldingsTool.Error("account_not_found", "Account not found")
@@ -130,7 +127,7 @@ class PortfolioHoldingsToolTest : FunSpec({
         whenever(portfolioApi.getHoldings(accountId, userId))
             .thenThrow(PortfolioAccountAccessDeniedException("Access denied"))
 
-        val result = tool.getHoldings(PortfolioHoldingsTool.Request(), toolContext(userId, accountId))
+        val result = tool.getHoldings(toolContext(userId, accountId))
 
         result.status shouldBe "error"
         result.error shouldBe PortfolioHoldingsTool.Error("account_access_denied", "Access denied")
@@ -141,7 +138,7 @@ class PortfolioHoldingsToolTest : FunSpec({
         whenever(portfolioApi.getHoldings(accountId, userId))
             .thenThrow(PortfolioPriceUnavailableException("Price unavailable"))
 
-        val result = tool.getHoldings(PortfolioHoldingsTool.Request(), toolContext(userId, accountId))
+        val result = tool.getHoldings(toolContext(userId, accountId))
 
         result.status shouldBe "error"
         result.error shouldBe PortfolioHoldingsTool.Error("price_unavailable", "Price unavailable")
@@ -152,7 +149,7 @@ class PortfolioHoldingsToolTest : FunSpec({
         whenever(portfolioApi.getHoldings(accountId, userId))
             .thenThrow(PortfolioBalanceUnavailableException("Balance unavailable"))
 
-        val result = tool.getHoldings(PortfolioHoldingsTool.Request(), toolContext(userId, accountId))
+        val result = tool.getHoldings(toolContext(userId, accountId))
 
         result.status shouldBe "error"
         result.error shouldBe PortfolioHoldingsTool.Error("balance_unavailable", "Balance unavailable")
@@ -162,7 +159,6 @@ class PortfolioHoldingsToolTest : FunSpec({
     test("getHoldings_missingUserIdInSessionState_throwsIllegalStateException") {
         val thrown = shouldThrow<IllegalStateException> {
             tool.getHoldings(
-                PortfolioHoldingsTool.Request(),
                 toolContextFromState(
                     state = mapOf("accountId" to accountId.toString())
                 )
@@ -175,7 +171,6 @@ class PortfolioHoldingsToolTest : FunSpec({
     test("getHoldings_invalidAccountIdInSessionState_throwsIllegalStateException") {
         val thrown = shouldThrow<IllegalStateException> {
             tool.getHoldings(
-                PortfolioHoldingsTool.Request(),
                 toolContextFromState(
                     state = mapOf(
                         "userId" to userId.toString(),
@@ -192,7 +187,6 @@ class PortfolioHoldingsToolTest : FunSpec({
     test("getHoldings_invalidUserIdInSessionState_throwsIllegalStateException") {
         val thrown = shouldThrow<IllegalStateException> {
             tool.getHoldings(
-                PortfolioHoldingsTool.Request(),
                 toolContextFromState(
                     state = mapOf(
                         "userId" to "not-a-uuid",
@@ -203,5 +197,18 @@ class PortfolioHoldingsToolTest : FunSpec({
         }
 
         thrown.message shouldBe "Invalid userId in agent session state"
+    }
+
+    test("getHoldings_missingAccountIdInSessionState_throwsIllegalStateException") {
+        val thrown = shouldThrow<IllegalStateException> {
+            tool.getHoldings(
+                toolContextFromState(
+                    state = mapOf("userId" to userId.toString()),
+                    sessionUserId = userId.toString()
+                )
+            )
+        }
+
+        thrown.message shouldBe "Missing accountId in agent session state"
     }
 })
