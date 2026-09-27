@@ -50,6 +50,8 @@ class PortfolioApiMapperTest : FunSpec({
         view.holdings.single().quantity shouldBe BigDecimal("2.0000")
         view.holdings.single().currentPrice shouldBe BigDecimal("150.0000")
         view.holdings.single().currentValue shouldBe BigDecimal("300.0000")
+        view.holdings.single().minPrice shouldBe BigDecimal("120.0000")
+        view.holdings.single().maxPrice shouldBe BigDecimal("170.0000")
         view.holdings.single().avgPrice shouldBe BigDecimal("140.0000")
         view.holdings.single().portfolioPercent shouldBe BigDecimal("37.5000")
         view.holdings.single().unrealisedPnL shouldBe BigDecimal("20.0000")

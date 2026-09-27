@@ -11,6 +11,8 @@ data class PortfolioHoldingsView(
         val quantity: BigDecimal,
         val currentPrice: BigDecimal,
         val currentValue: BigDecimal,
+        val minPrice: BigDecimal,
+        val maxPrice: BigDecimal,
         val avgPrice: BigDecimal,
         val portfolioPercent: BigDecimal?,
         val unrealisedPnL: BigDecimal

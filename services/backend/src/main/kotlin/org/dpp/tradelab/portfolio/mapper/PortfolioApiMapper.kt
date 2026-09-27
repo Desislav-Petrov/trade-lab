@@ -14,6 +14,8 @@ class PortfolioApiMapper {
                     quantity = holding.quantity,
                     currentPrice = holding.currentPrice,
                     currentValue = holding.currentValue,
+                    minPrice = holding.minPrice,
+                    maxPrice = holding.maxPrice,
                     avgPrice = holding.avgPrice,
                     portfolioPercent = holding.portfolioPercent,
                     unrealisedPnL = holding.unrealisedPnL

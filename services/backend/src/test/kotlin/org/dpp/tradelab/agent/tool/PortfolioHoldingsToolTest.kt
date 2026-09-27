@@ -78,6 +78,8 @@ class PortfolioHoldingsToolTest : FunSpec({
                 quantity = BigDecimal("2.0000"),
                 currentPrice = BigDecimal("150.0000"),
                 currentValue = BigDecimal("300.0000"),
+                minPrice = BigDecimal("120.0000"),
+                maxPrice = BigDecimal("170.0000"),
                 avgPrice = BigDecimal("140.0000"),
                 portfolioPercent = BigDecimal("37.5000"),
                 unrealisedPnL = BigDecimal("20.0000")
