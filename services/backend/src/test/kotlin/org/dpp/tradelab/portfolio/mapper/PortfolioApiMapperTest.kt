@@ -57,4 +57,41 @@ class PortfolioApiMapperTest : FunSpec({
         view.cash.currency shouldBe "USD"
         view.cash.portfolioPercent shouldBe BigDecimal("62.5000")
     }
+
+    test("toHoldingsView_preservesNullPortfolioPercents") {
+        val result = PortfolioHoldingsResult(
+            holdings = listOf(
+                StockHoldingResult(
+                    ticker = "AAPL",
+                    quantity = BigDecimal("2.0000"),
+                    currentPrice = BigDecimal.ZERO,
+                    currentValue = BigDecimal.ZERO,
+                    minPrice = BigDecimal("120.0000"),
+                    maxPrice = BigDecimal("170.0000"),
+                    avgPrice = BigDecimal("140.0000"),
+                    portfolioPercent = null,
+                    unrealisedPnL = BigDecimal("-280.0000")
+                )
+            ),
+            cash = CashHoldingResult(
+                balance = BigDecimal.ZERO,
+                currency = "USD",
+                portfolioPercent = null
+            ),
+            insights = PortfolioInsights(
+                assetClassBreakdown = org.dpp.tradelab.portfolio.service.AssetClassBreakdown(
+                    stockPercent = null,
+                    cashPercent = null,
+                    totalPortfolioValue = BigDecimal.ZERO
+                ),
+                stockBreakdown = emptyList(),
+                unrealisedPnLContribution = emptyList()
+            )
+        )
+
+        val view = mapper.toHoldingsView(result)
+
+        view.holdings.single().portfolioPercent shouldBe null
+        view.cash.portfolioPercent shouldBe null
+    }
 })

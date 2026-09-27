@@ -70,4 +70,13 @@ class PortfolioApiAdapterTest : FunSpec({
 
         thrown shouldBe exception
     }
+
+    test("getPositionQuantity_delegatesToQueryService") {
+        whenever(portfolioQueryService.getPositionQuantity(accountId, "AAPL")).thenReturn(BigDecimal("3.0000"))
+
+        val quantity = adapter.getPositionQuantity(accountId, "AAPL")
+
+        quantity shouldBe BigDecimal("3.0000")
+        verify(portfolioQueryService).getPositionQuantity(accountId, "AAPL")
+    }
 })
