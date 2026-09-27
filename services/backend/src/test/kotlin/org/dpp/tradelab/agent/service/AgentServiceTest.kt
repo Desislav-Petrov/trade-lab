@@ -43,10 +43,48 @@ class AgentServiceTest : FunSpec({
             .content(Content.fromParts(Part.fromText(text)))
             .build()
 
+    fun partialEventWithText(text: String): Event =
+        Event.builder()
+            .partial(true)
+            .content(Content.fromParts(Part.fromText(text)))
+            .build()
+
+    fun functionCallEvent(): Event =
+        Event.builder()
+            .content(
+                Content.fromParts(
+                    Part.fromFunctionCall("transfer_to_agent", mapOf<String, Any>("agent_name" to "portfolio-analyst"))
+                )
+            )
+            .build()
+
+    fun functionResponseEvent(): Event =
+        Event.builder()
+            .content(
+                Content.fromParts(
+                    Part.fromFunctionResponse(
+                        "getHoldings",
+                        mapOf<String, Any>("status" to "ok", "portfolio" to mapOf<String, Any>("holdings" to emptyList<Any>()))
+                    )
+                )
+            )
+            .build()
+
     fun session(sessionId: String = conversationId.toString()): Session =
         mock<Session>().also {
             whenever(it.sessionKey()).thenReturn(SessionKey(AGENT_APP_NAME, userId.toString(), sessionId))
         }
+
+    fun stubExistingSession() {
+        whenever(
+            agentSessionService.getSession(
+                eq(AGENT_APP_NAME),
+                eq(userId.toString()),
+                eq(conversationId.toString()),
+                any()
+            )
+        ).thenReturn(Maybe.just(session()))
+    }
 
     beforeEach {
         reset(agentRunner, agentSessionService)
@@ -99,15 +137,7 @@ class AgentServiceTest : FunSpec({
     }
 
     test("query_blankEventContent_filtersEmptyChunks") {
-        val existingSession = session()
-        whenever(
-            agentSessionService.getSession(
-                eq(AGENT_APP_NAME),
-                eq(userId.toString()),
-                eq(conversationId.toString()),
-                any()
-            )
-        ).thenReturn(Maybe.just(existingSession))
+        stubExistingSession()
         whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
             .thenReturn(Flowable.just(eventWithText(""), eventWithText("Answer")))
 
@@ -116,16 +146,45 @@ class AgentServiceTest : FunSpec({
         result shouldContainExactly listOf("Answer")
     }
 
-    test("query_runnerFailure_surfacesAgentUnavailableException") {
-        val existingSession = session()
-        whenever(
-            agentSessionService.getSession(
-                eq(AGENT_APP_NAME),
-                eq(userId.toString()),
-                eq(conversationId.toString()),
-                any()
+    test("query_functionCallAndResponseEvents_areNotSurfacedToClient") {
+        stubExistingSession()
+        // A delegated tool-calling turn: transfer to sub-agent, tool call, raw
+        // tool payload, then the model's natural-language answer. Only the last
+        // must reach the client.
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(
+                Flowable.just(
+                    functionCallEvent(),
+                    functionResponseEvent(),
+                    eventWithText("Your portfolio is 85% cash.")
+                )
             )
-        ).thenReturn(Maybe.just(existingSession))
+
+        val result = agentService.query(userId, accountId, conversationId, "How am I doing?").toList().blockingGet()
+
+        result shouldContainExactly listOf("Your portfolio is 85% cash.")
+    }
+
+    test("query_partialDeltasThenFinalAggregate_emitsDeltasOnceWithoutDuplication") {
+        stubExistingSession()
+        // SSE streaming: token deltas (partial=true) followed by the final
+        // non-partial aggregate that repeats the whole turn's text.
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(
+                Flowable.just(
+                    partialEventWithText("Your portfolio "),
+                    partialEventWithText("is 85% cash."),
+                    eventWithText("Your portfolio is 85% cash.")
+                )
+            )
+
+        val result = agentService.query(userId, accountId, conversationId, "How am I doing?").toList().blockingGet()
+
+        result shouldContainExactly listOf("Your portfolio ", "is 85% cash.")
+    }
+
+    test("query_runnerFailure_surfacesAgentUnavailableException") {
+        stubExistingSession()
         whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
             .thenReturn(Flowable.error(IllegalStateException("boom")))
 
@@ -136,15 +195,7 @@ class AgentServiceTest : FunSpec({
 
     test("query_modelStallsBeyondTimeout_surfacesAgentUnavailableException") {
         val stallingService = AgentService(agentRunner, agentSessionService, agentRunConfig, timeoutSeconds = 1)
-        val existingSession = session()
-        whenever(
-            agentSessionService.getSession(
-                eq(AGENT_APP_NAME),
-                eq(userId.toString()),
-                eq(conversationId.toString()),
-                any()
-            )
-        ).thenReturn(Maybe.just(existingSession))
+        stubExistingSession()
         // Model never emits a chunk within the timeout window.
         whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
             .thenReturn(Flowable.never())
