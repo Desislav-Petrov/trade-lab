@@ -98,7 +98,7 @@ class PortfolioHoldingsTool(
             private fun requireAuthenticatedUserId(toolContext: ToolContext): UUID =
                 try {
                     val value = toolContext.userId()?.takeIf { it.isNotBlank() }
-                        ?: toolContext.invocationContext().session().userId().takeIf { it.isNotBlank() }
+                        ?: toolContext.invocationContext().session()?.userId()?.takeIf { it.isNotBlank() }
                         ?: throw IllegalStateException("Missing authenticated userId in agent session")
                     UUID.fromString(value)
                 } catch (ex: IllegalArgumentException) {
