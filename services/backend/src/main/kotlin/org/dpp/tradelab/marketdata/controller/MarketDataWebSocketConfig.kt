@@ -3,15 +3,18 @@ package org.dpp.tradelab.marketdata.controller
 import org.dpp.tradelab.marketdata.service.MarketDataWebSocketHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
-import org.springframework.web.socket.SubProtocolCapable
 import org.springframework.web.socket.config.annotation.EnableWebSocket
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
-import org.springframework.web.socket.handler.WebSocketHandlerDecorator
 
 /**
  * Registers the [MarketDataWebSocketHandler] at the `/api/v1/market-data/feed` path.
- * The `bearer` subprotocol is advertised for browser WebSocket negotiation.
+ *
+ * The `bearer` subprotocol is advertised by the handler itself via [org.springframework.web.socket.SubProtocolCapable]
+ * so it survives Spring's `WebSocketHandlerDecorator.unwrap()` during handshake negotiation and
+ * is echoed back in the 101 `Sec-WebSocket-Protocol` header. Declaring it on a wrapping decorator
+ * does NOT work: unwrap recurses past decorators to the innermost handler, so the subprotocol would
+ * be dropped and browsers requesting it would fail the connection right after the upgrade.
  *
  * The allowed origins are taken from `app.cors.allowed-origins` to stay consistent
  * with the global CORS policy and avoid conflicts with `allowCredentials = true`.
@@ -23,18 +26,15 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator
 @EnableWebSocket
 class MarketDataWebSocketConfig(
     private val marketDataWebSocketHandler: MarketDataWebSocketHandler,
+    private val handshakeLoggingInterceptor: MarketDataHandshakeLoggingInterceptor,
     @Value("\${app.cors.allowed-origins}")
     private val corsAllowedOrigins: List<String>,
 ) : WebSocketConfigurer {
 
     override fun registerWebSocketHandlers(registry: WebSocketHandlerRegistry) {
         registry
-            .addHandler(
-                object : WebSocketHandlerDecorator(marketDataWebSocketHandler), SubProtocolCapable {
-                    override fun getSubProtocols() = listOf("bearer")
-                },
-                "/api/v1/market-data/feed"
-            )
+            .addHandler(marketDataWebSocketHandler, "/api/v1/market-data/feed")
+            .addInterceptors(handshakeLoggingInterceptor)
             .setAllowedOrigins(*corsAllowedOrigins.toTypedArray())
     }
 }

@@ -64,6 +64,14 @@ class MarketDataWebSocketHandlerTest : FunSpec({
         statusCaptor.firstValue.code shouldBe expectedCode
     }
 
+    // ── subprotocol negotiation ───────────────────────────────────────────
+
+    test("getSubProtocols_advertisesBearer_soHandshakeEchoesItAndBrowserDoesNotDropConnection") {
+        // The handler itself (not a wrapping decorator) must advertise the subprotocol so it
+        // survives Spring's WebSocketHandlerDecorator.unwrap() during handshake negotiation.
+        handler.subProtocols shouldBe listOf("bearer")
+    }
+
     // ── afterConnectionEstablished ──────────────────────────────────────────
 
     test("afterConnectionEstablished_missingProtocol_closesWithStatus4401") {
