@@ -11,7 +11,7 @@ import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.exception.AccountOwnershipException
-import org.dpp.tradelab.user.exception.InvalidTokenException
+import org.dpp.tradelab.common.exception.InvalidTokenException
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.InputStreamResource
 import org.springframework.core.io.Resource

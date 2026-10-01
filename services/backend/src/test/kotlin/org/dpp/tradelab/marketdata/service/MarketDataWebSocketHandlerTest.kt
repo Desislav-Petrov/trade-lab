@@ -3,7 +3,7 @@ package org.dpp.tradelab.marketdata.service
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.marketdata.model.MarketDataSnapshot
-import org.dpp.tradelab.user.api.TokenValidationApi
+import org.dpp.tradelab.common.service.JwtService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
@@ -22,14 +22,14 @@ import java.util.UUID
 class MarketDataWebSocketHandlerTest : FunSpec({
 
     val marketDataFeedService = mock<MarketDataFeedService>()
-    val tokenValidationApi = mock<TokenValidationApi>()
-    val handler = MarketDataWebSocketHandler(marketDataFeedService, tokenValidationApi)
+    val jwtService = mock<JwtService>()
+    val handler = MarketDataWebSocketHandler(marketDataFeedService, jwtService)
 
     val userId = UUID.randomUUID()
     val token = "valid.jwt.token"
 
     beforeEach {
-        reset(marketDataFeedService, tokenValidationApi)
+        reset(marketDataFeedService, jwtService)
     }
 
     val aaplSnapshot = MarketDataSnapshot(
@@ -72,7 +72,7 @@ class MarketDataWebSocketHandlerTest : FunSpec({
         handler.afterConnectionEstablished(session)
 
         assertClosedWith(session, 4401)
-        verify(tokenValidationApi, never()).validateAndExtractUserId(any())
+        verify(jwtService, never()).validateAndExtractUserId(any())
         verify(marketDataFeedService, never()).registerSession(any(), any())
     }
 
@@ -82,7 +82,7 @@ class MarketDataWebSocketHandlerTest : FunSpec({
         handler.afterConnectionEstablished(session)
 
         assertClosedWith(session, 4401)
-        verify(tokenValidationApi, never()).validateAndExtractUserId(any())
+        verify(jwtService, never()).validateAndExtractUserId(any())
         verify(marketDataFeedService, never()).registerSession(any(), any())
     }
 
@@ -92,13 +92,13 @@ class MarketDataWebSocketHandlerTest : FunSpec({
         handler.afterConnectionEstablished(session)
 
         assertClosedWith(session, 4401)
-        verify(tokenValidationApi, never()).validateAndExtractUserId(any())
+        verify(jwtService, never()).validateAndExtractUserId(any())
         verify(marketDataFeedService, never()).registerSession(any(), any())
     }
 
     test("afterConnectionEstablished_invalidToken_closesWithStatus4401") {
         val session = mockSession(protocols = listOf("bearer, invalid.jwt"))
-        whenever(tokenValidationApi.validateAndExtractUserId("invalid.jwt"))
+        whenever(jwtService.validateAndExtractUserId("invalid.jwt"))
             .thenThrow(IllegalArgumentException("invalid token"))
 
         handler.afterConnectionEstablished(session)
@@ -109,7 +109,7 @@ class MarketDataWebSocketHandlerTest : FunSpec({
 
     test("afterConnectionEstablished_expiredToken_closesWithStatus4401") {
         val session = mockSession(protocols = listOf("bearer", "expired.jwt"))
-        whenever(tokenValidationApi.validateAndExtractUserId("expired.jwt"))
+        whenever(jwtService.validateAndExtractUserId("expired.jwt"))
             .thenThrow(IllegalStateException("expired token"))
 
         handler.afterConnectionEstablished(session)
@@ -124,12 +124,12 @@ class MarketDataWebSocketHandlerTest : FunSpec({
             uri = URI("ws://localhost/api/v1/market-data/feed?userId=$queryUserId"),
             protocols = listOf("bearer", "  $token  ")
         )
-        whenever(tokenValidationApi.validateAndExtractUserId(token)).thenReturn(userId)
+        whenever(jwtService.validateAndExtractUserId(token)).thenReturn(userId)
         whenever(marketDataFeedService.getSnapshotForUser(userId)).thenReturn(listOf(aaplSnapshot))
 
         handler.afterConnectionEstablished(session)
 
-        verify(tokenValidationApi).validateAndExtractUserId(token)
+        verify(jwtService).validateAndExtractUserId(token)
         verify(marketDataFeedService).registerSession(userId, session)
         verify(marketDataFeedService).sendSnapshot(session, listOf(aaplSnapshot))
         session.attributes["userId"] shouldBe userId
@@ -137,7 +137,7 @@ class MarketDataWebSocketHandlerTest : FunSpec({
 
     test("afterConnectionEstablished_snapshotFailure_closesWithStatus4500") {
         val session = mockSession(protocols = listOf("bearer", token))
-        whenever(tokenValidationApi.validateAndExtractUserId(token)).thenReturn(userId)
+        whenever(jwtService.validateAndExtractUserId(token)).thenReturn(userId)
         whenever(marketDataFeedService.getSnapshotForUser(userId))
             .thenThrow(RuntimeException("unexpected failure"))
 

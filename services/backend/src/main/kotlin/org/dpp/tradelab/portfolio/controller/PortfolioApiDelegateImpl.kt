@@ -12,7 +12,7 @@ import org.dpp.tradelab.portfolio.generated.model.StockBreakdownEntry
 import org.dpp.tradelab.portfolio.generated.model.StockHolding
 import org.dpp.tradelab.portfolio.generated.model.UnrealisedPnLEntry
 import org.dpp.tradelab.portfolio.service.PortfolioQueryService
-import org.dpp.tradelab.user.exception.InvalidTokenException
+import org.dpp.tradelab.common.exception.InvalidTokenException
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service

@@ -1,5 +1,6 @@
 package org.dpp.tradelab.user.service
 
+import org.dpp.tradelab.common.service.JwtService
 import org.dpp.tradelab.user.exception.OidcAuthenticationException
 import org.dpp.tradelab.user.messaging.UserRegisteredEvent
 import org.dpp.tradelab.user.model.ExternalIdentityProvider

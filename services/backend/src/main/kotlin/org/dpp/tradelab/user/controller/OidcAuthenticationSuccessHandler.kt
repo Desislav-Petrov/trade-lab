@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.dpp.tradelab.user.exception.OidcAuthenticationException
 import org.dpp.tradelab.user.model.ProviderType
-import org.dpp.tradelab.user.service.JwtService
+import org.dpp.tradelab.common.service.JwtService
 import org.dpp.tradelab.user.service.OidcAuthService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication

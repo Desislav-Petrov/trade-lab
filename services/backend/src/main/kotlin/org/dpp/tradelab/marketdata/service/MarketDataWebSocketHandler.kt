@@ -1,6 +1,6 @@
 package org.dpp.tradelab.marketdata.service
 
-import org.dpp.tradelab.user.api.TokenValidationApi
+import org.dpp.tradelab.common.service.JwtService
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.WebSocketSession
@@ -22,7 +22,7 @@ import java.util.UUID
 @Component
 class MarketDataWebSocketHandler(
     private val marketDataFeedService: MarketDataFeedService,
-    private val tokenValidationApi: TokenValidationApi
+    private val jwtService: JwtService
 ) : TextWebSocketHandler() {
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
@@ -33,7 +33,7 @@ class MarketDataWebSocketHandler(
         }
 
         val userId = try {
-            tokenValidationApi.validateAndExtractUserId(token)
+            jwtService.validateAndExtractUserId(token)
         } catch (ex: Exception) {
             session.close(CloseStatus(4401, "invalid token"))
             return
