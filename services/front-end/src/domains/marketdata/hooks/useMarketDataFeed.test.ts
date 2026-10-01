@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useMarketDataFeed } from './useMarketDataFeed'
+import { useSessionStore } from '../../user/hooks/useSessionStore'
+import type { UserResponse } from '../../user/types/user'
 
 vi.mock('../api/marketDataFeedApi', () => ({
   connectMarketDataFeed: vi.fn(),
@@ -19,6 +21,17 @@ const mockConnect = vi.mocked(connectMarketDataFeed)
 const AAPL_MSFT = ['AAPL', 'MSFT']
 const AAPL_GOOG = ['AAPL', 'GOOG']
 const AAPL_ONLY = ['AAPL']
+const SESSION_TOKEN = 'session-access-token'
+const MOCK_USER: UserResponse = {
+  userId: 'session-user',
+  firstName: 'Test',
+  lastName: 'User',
+  address: null,
+  email: 'test@example.com',
+  status: 'active',
+  createdAt: '2026-01-01T00:00:00Z',
+  settings: { feedType: 'SYNTHETIC', updatedAt: '2026-01-01T00:00:00Z' },
+}
 
 describe('useMarketDataFeed', () => {
   let capturedOnMessage: (msg: FeedMessage) => void
@@ -30,9 +43,13 @@ describe('useMarketDataFeed', () => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     mockCleanup = vi.fn()
+    act(() => {
+      useSessionStore.getState().clearSession()
+      useSessionStore.getState().establishSession(MOCK_USER, SESSION_TOKEN)
+    })
     mockConnect.mockImplementation(
       (
-        _userId: string,
+        _token: string,
         onMessage: (msg: FeedMessage) => void,
         onError: (code: number) => void,
         onClose: () => void,
@@ -84,6 +101,22 @@ describe('useMarketDataFeed', () => {
     expect(result.current.rows).toHaveLength(2)
     expect(result.current.rows[0].ticker).toBe('AAPL')
     expect(result.current.rows[1].ticker).toBe('MSFT')
+  })
+
+  it('useMarketDataFeed - session has an access token - connects using token instead of userId', () => {
+    renderHook(() => useMarketDataFeed('caller-user-id', AAPL_ONLY))
+
+    expect(mockConnect).toHaveBeenCalledOnce()
+    expect(mockConnect.mock.calls[0][0]).toBe(SESSION_TOKEN)
+    expect(mockConnect.mock.calls[0][0]).not.toBe('caller-user-id')
+  })
+
+  it('useMarketDataFeed - session has no access token - does not connect', () => {
+    act(() => useSessionStore.getState().clearSession())
+
+    renderHook(() => useMarketDataFeed('caller-user-id', AAPL_ONLY))
+
+    expect(mockConnect).not.toHaveBeenCalled()
   })
 
   it('useMarketDataFeed - TICK for existing ticker - updates that row in place', () => {
@@ -219,9 +252,7 @@ describe('useMarketDataFeed', () => {
   it('useMarketDataFeed - onError callback fires - sets feedStatus to lost', () => {
     const { result } = renderHook(() => useMarketDataFeed('user-5', AAPL_ONLY))
 
-    act(() => {
-      capturedOnError(1006)
-    })
+    act(() => { capturedOnError(1006) })
 
     expect(result.current.feedStatus).toBe('lost')
   })
@@ -296,9 +327,7 @@ describe('useMarketDataFeed', () => {
 
     // Advance past the first retry delay (2000ms) — this triggers the setTimeout
     // callback which calls setRetryCount, re-running the effect synchronously
-    act(() => {
-      vi.advanceTimersByTime(2001)
-    })
+    act(() => { vi.advanceTimersByTime(2001) })
 
     expect(mockConnect).toHaveBeenCalledTimes(2)
     expect(result.current.feedStatus).toBe('connecting')
@@ -324,11 +353,15 @@ describe('useMarketDataFeed', () => {
     const { result } = renderHook(() => useMarketDataFeed('user-11', AAPL_ONLY))
 
     // Trigger a failure on the first connection
-    act(() => { capturedOnError(1006) })
+    act(() => {
+      capturedOnError(1006)
+    })
     expect(result.current.feedStatus).toBe('lost')
 
     // Advance timer — retry fires, second connect call is made, status → connecting
-    act(() => { vi.advanceTimersByTime(2001) })
+    act(() => {
+      vi.advanceTimersByTime(2001)
+    })
     expect(mockConnect).toHaveBeenCalledTimes(2)
     expect(result.current.feedStatus).toBe('connecting')
 
@@ -374,9 +407,13 @@ describe('useMarketDataFeed', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCleanup = vi.fn()
+    act(() => {
+      useSessionStore.getState().clearSession()
+      useSessionStore.getState().establishSession(MOCK_USER, SESSION_TOKEN)
+    })
     mockConnect.mockImplementation(
       (
-        _userId: string,
+        _token: string,
         onMessage: (msg: FeedMessage) => void,
         onError: (code: number) => void,
         onClose: () => void,

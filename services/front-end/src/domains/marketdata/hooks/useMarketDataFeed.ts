@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { connectMarketDataFeed } from '../api/marketDataFeedApi'
 import type { MarketDataUpdate, FeedMessage } from '../api/marketDataFeedApi'
+import { useSessionStore } from '../../user/hooks/useSessionStore'
 
 type FeedStatus = 'connecting' | 'connected' | 'error' | 'lost'
 
 const RETRY_DELAYS_MS = [2000, 5000, 10000, 30000]
 
 export function useMarketDataFeed(
-  userId: string,
+  _userId: string,
   subscribedTickers: string[],
 ): {
   rows: MarketDataUpdate[]
@@ -18,9 +19,10 @@ export function useMarketDataFeed(
   const [retryCount, setRetryCount] = useState(0)
   const cleanupRef = useRef<(() => void) | null>(null)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const accessToken = useSessionStore((s) => s.session?.accessToken)
 
   useEffect(() => {
-    if (!userId) return
+    if (!accessToken) return
 
     setFeedStatus('connecting')
 
@@ -32,7 +34,7 @@ export function useMarketDataFeed(
     }
 
     const cleanup = connectMarketDataFeed(
-      userId,
+      accessToken,
       (msg: FeedMessage) => {
         if (msg.type === 'SNAPSHOT') {
           setRows(msg.data)
@@ -71,7 +73,7 @@ export function useMarketDataFeed(
         retryTimerRef.current = null
       }
     }
-  }, [userId, retryCount])
+  }, [accessToken, retryCount])
 
   useEffect(() => {
     if (subscribedTickers.length === 0) return // not loaded yet — do nothing

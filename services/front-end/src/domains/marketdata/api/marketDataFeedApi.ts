@@ -21,19 +21,19 @@ export interface TickMessage {
 export type FeedMessage = SnapshotMessage | TickMessage
 
 export function connectMarketDataFeed(
-  userId: string,
+  token: string,
   onMessage: (msg: FeedMessage) => void,
   onError: (code: number) => void,
   onClose: () => void,
 ): () => void {
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const url = `${wsProtocol}//${window.location.host}/api/v1/market-data/feed?userId=${userId}`
+  const url = `${wsProtocol}//${window.location.host}/api/v1/market-data/feed`
 
   let aborted = false
   let activeSocket: WebSocket = openSocket(url, false)
 
   function openSocket(socketUrl: string, isReconnect: boolean): WebSocket {
-    const ws = new WebSocket(socketUrl)
+    const ws = new WebSocket(socketUrl, ['bearer', token])
 
     ws.onmessage = (event: MessageEvent<string>) => {
       if (aborted) return
