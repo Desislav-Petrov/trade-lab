@@ -2,7 +2,9 @@
 
 ## Overview
 
-Covers the full lifecycle of the real-time market data WebSocket connection between the frontend and the backend Market Data service. When a user opens the Stock Trading page, the frontend establishes a persistent WebSocket connection identified by `userId`. The backend immediately pushes a snapshot of the latest cached price data for all of the user's subscribed tickers. It then continues to push live updates as the price feed generates ticks. The connection is kept open for the duration of the user's visit to the page and torn down on navigation away. Subscription changes made mid-session (via the REST subscription flows) are reflected in the live feed automatically without reconnection.
+Covers the full lifecycle of the real-time market data WebSocket connection between the frontend and the backend Market Data service. When a user opens the Stock Trading page, the frontend establishes a persistent WebSocket connection using the existing internal JWT, sent via the `Sec-WebSocket-Protocol` subprotocol header; the connection URL contains no token or `userId`. The backend derives the user's identity from the validated token's `sub` claim and immediately pushes a snapshot of the latest cached price data for all of the user's subscribed tickers. It then continues to push live updates as the price feed generates ticks. The connection is kept open for the duration of the user's visit to the page and torn down on navigation away. Subscription changes made mid-session (via the REST subscription flows) are reflected in the live feed automatically without reconnection.
+
+Authentication decisions are recorded in `decisions/2026-10-01-websocket-jwt-authentication.md`.
 
 Feed type routing (synthetic vs real) is determined per user from the in-memory feed-type cache at connection time and on every tick dispatch. See `domain/flows/market-data-feed-routing.md` for the full feed-routing lifecycle.
 
@@ -33,8 +35,8 @@ The frontend opens a WebSocket connection when the Stock Trading page mounts and
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | Guest Browser | Open WebSocket connection | On mount of the Stock Trading page, opens a WebSocket connection to `ws://.../api/v1/market-data/feed?userId={userId}`. |
-| 2 | System | Authenticate connection | Reads `userId` from the query parameter. Looks up the user's subscription list from the in-memory subscription lookup. Rejects with close code `4401` if `userId` is missing or does not resolve to a known user. |
+| 1 | Guest Browser | Open WebSocket connection | On mount of the Stock Trading page, opens a WebSocket connection to the tokenless URL `ws://.../api/v1/market-data/feed`, requesting the `bearer` subprotocol followed by the existing internal JWT. |
+| 2 | System | Authenticate connection | After the WebSocket upgrade, reads the JWT from the second value in the `Sec-WebSocket-Protocol` handshake header, after `bearer`. Validates its signature, expiration (`exp`), and issuer (`iss`) through the existing JWT machinery, and derives `userId` from the `sub` claim. Rejects with close code `4401` if the token is missing, malformed, invalid, or expired. Validation occurs once at connection establishment; an established connection remains open until disconnect even if the token expires. Looks up the user's subscription list from the in-memory subscription lookup. |
 | 3 | System | Read feed type | Looks up the user's `feedType` from the in-memory feed-type cache (lazy-loaded if absent). Defaults to `SYNTHETIC` if no entry can be resolved. |
 | 4 | System | Build snapshot | Reads the `MarketDataSnapshot` cache entries for every ticker the user is subscribed to. The snapshot is sourced from the shared cache regardless of feed type. |
 | 5 | System | Push snapshot message | Sends a single WebSocket message of type `SNAPSHOT` containing an array of `MarketDataUpdate` items — one per subscribed ticker — to the connected client. |
@@ -48,8 +50,9 @@ The frontend opens a WebSocket connection when the Stock Trading page mounts and
 
 | Scenario | Condition | Outcome |
 |----------|-----------|---------|
-| Missing userId | `userId` query param absent | Backend closes connection with code `4401`. Frontend shows an error banner on the grid. |
-| Unknown userId | `userId` does not resolve to a known user | Backend closes connection with code `4401`. Frontend shows an error banner on the grid. |
+| Missing token | No JWT follows the `bearer` subprotocol marker | Backend closes connection with code `4401`. Frontend shows an error banner on the grid. |
+| Malformed or invalid token | JWT is malformed, has an invalid signature or issuer, or its `sub` is not a UUID | Backend closes connection with code `4401`. Frontend shows an error banner on the grid. |
+| Expired token | JWT `exp` is in the past at connection establishment | Backend closes connection with code `4401`. Frontend shows an error banner on the grid. |
 | User has no subscriptions | Subscription list is empty | Snapshot message contains an empty array. Grid renders empty state. |
 | Backend error during snapshot | Cache read fails | Backend closes connection with code `4500`. Frontend shows a generic error banner. |
 
@@ -210,4 +213,4 @@ The WebSocket connection is torn down when the user navigates away from the Stoc
 - **MarketDataSnapshot**: Shared in-memory cache written by both feed adapters. Read in Flows A, B, and C to build snapshot and tick payloads.
 - **AssetSubscription**: The in-memory subscription lookup (keyed by ticker → list of userIds, and by userId → list of tickers) is built from `AssetSubscription` records at startup and kept current via `AssetSubscribedEvent` and `AssetUnsubscribedEvent`.
 - **UserSettings**: The in-memory feed-type cache (keyed by userId → feedType) is lazily loaded from `UserSettings` at first connection and kept current via `UserSettingsChangedEvent`. Consulted at connection time (Flow A step 3) and on every tick dispatch (Flow B step 4).
-- **Session**: `userId` is taken from the WebSocket query parameter and must match a known user.
+- **Session**: `userId` is sourced solely from the `sub` claim of the validated JWT; it is not supplied as a query parameter. The JWT is validated once after the WebSocket upgrade, and the connection remains open until disconnect.

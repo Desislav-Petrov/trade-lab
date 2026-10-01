@@ -52,3 +52,4 @@ _None — this flow is a cross-cutting security concern, not bound to a single d
 
 - Public endpoints (`POST /api/v1/users/register`, `GET /api/v1/users`, `/oauth2/authorization/**`, `/login/oauth2/code/**`) bypass this filter entirely — they are whitelisted in `SecurityConfig`.
 - The filter does not query the database. Token validity is determined entirely from the JWT claims and the HMAC secret.
+- The market-data WebSocket reuses the same JWT validation, receiving the token through `Sec-WebSocket-Protocol` because native browser WebSockets cannot set an `Authorization` header. It validates once after the WebSocket upgrade, rather than per message.
