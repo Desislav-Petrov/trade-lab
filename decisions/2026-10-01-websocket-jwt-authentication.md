@@ -1,7 +1,7 @@
 # Decision: JWT authentication for the market-data WebSocket
 
-**Date:** 2026-10-01  
-**Status:** Accepted  
+**Date:** 2026-10-01
+**Status:** Accepted
 **Related issue:** #201
 
 ## Context
