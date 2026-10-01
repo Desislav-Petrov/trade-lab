@@ -13,7 +13,7 @@ function decodeJwtExp(token: string): number | null {
   }
 }
 
-function isTokenExpired(token: string): boolean {
+export function isTokenExpired(token: string): boolean {
   const exp = decodeJwtExp(token)
   if (exp === null) return true
   return Date.now() / 1000 > exp
