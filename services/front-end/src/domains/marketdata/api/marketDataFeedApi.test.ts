@@ -6,6 +6,7 @@ import type { FeedMessage, SnapshotMessage, TickMessage } from './marketDataFeed
 
 interface MockWebSocketInstance {
   url: string
+  protocols: string[]
   close: ReturnType<typeof vi.fn>
   simulateMessage: (data: FeedMessage) => void
   simulateClose: (code: number) => void
@@ -15,14 +16,17 @@ let instances: MockWebSocketInstance[] = []
 
 class MockWebSocketClass {
   url: string
+  protocols: string[]
   onmessage: ((event: MessageEvent<string>) => void) | null = null
   onclose: ((event: CloseEvent) => void) | null = null
   close = vi.fn()
 
-  constructor(url: string) {
+  constructor(url: string, protocols: string[]) {
     this.url = url
+    this.protocols = protocols
     instances.push({
       url: this.url,
+      protocols: this.protocols,
       close: this.close,
       simulateMessage: (data: FeedMessage) => {
         this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>)
@@ -49,15 +53,16 @@ describe('connectMarketDataFeed', () => {
     vi.clearAllMocks()
   })
 
-  it('connectMarketDataFeed - called with userId - opens WebSocket with correct URL', () => {
-    connectMarketDataFeed('user-123', vi.fn(), vi.fn(), vi.fn())
+  it('connectMarketDataFeed - called with token - opens WebSocket with a tokenless URL and bearer subprotocol', () => {
+    connectMarketDataFeed('token-123', vi.fn(), vi.fn(), vi.fn())
     expect(instances).toHaveLength(1)
-    expect(instances[0].url).toBe('ws://localhost:3000/api/v1/market-data/feed?userId=user-123')
+    expect(instances[0].url).toBe('ws://localhost:3000/api/v1/market-data/feed')
+    expect(instances[0].protocols).toEqual(['bearer', 'token-123'])
   })
 
   it('connectMarketDataFeed - SNAPSHOT message received - calls onMessage with parsed SNAPSHOT', () => {
     const onMessage = vi.fn()
-    connectMarketDataFeed('user-1', onMessage, vi.fn(), vi.fn())
+    connectMarketDataFeed('token-1', onMessage, vi.fn(), vi.fn())
 
     const snapshot: SnapshotMessage = {
       type: 'SNAPSHOT',
@@ -81,7 +86,7 @@ describe('connectMarketDataFeed', () => {
 
   it('connectMarketDataFeed - TICK message received - calls onMessage with parsed TICK', () => {
     const onMessage = vi.fn()
-    connectMarketDataFeed('user-2', onMessage, vi.fn(), vi.fn())
+    connectMarketDataFeed('token-2', onMessage, vi.fn(), vi.fn())
 
     const tick: TickMessage = {
       type: 'TICK',
@@ -102,7 +107,7 @@ describe('connectMarketDataFeed', () => {
   })
 
   it('connectMarketDataFeed - unexpected close on first socket - attempts exactly one reconnect', () => {
-    connectMarketDataFeed('user-3', vi.fn(), vi.fn(), vi.fn())
+    connectMarketDataFeed('token-3', vi.fn(), vi.fn(), vi.fn())
     expect(instances).toHaveLength(1)
 
     // Simulate unexpected close
@@ -110,12 +115,13 @@ describe('connectMarketDataFeed', () => {
 
     // Should have created a second (reconnect) socket
     expect(instances).toHaveLength(2)
-    expect(instances[1].url).toBe('ws://localhost:3000/api/v1/market-data/feed?userId=user-3')
+    expect(instances[1].url).toBe('ws://localhost:3000/api/v1/market-data/feed')
+    expect(instances[1].protocols).toEqual(['bearer', 'token-3'])
   })
 
   it('connectMarketDataFeed - reconnect socket also closes unexpectedly - calls onError with code', () => {
     const onError = vi.fn()
-    connectMarketDataFeed('user-4', vi.fn(), onError, vi.fn())
+    connectMarketDataFeed('token-4', vi.fn(), onError, vi.fn())
 
     // First unexpected close → reconnect
     instances[0].simulateClose(1006)
@@ -129,14 +135,14 @@ describe('connectMarketDataFeed', () => {
   })
 
   it('connectMarketDataFeed - cleanup function called - closes active socket with code 1000', () => {
-    const cleanup = connectMarketDataFeed('user-5', vi.fn(), vi.fn(), vi.fn())
+    const cleanup = connectMarketDataFeed('token-5', vi.fn(), vi.fn(), vi.fn())
     cleanup()
     expect(instances[0].close).toHaveBeenCalledOnce()
     expect(instances[0].close).toHaveBeenCalledWith(1000)
   })
 
   it('connectMarketDataFeed - cleanup after reconnect - closes reconnect socket with code 1000', () => {
-    const cleanup = connectMarketDataFeed('user-6', vi.fn(), vi.fn(), vi.fn())
+    const cleanup = connectMarketDataFeed('token-6', vi.fn(), vi.fn(), vi.fn())
     // Trigger reconnect
     instances[0].simulateClose(1006)
     // Now cleanup should target the reconnect socket
@@ -146,7 +152,7 @@ describe('connectMarketDataFeed', () => {
 
   it('connectMarketDataFeed - clean close (code 1000) - calls onClose and does not reconnect', () => {
     const onClose = vi.fn()
-    connectMarketDataFeed('user-7', vi.fn(), vi.fn(), onClose)
+    connectMarketDataFeed('token-7', vi.fn(), vi.fn(), onClose)
 
     instances[0].simulateClose(1000)
 
