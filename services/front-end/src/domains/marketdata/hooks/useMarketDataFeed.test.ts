@@ -9,10 +9,26 @@ vi.mock('../api/marketDataFeedApi', () => ({
   connectMarketDataFeed: vi.fn(),
 }))
 
+const mockNavigate = vi.fn()
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
 import { connectMarketDataFeed } from '../api/marketDataFeedApi'
 import type { FeedMessage } from '../api/marketDataFeedApi'
 
 const mockConnect = vi.mocked(connectMarketDataFeed)
+
+// Builds a JWT-shaped token whose payload carries the given `exp` (seconds).
+// Only the payload segment needs to decode — isTokenExpired ignores the rest.
+function makeJwt(expSeconds: number): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const payload = btoa(JSON.stringify({ exp: expSeconds }))
+  return `${header}.${payload}.sig`
+}
+const FUTURE_EXP = Math.floor(Date.now() / 1000) + 3600
+const EXPIRED_EXP = Math.floor(Date.now() / 1000) - 3600
 
 // Stable ticker arrays declared outside tests so their reference never changes
 // between re-renders.  If a new array literal were passed inline to renderHook's
@@ -21,7 +37,7 @@ const mockConnect = vi.mocked(connectMarketDataFeed)
 const AAPL_MSFT = ['AAPL', 'MSFT']
 const AAPL_GOOG = ['AAPL', 'GOOG']
 const AAPL_ONLY = ['AAPL']
-const SESSION_TOKEN = 'session-access-token'
+const SESSION_TOKEN = makeJwt(FUTURE_EXP)
 const MOCK_USER: UserResponse = {
   userId: 'session-user',
   firstName: 'Test',
@@ -117,6 +133,33 @@ describe('useMarketDataFeed', () => {
     renderHook(() => useMarketDataFeed('caller-user-id', AAPL_ONLY))
 
     expect(mockConnect).not.toHaveBeenCalled()
+  })
+
+  it('useMarketDataFeed - access token expired - forces re-login and does not connect', () => {
+    act(() => {
+      useSessionStore.getState().clearSession()
+      useSessionStore.getState().establishSession(MOCK_USER, makeJwt(EXPIRED_EXP))
+    })
+
+    renderHook(() => useMarketDataFeed('caller-user-id', AAPL_ONLY))
+
+    expect(mockConnect).not.toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/login', replace: true })
+    expect(useSessionStore.getState().session).toBeNull()
+  })
+
+  it('useMarketDataFeed - onError 4401 (auth rejected) - forces re-login and stops retrying', () => {
+    renderHook(() => useMarketDataFeed('user-auth', AAPL_ONLY))
+    expect(mockConnect).toHaveBeenCalledTimes(1)
+
+    act(() => { capturedOnError(4401) })
+
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/login', replace: true })
+    expect(useSessionStore.getState().session).toBeNull()
+
+    // No retry is scheduled — advancing past every backoff delay re-connects nothing.
+    act(() => { vi.advanceTimersByTime(30000) })
+    expect(mockConnect).toHaveBeenCalledTimes(1)
   })
 
   it('useMarketDataFeed - TICK for existing ticker - updates that row in place', () => {
