@@ -22,7 +22,7 @@ import org.dpp.tradelab.portfolio.exception.PortfolioBalanceUnavailableException
 import org.dpp.tradelab.portfolio.exception.PortfolioPriceUnavailableException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.InvalidFeedTypeException
-import org.dpp.tradelab.user.exception.InvalidTokenException
+import org.dpp.tradelab.common.exception.InvalidTokenException
 import org.dpp.tradelab.user.exception.OidcAuthenticationException
 import org.dpp.tradelab.user.exception.UserNotFoundException
 import org.dpp.tradelab.user.exception.UserNotActiveException

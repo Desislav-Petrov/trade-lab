@@ -18,7 +18,7 @@ import org.dpp.tradelab.user.model.UserSettings
 import org.dpp.tradelab.user.model.UserStatus
 import org.dpp.tradelab.user.repository.UserRepository
 import org.dpp.tradelab.user.repository.UserSettingsRepository
-import org.dpp.tradelab.user.service.JwtService
+import org.dpp.tradelab.common.service.JwtService
 import org.dpp.tradelab.user.service.UserService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor

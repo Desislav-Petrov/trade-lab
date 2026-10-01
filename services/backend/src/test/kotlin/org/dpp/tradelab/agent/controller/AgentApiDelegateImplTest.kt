@@ -7,7 +7,7 @@ import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.service.LedgerService
-import org.dpp.tradelab.user.service.JwtService
+import org.dpp.tradelab.common.service.JwtService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify

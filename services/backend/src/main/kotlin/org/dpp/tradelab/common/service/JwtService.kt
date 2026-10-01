@@ -1,12 +1,11 @@
-package org.dpp.tradelab.user.service
+package org.dpp.tradelab.common.service
 
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
-import org.dpp.tradelab.user.exception.InvalidTokenException
+import org.dpp.tradelab.common.exception.InvalidTokenException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.Date
 import java.util.UUID
 

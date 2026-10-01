@@ -23,7 +23,7 @@ When a user opens a WebSocket connection, the backend checks the in-memory cache
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | System (Market Data) | Accept connection | WebSocket handshake completes. `userId` is read from the query parameter. |
+| 1 | System (Market Data) | Accept connection | WebSocket handshake completes. `userId` comes from the validated JWT `sub` claim, not a query parameter. |
 | 2 | System (Market Data) | Check cache | Looks up `userId` in the in-memory feed-type cache. |
 | 3a | System (Market Data) | Cache hit — use cached value | If an entry exists for `userId`, use `feedTypeCache[userId]` as the feed type. Continue to step 4. |
 | 3b | System (Market Data) | Cache miss — lazy load | If no entry exists, calls `userSettingsApi.getUserSettings(userId)` (User domain `api/` interface). Writes the returned `feedType` into `feedTypeCache[userId]`. If the User domain returns no settings (unexpected), defaults to `SYNTHETIC` and logs a WARN. |
@@ -116,4 +116,4 @@ During tick dispatch (Market Data WebSocket Feed Flow B), the system checks the 
 
 - **UserSettings**: Fetched lazily at first WebSocket connection per user via `UserSettingsApi`. Not read per-tick.
 - **MarketDataSnapshot**: Shared in-memory cache written by both feed adapters. Used as the data source for all tick and snapshot dispatches.
-- **Session**: `userId` is taken from the WebSocket query parameter and used as the cache key for feed-type lookup.
+- **Session**: `userId` is taken from the validated JWT `sub` claim and used as the cache key for feed-type lookup.

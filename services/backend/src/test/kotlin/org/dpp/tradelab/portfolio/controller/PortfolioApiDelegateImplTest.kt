@@ -18,7 +18,7 @@ import org.dpp.tradelab.portfolio.service.PortfolioQueryService
 import org.dpp.tradelab.portfolio.service.StockBreakdownEntry
 import org.dpp.tradelab.portfolio.service.StockHoldingResult
 import org.dpp.tradelab.portfolio.service.UnrealisedPnLEntry
-import org.dpp.tradelab.user.service.JwtService
+import org.dpp.tradelab.common.service.JwtService
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired

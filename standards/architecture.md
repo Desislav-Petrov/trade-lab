@@ -13,6 +13,16 @@ services in the future without a rewrite.
 
 Domains are classified as horizontals or verticals.
 
+### Shared Kernel
+
+`common` is the platform shared kernel for cross-cutting tools used by multiple
+domains. It depends on no other domain, and any domain may import its documented
+interfaces and services directly.
+
+| Domain | Classification | Responsibility |
+|---|---|---|
+| `common` | Shared kernel | Cross-cutting tools shared by multiple domains |
+
 ### Horizontals
 
 Horizontals are foundational domains that serve the entire platform. Any
@@ -25,6 +35,9 @@ vertical may depend on them.
 | Ledger      | Account holdings — money, stocks, and any other assets          |
 | Market Data | Sourcing and serving market data per product type               |
 | Portfolio   | Manages the asset holdings for a given user                     |
+
+The `common` shared kernel is not owned by any domain and is available to all
+domains.
 
 ### Verticals
 
@@ -49,6 +62,9 @@ Each domain is a top-level sub-package with a fixed internal structure.
 
 ```
 org/dpp/tradelab/
+  common/
+    exception/    # Cross-cutting exceptions
+    service/      # Shared cross-cutting services, such as JWT validation
   agent/
     controller/   # REST delegate implementations
     exception/    # Domain-specific exception classes
@@ -92,7 +108,8 @@ Full per-layer conventions (annotations, transactionality, naming) are defined i
 
 ## Cross-Domain Communication
 
-Two patterns are permitted. Everything else is forbidden.
+Two cross-domain communication patterns are permitted. The shared kernel below
+is the only additional exception.
 
 ### Sync — Kotlin interfaces in `api/`
 
@@ -117,10 +134,18 @@ without requiring a response, it uses Spring Application Events.
   inside its own `messaging/` package. The listener method calls a `handle*`
   method on the relevant service — it contains no business logic itself.
 
+### Shared kernel — direct imports from `common`
+
+Any domain may import documented types directly from `common`, including shared
+services and exceptions. The `common` shared kernel must remain independent of
+all other domains.
+
 ### Rules that apply to both patterns
 
 - No imports from `{domain}.model` or `{domain}.service` across domain
-  boundaries — ever.
+  boundaries — ever — except that any domain may import directly from `common`.
+- `common` is the only shared-kernel exception to this rule and must not depend
+  on any other domain.
 - No shared JPA entities or repositories across domains. Foreign references are
   stored as `UUID` only — never as the entity itself.
 - No imports from another domain's `messaging/` package — subscribe to events

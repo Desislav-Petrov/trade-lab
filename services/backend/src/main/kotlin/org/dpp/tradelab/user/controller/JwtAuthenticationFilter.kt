@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.dpp.tradelab.user.exception.InvalidTokenException
-import org.dpp.tradelab.user.service.JwtService
+import org.dpp.tradelab.common.exception.InvalidTokenException
+import org.dpp.tradelab.common.service.JwtService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken

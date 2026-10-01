@@ -45,7 +45,8 @@ class SecurityConfig(
                     // OAuth2 dance endpoints
                     .requestMatchers("/oauth2/authorization/**").permitAll()
                     .requestMatchers("/login/oauth2/code/**").permitAll()
-                    // WebSocket market-data feed — no JWT on WS handshake, userId in query param
+                    // Keep servlet-filter auth permitAll; the WebSocket authenticates post-upgrade
+                    // using the JWT in Sec-WebSocket-Protocol.
                     .requestMatchers("/api/v1/market-data/feed").permitAll()
                     // Infrastructure — H2 console, actuator, Spring Boot Admin
                     .requestMatchers("/h2-console/**").permitAll()

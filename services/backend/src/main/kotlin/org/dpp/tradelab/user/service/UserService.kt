@@ -1,5 +1,6 @@
 package org.dpp.tradelab.user.service
 
+import org.dpp.tradelab.common.service.JwtService
 import org.dpp.tradelab.user.api.UserLookupApi
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.dpp.tradelab.user.exception.UserNotFoundException
