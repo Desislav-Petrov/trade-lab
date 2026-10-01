@@ -3,13 +3,15 @@
 > Source: GitHub issue #201 — "Protect WS communication with token".
 > Nature: security hardening of an existing flow (`market-data-websocket-feed` Flow A, step 2). No new use case doc, no model change.
 >
+> **Revision (PR #202 review):** JWT validation is no longer exposed via a cross-domain `user.api.TokenValidationApi`. Instead, `JwtService` moves into a new shared-kernel **`common`** domain that any domain may import directly. Market Data imports `JwtService` from `common` directly. See COMMON-1 and DOCS-5.
+>
 > **Locked decisions (from issue #201 sparring):**
 > 1. Reuse the existing internal JWT; transport it via the `Sec-WebSocket-Protocol` subprotocol header (browsers cannot set `Authorization` on a native WebSocket). No new credential.
 > 2. Identity derived **solely** from the token `sub` claim. The `userId` query param is removed.
 > 3. Connection is validated **once** at handshake and lives until the user navigates away, even if the token's `exp` passes ("let it live"; expiry enforcement is future hardening).
 >
 > **Key implementation constraints (grounded, not invented):**
-> - `marketdata` must NOT import `user.service.JwtService` (architecture.md forbids cross-domain `service` imports). Validation is exposed via a new `user.api.TokenValidationApi`, mirroring the existing `UserSettingsApi` that marketdata already consumes.
+> - `JwtService` is a cross-cutting platform tool, not user business logic. It lives in a shared-kernel `common` domain. `common` depends on no other domain; any domain may import it directly — the single documented exception to the "no cross-domain `service` imports" rule.
 > - Validation runs **post-upgrade** in `afterConnectionEstablished` (reading the token from `session.handshakeHeaders["Sec-WebSocket-Protocol"]`) to preserve the existing WS close code `4401` and the frontend `onError(code)` handling. A pre-upgrade handshake rejection would yield HTTP 401 / close `1006` and break that.
 > - Browsers abort the upgrade unless the server echoes an accepted subprotocol. Client sends `['bearer', <token>]`; server declares `bearer` as supported and echoes it, reading the token from the second value.
 >
@@ -22,16 +24,16 @@
 ### [DOCS-1] — Write decision log entry for WebSocket JWT authentication
 
 **Layer:** Docs (decision log)
-**Domain:** marketdata / cross-cutting security
+**Domain:** common / marketdata / cross-cutting security
 **Use case:** secure-websocket-feed
 **Implements:** issue #201 — the three locked decisions
-**Inputs:** issue #201; confirmed decisions (subprotocol transport, sub-claim identity, let-it-live expiry)
+**Inputs:** issue #201; confirmed decisions; PR #202 review (shared-kernel approach)
 **Outputs:** decisions/2026-10-01-websocket-jwt-authentication.md
 **Acceptance criteria:**
 - [ ] Records decision: reuse existing internal JWT, transported via `Sec-WebSocket-Protocol` (option b), not a new credential
 - [ ] Records decision: identity derived solely from token `sub`; `userId` query param removed
 - [ ] Records decision: post-upgrade validation to preserve close code `4401`; "let it live" on mid-connection expiry (future hardening noted)
-- [ ] Records decision: cross-domain validation exposed via `user.api.TokenValidationApi`, not a `user.service` import
+- [ ] Records decision: `JwtService` lives in a shared-kernel `common` domain imported directly by Market Data (supersedes the earlier `user.api.TokenValidationApi` option)
 **Depends on:** none
 
 ### [DOCS-2] — Update market-data-websocket-feed flow for JWT handshake auth
@@ -44,7 +46,7 @@
 **Outputs:** updated domain/flows/market-data-websocket-feed.md
 **Acceptance criteria:**
 - [ ] Overview + Flow A step 1: connection URL is tokenless; JWT sent via `Sec-WebSocket-Protocol` subprotocol header
-- [ ] Flow A step 2 rewritten: validate JWT (signature/`exp`/`iss`) via existing JWT machinery; derive `userId` from `sub`; reject `4401` on missing/malformed/invalid/expired token
+- [ ] Flow A step 2 rewritten: validate JWT (signature/`exp`/`iss`) via the shared `JwtService`; derive `userId` from `sub`; reject `4401` on missing/malformed/invalid/expired token
 - [ ] Error Cases table replaces "missing/unknown userId" with token-based failures → `4401`
 - [ ] Domain Models → Session: `userId` sourced from validated token `sub`, not query param
 - [ ] References DOCS-1 decision log entry
@@ -72,41 +74,43 @@
 **Inputs:** domain/flows/jwt-authentication.md
 **Outputs:** updated domain/flows/jwt-authentication.md
 **Acceptance criteria:**
-- [ ] Adds note: the same JWT validation is reused for the WS handshake, with the token arriving via `Sec-WebSocket-Protocol` (browsers can't set `Authorization` on a native WS), validated once at handshake rather than per message
+- [ ] Adds note: the same JWT validation (`JwtService`, now in the `common` domain) is reused for the WS handshake, with the token arriving via `Sec-WebSocket-Protocol` (browsers can't set `Authorization` on a native WS), validated once at handshake rather than per message
 **Depends on:** DOCS-2
+
+### [DOCS-5] — Document the `common` shared-kernel domain in architecture
+
+**Layer:** Docs (standards/architecture)
+**Domain:** common
+**Use case:** secure-websocket-feed
+**Implements:** PR #202 review — "describe the domain in the documentation"
+**Inputs:** standards/architecture.md
+**Outputs:** updated standards/architecture.md
+**Acceptance criteria:**
+- [ ] Adds `common` to the Domain Taxonomy as a shared kernel of cross-cutting tools (first occupant: `JwtService`)
+- [ ] States explicitly that `common` depends on no other domain and that any domain may import directly from `common.*` — the single documented exception to the "no cross-domain `service` imports" rule
+- [ ] Backend package structure section mentions `common/` alongside the other top-level domain packages
+**Depends on:** DOCS-1
 
 ---
 
-## Backend — API (cross-domain Kotlin interface, `user.api`)
+## Backend — `common` shared kernel
 
-### [API-1] — Expose TokenValidationApi from the user domain
+### [COMMON-1] — Move JwtService (and InvalidTokenException) into the `common` domain
 
-**Layer:** API (backend cross-domain interface — user.api)
-**Domain:** user
+**Layer:** Service (common.service / common.exception)
+**Domain:** common
 **Use case:** secure-websocket-feed
-**Implements:** jwt-authentication (reused by WS); market-data-websocket-feed Flow A step 2
-**Inputs:** none (new interface)
-**Outputs:** org.dpp.tradelab.user.api.TokenValidationApi — `fun validateAndExtractUserId(token: String): UUID`
+**Implements:** jwt-authentication (reused by WS); PR #202 review
+**Inputs:** existing `user.service.JwtService`, `user.exception.InvalidTokenException`, and all their references
+**Outputs:** `org.dpp.tradelab.common…JwtService`, `org.dpp.tradelab.common.exception.InvalidTokenException`; all imports updated; tests moved
 **Acceptance criteria:**
-- [ ] Interface declared in user.api, mirroring UserSettingsApi placement/style
-- [ ] Single method `validateAndExtractUserId(token: String): UUID`, typed UUID (not String)
-- [ ] No JPA/entity/service types leak through the interface signature
-**Depends on:** DOCS-2
-
-### [SVC-1] — Implement TokenValidationApi over JwtService
-
-**Layer:** Service (user.api impl / user.service)
-**Domain:** user
-**Use case:** secure-websocket-feed
-**Implements:** jwt-authentication steps 4–5 (validate, extract userId), reused for WS
-**Inputs:** TokenValidationApi (API-1); existing JwtService.validateAndExtractUserId
-**Outputs:** TokenValidationApiImpl (@Component) delegating to JwtService; unit test
-**Acceptance criteria:**
-- [ ] Impl mirrors UserSettingsApiImpl pattern (@Component, constructor injection)
-- [ ] Delegates to existing JwtService; no re-implementation of JWT parsing
-- [ ] Propagates InvalidTokenException on invalid/expired/bad-issuer tokens (no swallowing)
-- [ ] Unit test (KoTest + mockito-kotlin): valid token → userId; invalid token → throws
-**Depends on:** API-1
+- [ ] `JwtService` moved to `common` with its public API unchanged (`issueToken`, `validateAndExtractUserId`)
+- [ ] `InvalidTokenException` moved to `common.exception` (thrown by `JwtService`; must not create a `common → user` dependency)
+- [ ] All references updated: `JwtAuthenticationFilter`, `OidcAuthService`, `UserService`, `OidcAuthenticationSuccessHandler`, and all tests that autowire/mock `JwtService` or reference `InvalidTokenException`
+- [ ] The previously-added `user.api.TokenValidationApi` + `TokenValidationApiImpl` are deleted (superseded)
+- [ ] `common` imports nothing from any other domain
+- [ ] Existing `JwtService` unit test moved and passing
+**Depends on:** DOCS-5
 
 ---
 
@@ -132,16 +136,17 @@
 **Domain:** marketdata
 **Use case:** secure-websocket-feed
 **Implements:** market-data-websocket-feed Flow A step 2 + Error Cases
-**Inputs:** WebSocketSession (handshakeHeaders); TokenValidationApi (API-1)
+**Inputs:** WebSocketSession (handshakeHeaders); `common…JwtService` (imported directly)
 **Outputs:** updated MarketDataWebSocketHandler; updated handler tests
 **Acceptance criteria:**
+- [ ] Injects `common…JwtService` directly (no `user.api` interface)
 - [ ] `afterConnectionEstablished` reads the JWT from `Sec-WebSocket-Protocol` handshake header (second value after `bearer`)
-- [ ] Validates via TokenValidationApi; derives `userId` from `sub`; stores `userId` in `session.attributes`
+- [ ] Validates via `JwtService.validateAndExtractUserId`; derives `userId` from `sub`; stores `userId` in `session.attributes`
 - [ ] Closes `4401` on missing/malformed/invalid/expired token; closes `4500` on snapshot errors (unchanged)
 - [ ] `afterConnectionClosed` reads `userId` from `session.attributes` (no query parsing)
 - [ ] All `?userId=` query extraction removed
 - [ ] Handler tests updated: valid token → registers + snapshot; missing/invalid/expired token → `4401`; no query-param reliance
-**Depends on:** API-1, CONTROLLER-1
+**Depends on:** COMMON-1, CONTROLLER-1
 
 ### [CONTROLLER-2] — Refresh SecurityConfig WS comment/matcher intent
 
@@ -158,36 +163,16 @@
 
 ---
 
-## Frontend — CLI & STATE (`marketdata`)
+## Frontend — CLI & STATE (`marketdata`)  [separate FE PR — context only]
 
 ### [CLI-1] — Send JWT via subprotocol in the feed client
 
 **Layer:** CLI (marketdata/api — marketDataFeedApi.ts)
-**Domain:** marketdata
-**Use case:** secure-websocket-feed
-**Implements:** market-data-websocket-feed Flow A step 1
-**Inputs:** `token: string`, callbacks (onMessage/onError/onClose)
-**Outputs:** updated `connectMarketDataFeed`; updated test
-**Acceptance criteria:**
-- [ ] Signature drops `userId`, accepts `token`; URL is tokenless
-- [ ] Opens `new WebSocket(url, ['bearer', token])` (token as subprotocol, never in URL/query)
-- [ ] Reconnect path reuses the same token; `onError(code)`/`onClose` behaviour unchanged
-- [ ] Test updated: asserts tokenless URL + subprotocols `['bearer', token]`; no `?userId=`
 **Depends on:** DOCS-2
 
 ### [STATE-1] — Supply the token from the session store to the feed hook
 
 **Layer:** State (marketdata/hooks — useMarketDataFeed.ts)
-**Domain:** marketdata
-**Use case:** secure-websocket-feed
-**Implements:** market-data-websocket-feed Flow A step 1; Session.accessToken reuse
-**Inputs:** `accessToken` from the Zustand session store; existing hook inputs
-**Outputs:** updated useMarketDataFeed; updated test
-**Acceptance criteria:**
-- [ ] Hook reads `accessToken` from the session store and passes it to `connectMarketDataFeed`
-- [ ] Connection guarded on token presence (no connect without a token); `userId` no longer used to build the connection
-- [ ] Public hook signature kept stable (no caller/SCREEN changes required)
-- [ ] Test updated: mocks session store token; asserts client called with the token; no `userId` in the connection
 **Depends on:** CLI-1
 
 ---
@@ -200,10 +185,10 @@
 | DOCS-2 | Update websocket-feed flow | DOCS-1 |
 | DOCS-3 | Align feed-routing flow | DOCS-2 |
 | DOCS-4 | Note reuse in jwt-authentication flow | DOCS-2 |
-| API-1 | Expose `TokenValidationApi` | DOCS-2 |
-| SVC-1 | Implement `TokenValidationApi` | API-1 |
+| DOCS-5 | Document `common` shared-kernel domain | DOCS-1 |
+| COMMON-1 | Move `JwtService` into `common` | DOCS-5 |
 | CONTROLLER-1 | Accept subprotocol in WS config | DOCS-2 |
-| SVC-2 | Authenticate handshake in handler | API-1, CONTROLLER-1 |
+| SVC-2 | Authenticate handshake in handler | COMMON-1, CONTROLLER-1 |
 | CONTROLLER-2 | Refresh SecurityConfig comment | SVC-2 |
 | CLI-1 | Send JWT via subprotocol | DOCS-2 |
 | STATE-1 | Supply token from session store | CLI-1 |
