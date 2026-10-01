@@ -21,8 +21,8 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val oidcAuthenticationSuccessHandler: OidcAuthenticationSuccessHandler,
     private val environment: Environment,
-    @Value("\${app.cors.allowed-origin}")
-    private val corsAllowedOrigin: String,
+    @Value("\${app.cors.allowed-origins}")
+    private val corsAllowedOrigins: List<String>,
     @Value("\${app.frontend.origin}")
     private val frontendOrigin: String
 ) {
@@ -84,7 +84,7 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOrigins = listOf(corsAllowedOrigin)
+            allowedOrigins = corsAllowedOrigins
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

@@ -13,15 +13,18 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator
  * Registers the [MarketDataWebSocketHandler] at the `/api/v1/market-data/feed` path.
  * The `bearer` subprotocol is advertised for browser WebSocket negotiation.
  *
- * The allowed origin is taken from `app.cors.allowed-origin` to stay consistent
+ * The allowed origins are taken from `app.cors.allowed-origins` to stay consistent
  * with the global CORS policy and avoid conflicts with `allowCredentials = true`.
+ * A browser whose `Origin` is not in this list has its handshake rejected with 403
+ * (surfacing in the browser as a 1006 close), so the list must include every host
+ * the frontend is served from (e.g. both `localhost` and `127.0.0.1`).
  */
 @Configuration
 @EnableWebSocket
 class MarketDataWebSocketConfig(
     private val marketDataWebSocketHandler: MarketDataWebSocketHandler,
-    @Value("\${app.cors.allowed-origin}")
-    private val corsAllowedOrigin: String,
+    @Value("\${app.cors.allowed-origins}")
+    private val corsAllowedOrigins: List<String>,
 ) : WebSocketConfigurer {
 
     override fun registerWebSocketHandlers(registry: WebSocketHandlerRegistry) {
@@ -32,6 +35,6 @@ class MarketDataWebSocketConfig(
                 },
                 "/api/v1/market-data/feed"
             )
-            .setAllowedOrigins(corsAllowedOrigin)
+            .setAllowedOrigins(*corsAllowedOrigins.toTypedArray())
     }
 }

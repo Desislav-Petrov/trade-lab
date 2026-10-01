@@ -97,7 +97,11 @@ app:
   frontend:
     origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   cors:
-    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+    # Comma-separated list of browser origins allowed for REST (CORS) and the
+    # WebSocket handshake. Defaults to both localhost and 127.0.0.1 on the Vite
+    # dev port so either host works out of the box. Honours FRONTEND_ORIGINS if
+    # set, otherwise falls back to the single FRONTEND_ORIGIN, then the default.
+    allowed-origins: ${FRONTEND_ORIGINS:${FRONTEND_ORIGIN:http://localhost:5173,http://127.0.0.1:5173}}
 
 finnhub:
   api-key: ${FINNHUB_API_KEY:demo}

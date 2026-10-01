@@ -235,7 +235,8 @@ migrations externally (e.g. Flyway / Liquibase) before starting the app.
 | Finnhub API key | `FINNHUB_API_KEY` | *(none)* | API key for Finnhub market data. Supply a real key for meaningful data. |
 | Gemini / Google API key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | *(none)* | API key used by the AI assistant backend. Set one of these environment variables; no key is hard-coded in the app. |
 | Gemini model | `GEMINI_MODEL` | *(none)* | Gemini model name used by the AI assistant backend (for example `gemini-2.5-flash`). |
-| Frontend allowed origin (CORS) | `FRONTEND_ORIGIN` | `http://localhost:5173` | Origin the backend permits for CORS and OAuth2 redirects. Set to the production frontend URL in production. |
+| Frontend allowed origins (CORS/WebSocket) | `FRONTEND_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated list of browser origins the backend permits for CORS and the WebSocket handshake. Defaults to both `localhost` and `127.0.0.1` on the dev port. Falls back to `FRONTEND_ORIGIN` if set. Set to the production frontend URL(s) in production. |
+| Frontend origin (OAuth2 redirects) | `FRONTEND_ORIGIN` | `http://localhost:5173` | Single canonical origin the backend redirects to after OAuth2 login. Also used as the CORS fallback when `FRONTEND_ORIGINS` is unset. |
 | Enable synthetic data | `ENABLE_SYNTHETIC_DATA` | `true` | Toggles generation of synthetic/mock market data. |
 | Enable real data | `ENABLE_REAL_DATA` | `true` | Toggles fetching of real market data from Finnhub. |
 | H2 console | `SPRING_H2_CONSOLE_ENABLED` | `true` | Enables the in-memory H2 web console at `/h2-console`. Disable in production. |
