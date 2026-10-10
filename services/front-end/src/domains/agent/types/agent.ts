@@ -9,6 +9,10 @@ export interface QueryAgentResponse {
   reply: string
 }
 
+export interface AgentSummaryResponse {
+  summary: string | null
+}
+
 export type TurnRole = 'user' | 'assistant'
 
 export interface Turn {
