@@ -30,6 +30,63 @@ describe('useAgentStore', () => {
     expect(randomUuidSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('useAgentStore - startNewConversation - clears conversation state and keeps the popup open', () => {
+    const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
+    randomUuidSpy
+      .mockReturnValueOnce(conversationId)
+      .mockReturnValueOnce(userTurnId)
+
+    act(() => {
+      useAgentStore.getState().open()
+      useAgentStore.getState().ensureConversationId()
+      useAgentStore.getState().appendUserTurn('Hello')
+      useAgentStore.getState().startNewConversation()
+    })
+
+    expect(useAgentStore.getState()).toMatchObject({
+      isOpen: true,
+      conversationId: null,
+      transcript: [],
+    })
+  })
+
+  it('useAgentStore - seedSummaryGreeting - seeds one completed assistant turn when transcript is empty', () => {
+    const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
+    randomUuidSpy.mockReturnValueOnce(assistantTurnId)
+
+    act(() => {
+      useAgentStore.getState().seedSummaryGreeting('Your portfolio summary is ready.')
+    })
+
+    expect(useAgentStore.getState().transcript).toEqual([
+      {
+        id: assistantTurnId,
+        role: 'assistant',
+        text: 'Your portfolio summary is ready.',
+        isStreaming: false,
+      },
+    ])
+  })
+
+  it('useAgentStore - seedSummaryGreeting - does not overwrite a non-empty transcript', () => {
+    const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
+    randomUuidSpy.mockReturnValueOnce(userTurnId)
+
+    act(() => {
+      useAgentStore.getState().appendUserTurn('Hello')
+      useAgentStore.getState().seedSummaryGreeting('Your portfolio summary is ready.')
+    })
+
+    expect(useAgentStore.getState().transcript).toEqual([
+      {
+        id: userTurnId,
+        role: 'user',
+        text: 'Hello',
+        isStreaming: false,
+      },
+    ])
+  })
+
   it('useAgentStore - append and finalize turns - builds transcript with assistant reply', () => {
     const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
     randomUuidSpy

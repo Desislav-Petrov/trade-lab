@@ -8,7 +8,9 @@ interface AgentStoreState {
   open: () => void
   close: () => void
   toggle: () => void
+  startNewConversation: () => void
   ensureConversationId: () => string
+  seedSummaryGreeting: (text: string) => void
   appendUserTurn: (text: string) => void
   startAssistantTurn: () => void
   appendAssistantToken: (token: string) => void
@@ -33,6 +35,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
   toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+  startNewConversation: () => set({ transcript: [], conversationId: null }),
   ensureConversationId: () => {
     const currentConversationId = get().conversationId
     if (currentConversationId) return currentConversationId
@@ -41,6 +44,12 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
     set({ conversationId: nextConversationId })
     return nextConversationId
   },
+  seedSummaryGreeting: (text) =>
+    set((state) =>
+      state.transcript.length > 0
+        ? state
+        : { transcript: [createTurn('assistant', text, false)] },
+    ),
   appendUserTurn: (text) =>
     set((state) => ({
       transcript: [...state.transcript, createTurn('user', text, false)],
