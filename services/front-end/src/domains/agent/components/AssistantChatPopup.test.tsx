@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AssistantChatPopup } from './AssistantChatPopup'
 import { useAgentStore } from '../hooks/useAgentStore'
 
@@ -9,10 +10,24 @@ vi.mock('../hooks/useAgentChat', () => ({
   useAgentChat: () => mockUseAgentChat(),
 }))
 
+const { summaryState } = vi.hoisted(() => ({
+  summaryState: { summary: null as string | null, refetch: vi.fn() },
+}))
+
+vi.mock('../hooks/useConversationSummary', () => ({
+  useConversationSummary: () => ({
+    summary: summaryState.summary,
+    isLoading: false,
+    refetch: summaryState.refetch,
+  }),
+}))
+
 describe('AssistantChatPopup', () => {
   beforeEach(() => {
     useAgentStore.getState().reset()
     useAgentStore.getState().open()
+    summaryState.summary = null
+    summaryState.refetch.mockClear()
     mockUseAgentChat.mockReturnValue({
       error: null,
       hasSelectedAccount: true,
@@ -76,5 +91,41 @@ describe('AssistantChatPopup', () => {
     render(<AssistantChatPopup />)
 
     expect(screen.getByText('Assistant unavailable. Please try again.')).toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - New conversation clicked - clears the transcript and refetches the summary', async () => {
+    const user = userEvent.setup()
+    useAgentStore.setState({
+      isOpen: true,
+      conversationId: 'conv-1',
+      transcript: [{ id: '1', role: 'user', text: 'Hello', isStreaming: false }],
+    })
+
+    render(<AssistantChatPopup />)
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+
+    expect(useAgentStore.getState().transcript).toHaveLength(0)
+    expect(useAgentStore.getState().conversationId).toBeNull()
+    expect(summaryState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('AssistantChatPopup - Enter key with a message - sends and clears the input', async () => {
+    const user = userEvent.setup()
+    const sendMessage = vi.fn().mockResolvedValue(true)
+    mockUseAgentChat.mockReturnValue({
+      error: null,
+      hasSelectedAccount: true,
+      isSending: false,
+      sendMessage,
+      clearError: vi.fn(),
+    })
+
+    render(<AssistantChatPopup />)
+
+    const input = screen.getByRole('textbox', { name: 'Assistant message' })
+    await user.type(input, 'What is my P&L?{Enter}')
+
+    expect(sendMessage).toHaveBeenCalledWith('What is my P&L?')
   })
 })
