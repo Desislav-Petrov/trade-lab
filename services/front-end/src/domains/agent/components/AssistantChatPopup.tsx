@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { Alert, AlertDescription } from '../../../shared/components/ui/alert'
 import { Button } from '../../../shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/card'
@@ -14,6 +14,7 @@ import { Input } from '../../../shared/components/ui/input'
 import { cn } from '../../../shared/lib/utils'
 import { useAgentChat } from '../hooks/useAgentChat'
 import { useAgentStore } from '../hooks/useAgentStore'
+import { useConversationSummary } from '../hooks/useConversationSummary'
 import { AssistantMessage } from './AssistantMessage'
 
 export interface AssistantChatPopupProps {
@@ -25,17 +26,46 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
   const transcript = useAgentStore((state) => state.transcript)
   const open = useAgentStore((state) => state.open)
   const close = useAgentStore((state) => state.close)
+  const startNewConversation = useAgentStore((state) => state.startNewConversation)
+  const seedSummaryGreeting = useAgentStore((state) => state.seedSummaryGreeting)
   const { error, hasSelectedAccount, isSending, sendMessage, clearError } = useAgentChat()
+  const { summary, refetch: refetchSummary } = useConversationSummary()
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  const canSend = hasSelectedAccount && message.trim().length > 0 && !isSending
+
+  // Flow G / Flow D step 5: when the popup opens onto an empty conversation and
+  // a durable summary exists, present it as the opening assistant message. The
+  // store action no-ops once the transcript has real turns, so the greeting is
+  // never duplicated and never overwrites a live conversation. When summary is
+  // null (first-ever conversation) the popup opens empty with no greeting.
+  useEffect(() => {
+    if (isOpen && transcript.length === 0 && summary) {
+      seedSummaryGreeting(summary)
+    }
+  }, [isOpen, transcript.length, summary, seedSummaryGreeting])
+
+  async function handleSend() {
     clearError()
 
     const sent = await sendMessage(message)
     if (sent) {
       setMessage('')
     }
+  }
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter' || event.shiftKey) return
+    event.preventDefault()
+    if (!canSend) return
+    void handleSend()
+  }
+
+  // Flow F: clear the current conversation, then re-pull the durable summary so
+  // the popup re-greets the user with the carried-forward summary.
+  function handleNewConversation() {
+    startNewConversation()
+    refetchSummary()
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -59,8 +89,11 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
         </DialogHeader>
 
         <Card className="border-0 shadow-none">
-          <CardHeader className="pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <CardTitle>Conversation</CardTitle>
+            <Button variant="outline" size="sm" type="button" onClick={handleNewConversation}>
+              New conversation
+            </Button>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {!hasSelectedAccount && (
@@ -85,21 +118,19 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
               )}
             </div>
 
-            <form className="flex gap-2" onSubmit={handleSubmit}>
+            <div className="flex gap-2">
               <Input
                 aria-label="Assistant message"
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={handleInputKeyDown}
                 placeholder="Ask about your portfolio…"
                 disabled={!hasSelectedAccount || isSending}
               />
-              <Button
-                type="submit"
-                disabled={!hasSelectedAccount || message.trim().length === 0 || isSending}
-              >
+              <Button type="button" onClick={handleSend} disabled={!canSend}>
                 Send
               </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </DialogContent>
