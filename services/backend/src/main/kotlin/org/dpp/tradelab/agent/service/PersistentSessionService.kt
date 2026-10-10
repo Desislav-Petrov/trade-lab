@@ -237,7 +237,7 @@ class PersistentSessionService(
             val state = serializer.deserializeState(entity.stateJson)
             val currentSourceTime = (state[LAST_CONVERSATION_SOURCE_TIME_KEY] as? String)
                 ?.let { runCatching { Instant.parse(it) }.getOrNull() }
-            if (currentSourceTime != null && currentSourceTime.isAfter(sourceUpdatedAt)) {
+            if (currentSourceTime != null && !currentSourceTime.isBefore(sourceUpdatedAt)) {
                 false
             } else {
                 state[LAST_CONVERSATION_KEY] = summary

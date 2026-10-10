@@ -195,6 +195,7 @@ class PersistentSessionServicePostgresTest @Autowired constructor(
         val newerTimestamp = Instant.parse("2026-10-10T10:00:00Z")
 
         service.updateConversationSummaryIfNewer(AGENT_APP_NAME, userId, "newer summary", newerTimestamp) shouldBe true
+        service.updateConversationSummaryIfNewer(AGENT_APP_NAME, userId, "same timestamp", newerTimestamp) shouldBe false
         service.updateConversationSummaryIfNewer(
             AGENT_APP_NAME,
             userId,
