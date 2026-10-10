@@ -5,6 +5,7 @@ val springBootAdminVersion = "4.1.1"
 val kotestVersion = "5.9.1"
 val kotestSpringVersion = "1.3.0"
 val mockitoKotlinVersion = "5.4.0"
+val testcontainersVersion = "1.21.3"
 val swaggerVersion = "2.2.28"
 val adkVersion = "1.10.1"
 
@@ -85,10 +86,10 @@ val generateUserApi = tasks.register<GenerateTask>("generateUserApi") {
 
 tasks.named<GenerateTask>("openApiGenerate") {
     generatorName.set("kotlin-spring")
-    inputSpec.set("${rootProject.projectDir}/../../services/contract/user-openapi.yaml")
-    outputDir.set("${layout.buildDirectory.get()}/generated/user")
-    apiPackage.set("org.dpp.tradelab.user.generated.api")
-    modelPackage.set("org.dpp.tradelab.user.generated.model")
+    inputSpec.set("${rootProject.projectDir}/../../services/contract/agent-openapi.yaml")
+    outputDir.set("${layout.buildDirectory.get()}/generated/agent")
+    apiPackage.set("org.dpp.tradelab.agent.generated.api")
+    modelPackage.set("org.dpp.tradelab.agent.generated.model")
     configOptions.set(mapOf(
         "useSpringBoot3" to "true",
         "delegatePattern" to "true",
@@ -255,6 +256,8 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest.extensions:kotest-extensions-spring:$kotestSpringVersion")
     testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
+    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
+    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
 }
 
 tasks.withType<Test> {

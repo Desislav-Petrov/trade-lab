@@ -7,7 +7,9 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import org.dpp.tradelab.agent.generated.api.AgentApiDelegate
 import org.dpp.tradelab.agent.generated.model.AgentQueryRequest
 import org.dpp.tradelab.agent.generated.model.AgentQueryResponse
+import org.dpp.tradelab.agent.generated.model.AgentSummaryResponse
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
+import org.dpp.tradelab.agent.service.ConversationSummaryService
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.exception.AccountOwnershipException
@@ -31,7 +33,8 @@ import java.util.concurrent.atomic.AtomicReference
 @Service
 class AgentApiDelegateImpl(
     private val agentService: AgentService,
-    private val ledgerAccountApi: LedgerAccountApi
+    private val ledgerAccountApi: LedgerAccountApi,
+    private val conversationSummaryService: ConversationSummaryService
 ) : AgentApiDelegate {
     companion object {
         private const val SSE_PIPE_BUFFER_SIZE = 16 * 1024
@@ -39,6 +42,12 @@ class AgentApiDelegateImpl(
     }
 
     private val objectMapper = jacksonObjectMapper()
+
+    override fun getConversationSummary(): ResponseEntity<AgentSummaryResponse> {
+        val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID
+            ?: throw InvalidTokenException("Authentication required")
+        return ResponseEntity.ok(AgentSummaryResponse(summary = conversationSummaryService.getSummary(userId)))
+    }
 
     override fun queryAgent(agentQueryRequest: AgentQueryRequest, accept: String?): ResponseEntity<Resource> {
         val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID

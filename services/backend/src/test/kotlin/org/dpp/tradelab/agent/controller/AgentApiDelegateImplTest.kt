@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
+import org.dpp.tradelab.agent.service.ConversationSummaryService
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.service.LedgerService
@@ -22,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -36,7 +38,8 @@ class AgentApiDelegateImplTest(
     @Autowired val mockMvc: MockMvc,
     @Autowired val jwtService: JwtService,
     @MockitoBean val agentService: AgentService,
-    @MockitoBean val ledgerService: LedgerService
+    @MockitoBean val ledgerService: LedgerService,
+    @MockitoBean val conversationSummaryService: ConversationSummaryService
 ) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
@@ -60,6 +63,33 @@ class AgentApiDelegateImplTest(
                 .header(HttpHeaders.AUTHORIZATION, "Bea" + "rer " + jwtService.issueToken(userId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody())
+
+        fun authenticatedSummaryRequest() =
+            get("/api/v1/agent/summary")
+                .header(HttpHeaders.AUTHORIZATION, "Bea" + "rer " + jwtService.issueToken(userId))
+
+        test("getConversationSummary_summaryPresent_returnsSummary") {
+            whenever(conversationSummaryService.getSummary(userId)).thenReturn("Discussed investment goals.")
+
+            mockMvc.perform(authenticatedSummaryRequest())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.summary").value("Discussed investment goals."))
+        }
+
+        test("getConversationSummary_summaryAbsent_returnsNull") {
+            whenever(conversationSummaryService.getSummary(userId)).thenReturn(null)
+
+            mockMvc.perform(authenticatedSummaryRequest())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.summary").value(org.hamcrest.Matchers.nullValue()))
+        }
+
+        test("getConversationSummary_unauthenticated_returns401") {
+            mockMvc.perform(get("/api/v1/agent/summary"))
+                .andExpect(status().isUnauthorized)
+
+            verify(conversationSummaryService, never()).getSummary(any())
+        }
 
         fun stubOwnedAccount() {
             whenever(ledgerService.getAccount(accountId)).thenReturn(

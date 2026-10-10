@@ -1,12 +1,18 @@
 package org.dpp.tradelab.config
 
 import com.google.adk.agents.RunConfig
+import com.google.adk.runner.Runner
+import com.google.adk.sessions.BaseSessionService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
-import com.google.adk.sessions.InMemorySessionService
+import org.dpp.tradelab.agent.repository.AgentEventRepository
+import org.dpp.tradelab.agent.repository.AgentSessionRepository
+import org.dpp.tradelab.agent.repository.AgentUserStateRepository
+import org.dpp.tradelab.agent.service.AdkJsonSerializer
+import org.dpp.tradelab.agent.service.PersistentSessionService
 import org.dpp.tradelab.agent.tool.PortfolioHoldingsTool
 import org.dpp.tradelab.portfolio.api.PortfolioApi
 import org.mockito.kotlin.mock
@@ -17,6 +23,12 @@ class AgentConfigurationTest : FunSpec({
         apiKey = "test-api-key"
     )
     val portfolioHoldingsTool = PortfolioHoldingsTool(mock<PortfolioApi>())
+    val persistentSessionService = PersistentSessionService(
+        mock<AgentSessionRepository>(),
+        mock<AgentEventRepository>(),
+        mock<AgentUserStateRepository>(),
+        AdkJsonSerializer()
+    )
 
     test("agentRunConfig_streamingModeSse_returnsSseConfig") {
         val runConfig = configuration.agentRunConfig()
@@ -24,8 +36,14 @@ class AgentConfigurationTest : FunSpec({
         runConfig.streamingMode() shouldBe RunConfig.StreamingMode.SSE
     }
 
-    test("agentSessionService_returnsInMemorySessionService") {
-        configuration.agentSessionService().shouldBeInstanceOf<InMemorySessionService>()
+    test("agentRunner_usesPersistentSessionService") {
+        val model = configuration.agentModel()
+        val portfolioAnalyst = configuration.portfolioAnalystAgent(model, portfolioHoldingsTool)
+        val runner = configuration.agentRunner(configuration.mainAgent(model, portfolioAnalyst), persistentSessionService)
+
+        runner.shouldBeInstanceOf<Runner>()
+        runner.sessionService() shouldBe persistentSessionService
+        runner.sessionService().shouldBeInstanceOf<BaseSessionService>()
     }
 
     test("portfolioAnalystAgent_registersHoldingsTool_andHasPortfolioInstruction") {

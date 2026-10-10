@@ -3,6 +3,7 @@ package org.dpp.tradelab
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
+import org.dpp.tradelab.agent.exception.SessionPersistenceException
 import org.dpp.tradelab.user.exception.DuplicateEmailException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -31,6 +32,13 @@ class AgentUnavailableTestController {
     }
 }
 
+@RestController
+class SessionPersistenceTestController {
+    @GetMapping("/test/session-persistence")
+    fun trigger(): String {
+        throw SessionPersistenceException()
+    }
+}
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -54,6 +62,13 @@ class GlobalExceptionHandlerTest(@Autowired val mockMvc: MockMvc) : FunSpec() {
                 .andExpect(jsonPath("\$.status").value(503))
                 .andExpect(jsonPath("\$.error").value("Assistant unavailable"))
                 .andExpect(jsonPath("\$.details[0]").value("The AI assistant is temporarily unavailable."))
+        }
+
+        test("handleSessionPersistence_sessionPersistenceException_returns500WithErrorBody") {
+            mockMvc.perform(get("/test/session-persistence"))
+                .andExpect(status().isInternalServerError)
+                .andExpect(jsonPath("\$.status").value(500))
+                .andExpect(jsonPath("\$.error").value("Assistant persistence error"))
         }
     }
 }
