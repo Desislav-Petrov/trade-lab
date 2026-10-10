@@ -22,11 +22,6 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import org.springframework.test.annotation.DirtiesContext
-import org.springframework.test.context.DynamicPropertyRegistry
-import org.springframework.test.context.DynamicPropertySource
-import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -36,10 +31,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
-@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class PersistentSessionServicePostgresTest @Autowired constructor(
+class PersistentSessionServiceH2ConcurrencyTest @Autowired constructor(
     private val service: PersistentSessionService,
     private val sessions: AgentSessionRepository,
     private val events: AgentEventRepository,
@@ -218,18 +212,4 @@ class PersistentSessionServicePostgresTest @Autowired constructor(
     private fun text(event: Event): String =
         event.content().flatMap { it.parts() }.orElse(emptyList()).first().text().orElse("")
 
-    companion object {
-        @Container
-        @JvmField
-        val postgres = PostgreSQLContainer<Nothing>("postgres:16-alpine")
-
-        @JvmStatic
-        @DynamicPropertySource
-        fun configureDatabase(registry: DynamicPropertyRegistry) {
-            registry.add("spring.datasource.url", postgres::getJdbcUrl)
-            registry.add("spring.datasource.username", postgres::getUsername)
-            registry.add("spring.datasource.password", postgres::getPassword)
-            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
-        }
-    }
 }

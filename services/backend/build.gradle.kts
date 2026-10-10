@@ -5,7 +5,6 @@ val springBootAdminVersion = "4.1.1"
 val kotestVersion = "5.9.1"
 val kotestSpringVersion = "1.3.0"
 val mockitoKotlinVersion = "5.4.0"
-val testcontainersVersion = "1.21.3"
 val swaggerVersion = "2.2.28"
 val adkVersion = "1.10.1"
 
@@ -256,8 +255,6 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest.extensions:kotest-extensions-spring:$kotestSpringVersion")
     testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
-    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
-    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
 }
 
 tasks.withType<Test> {
