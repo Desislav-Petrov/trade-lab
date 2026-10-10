@@ -6,7 +6,7 @@ Covers the Trade Lab AI Assistant — a chat widget docked at the bottom of ever
 
 The Portfolio Analyst is granted a single tool — a **portfolio holdings tool** — that lets it read the authenticated user's real priced holdings, cash, and unrealised P&L for the account carried on the conversation. It calls this tool to ground its answers in real data, scoped to one account at a time. Trade-fill history and cross-account reasoning are not exposed. The tool is backed by the Portfolio domain's `api/` interface (the same read path as `GET /api/v1/portfolio/holdings`); no logic is duplicated for the agent. See `decisions/2026-09-27-portfolio-analyst-holdings-tool.md`, which supersedes the no-tools stance of `decisions/2026-09-21-agent-query-streaming-endpoint.md`.
 
-Conversation context is held server-side by the ADK in-memory session, keyed by a frontend-generated `conversationId`. See `domain/model/agent-conversation.md`.
+The verbatim conversation context is held server-side by the ephemeral ADK session, keyed by a frontend-generated `conversationId`. Durable continuity across restarts, reloads, and new conversations is provided separately by a user-scoped `ConversationSummary` (`last_conversation`): the agent regenerates it after every turn and presents it as an opening summary when the user returns. There is one active conversation per user — the platform does not track multiple conversations. See `domain/model/agent-conversation.md`, `domain/model/conversation-summary.md`, and `decisions/2026-10-10-agent-conversation-summary-continuity.md`.
 
 ---
 
@@ -43,7 +43,7 @@ The user opens or closes the global assistant popup. The widget is only rendered
 |---|-------|--------|-------------|
 | 1 | Guest Browser | Render docked widget | While a session exists, renders the "Trade Lab AI Assistant" widget docked at the bottom of every page. |
 | 2 | Authenticated User | Click the widget | Clicks the docked widget to open the chat popup. |
-| 3 | Guest Browser | Open popup | Opens the chat popup. If a transcript already exists in frontend session state, it is rendered. Otherwise the popup shows an empty conversation. |
+| 3 | Guest Browser | Open popup | Opens the chat popup. If a transcript already exists in frontend session state, it is rendered. Otherwise the popup requests the opening summary greeting (see Flow G) and shows it, or an empty conversation if no prior summary exists. |
 | 4 | Authenticated User | Click close | Closes the popup. |
 | 5 | Guest Browser | Hide popup, retain transcript | Hides the popup but retains the transcript and `conversationId` in frontend session state so reopening resumes the same conversation. |
 
@@ -62,7 +62,7 @@ The user opens or closes the global assistant popup. The widget is only rendered
 
 ## Flow B — Send a Message and Stream the Reply
 
-The user sends a message. The frontend calls the agent endpoint; the Main Agent handles or delegates it; the reply streams back via SSE.
+The user sends a message. The frontend calls the agent endpoint; the Main Agent handles or delegates it; the reply streams back via SSE; the backend then refreshes the durable summary.
 
 ### Actors
 
@@ -89,11 +89,13 @@ The user sends a message. The frontend calls the agent endpoint; the Main Agent 
 | 8 | System (Agent) | Stream reply (SSE) | The agent reply is streamed back to the caller token-by-token using ADK `StreamingMode.SSE`. The backend bridges the ADK `Flowable<Event>` to an SSE HTTP response. |
 | 9 | Guest Browser | Render streamed tokens | Appends streamed tokens into the reply placeholder in real time as they arrive. |
 | 10 | Guest Browser | Finalise reply turn | On stream completion, finalises the agent reply in the transcript held in frontend session state. |
+| 11 | System (Agent) | Regenerate conversation summary | After the reply completes, the backend regenerates the user-scoped `ConversationSummary` (`last_conversation`) to reflect the latest turn and persists it via the PostgreSQL-backed ADK `SessionService`. See Flow H. |
 
 ### Postconditions
 
-- The user message and the full agent reply are appended to the conversation, both server-side (ADK session) and in the frontend transcript.
+- The user message and the full agent reply are appended to the conversation (ephemeral ADK session) and to the frontend transcript.
 - The reply was delivered incrementally via SSE.
+- The user-scoped `ConversationSummary` is updated to reflect this turn, so continuity survives a subsequent restart or reload.
 
 ### Error Cases
 
@@ -104,13 +106,14 @@ The user sends a message. The frontend calls the agent endpoint; the Main Agent 
 | Stream fails mid-reply | The SSE stream errors or drops after starting | The popup shows a partial reply plus an inline error: "The assistant response was interrupted. Please try again." The user may resend. |
 | Agent/backend error | The endpoint returns a non-2xx before streaming | The popup shows: "The assistant is unavailable. Please try again." The user's message remains in the transcript so it can be resent. |
 | Streaming unavailable | SSE cannot be established | Fallback to a single buffered reply rendered at once (no token-by-token effect). |
+| Summary regeneration fails | The step 11 summary write fails | The reply is unaffected and is still delivered. The summary retains its previous value; continuity falls back to the prior turn's summary. No error is surfaced to the user. |
 | Holdings tool fails | The Portfolio Analyst's tool call errors | The Analyst surfaces the error to the user rather than answering from general knowledge — see Flow E. |
 
 ---
 
 ## Flow C — Continue a Multi-Turn Conversation
 
-The user sends further messages in the same open conversation. Prior context is preserved server-side via the ADK session.
+The user sends further messages in the same open conversation. While the backend keeps running, prior verbatim context is preserved via the ADK session; after a restart, continuity is recovered from the summary.
 
 ### Actors
 
@@ -128,30 +131,33 @@ The user sends further messages in the same open conversation. Prior context is 
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Send another message | Types a follow-up message in the same popup. |
 | 2 | Guest Browser | Reuse conversationId | Sends `POST /api/v1/agent/query` with the same `conversationId` as prior turns. |
-| 3 | System (Agent) | Load session context | ADK loads the existing in-memory session for that `conversationId`, so the Main Agent sees prior turns and can answer in context. |
+| 3 | System (Agent) | Load session context | ADK loads the existing session for that `conversationId`, so the Main Agent sees prior turns and can answer in context. |
 | 4 | System (Agent) | Route or delegate and stream | Same routing/delegation and SSE streaming as Flow B, steps 7–8, including the Portfolio Analyst holdings tool call (Flow E) when the query needs real holdings. |
 | 5 | Guest Browser | Append to transcript | Renders the streamed reply and appends the new turn to the frontend transcript. |
+| 6 | System (Agent) | Regenerate conversation summary | As in Flow B step 11, the user-scoped summary is refreshed after the reply. |
 
 ### Postconditions
 
 - The new turn is appended to the same conversation; the agent's answer reflects earlier turns.
+- The user-scoped `ConversationSummary` reflects the latest turn.
 
 ### Error Cases
 
 | Scenario | Condition | Outcome |
 |----------|-----------|---------|
-| Backend restarted since last turn | ADK session for `conversationId` no longer exists | The backend treats it as a new conversation with empty context. The reply may not reflect earlier turns. No error is surfaced. |
+| Backend restarted since last turn | The verbatim ADK session for `conversationId` no longer exists | The verbatim history is gone, but continuity is recovered from the user-scoped `ConversationSummary`: on the next open the agent presents the summary (Flow G). Earlier turns are reflected in summarised form, not verbatim. No error is surfaced. |
 
 ---
 
 ## Flow D — Transcript Persistence and Loss
 
-Defines how the conversation transcript lives on the frontend and when it is lost.
+Defines how the conversation transcript lives on the frontend, when the verbatim history is lost, and how the summary recovers continuity.
 
 ### Actors
 
 - **Authenticated User**: A logged-in user across page navigations and reloads.
 - **Guest Browser**: The React frontend holding the transcript in session state.
+- **System (Agent)**: The `agent` backend holding the durable user-scoped summary.
 
 ### Preconditions
 
@@ -164,12 +170,13 @@ Defines how the conversation transcript lives on the frontend and when it is los
 | 1 | Authenticated User | Navigate between pages | Moves around the platform with the widget available on every page. |
 | 2 | Guest Browser | Retain transcript | The transcript and `conversationId` persist in frontend session state across navigation and popup open/close. |
 | 3 | Authenticated User | Reload the page or restart the browser | Triggers a fresh frontend load. |
-| 4 | Guest Browser | Discard transcript | The frontend transcript and `conversationId` are cleared. The next message starts a brand-new conversation with a new `conversationId`. |
+| 4 | Guest Browser | Discard verbatim transcript | The frontend transcript and `conversationId` are cleared. The verbatim history is gone. |
+| 5 | Guest Browser | Recover continuity via summary | On the next open, the agent presents the durable user-scoped summary of the previous conversation (Flow G). The next user message begins a fresh `conversationId`, but the agent continues from the summary rather than from scratch. |
 
 ### Postconditions
 
-- The transcript survives navigation and open/close within a running frontend session.
-- The transcript is lost on frontend reload/restart; a subsequent message begins a new conversation.
+- The verbatim transcript survives navigation and open/close within a running frontend session.
+- The verbatim transcript is lost on frontend reload/restart, but the agent recovers continuity from the durable summary on the next open.
 
 ---
 
@@ -213,6 +220,110 @@ When a delegated portfolio query needs the user's real data, the Portfolio Analy
 
 ---
 
+## Flow F — Start a New Conversation
+
+The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable; the durable summary carries forward until the new conversation updates it.
+
+### Actors
+
+- **Authenticated User**: A logged-in user who wants to start over.
+- **Guest Browser**: The React frontend resetting conversation state.
+- **System (Agent)**: The `agent` backend holding the durable user-scoped summary.
+
+### Preconditions
+
+- The assistant popup is open. A conversation may or may not be in progress.
+
+### Steps
+
+| # | Actor | Action | Description |
+|---|-------|--------|-------------|
+| 1 | Authenticated User | Click "New conversation" | Clicks the "New conversation" button in the popup. |
+| 2 | Guest Browser | Reset conversation state | Discards the in-memory transcript and the current `conversationId`. The previous conversation becomes unreachable — there is no way back to it. |
+| 3 | Guest Browser | Present carried-forward summary | Requests and renders the opening summary of the previous conversation from the durable user-scoped state (Flow G). The popup opens on this summary rather than a blank history. |
+| 4 | Authenticated User | Send the first new message | On the next send, the frontend generates a fresh `conversationId` (Flow B step 2), beginning a new session. |
+| 5 | System (Agent) | Overwrite summary on first turn | When the new conversation's first turn completes, the user-scoped `ConversationSummary` is regenerated from the new conversation (Flow B step 11), overwriting the carried-forward summary. |
+
+### Postconditions
+
+- The previous conversation is unreachable; a new session begins on the next message.
+- The durable summary carries forward until the new conversation's first turn overwrites it.
+
+---
+
+## Flow G — Resume with Summary Greeting
+
+When the user opens the assistant and a durable summary exists, the agent opens with a visible summary of the previous conversation. This is how continuity is surfaced after a reload, a restart, or a "New conversation" reset.
+
+### Actors
+
+- **Authenticated User**: A logged-in user opening the assistant.
+- **Guest Browser**: The React frontend rendering the opening greeting.
+- **System (Agent)**: The `agent` backend reading the user-scoped `ConversationSummary`.
+
+### Preconditions
+
+- The user has an active session (is logged in).
+- A user-scoped `ConversationSummary` (`last_conversation`) exists for this user. (If none exists — the first conversation ever — the popup opens empty with no greeting.)
+
+> **Open implementation detail (left to decomposition):** the transport for presenting the opening summary is not prescribed here. It may be a lightweight greeting trigger when the popup opens, or the summary may be prefixed to the first agent reply. The behaviour below is fixed; the mechanism is an implementation choice.
+
+### Steps
+
+| # | Actor | Action | Description |
+|---|-------|--------|-------------|
+| 1 | Authenticated User | Open the assistant | Opens the popup (on first open after a reload/restart, or after clicking "New conversation"). |
+| 2 | Guest Browser | Request opening summary | With an empty local transcript, requests the opening summary greeting from the backend. |
+| 3 | System (Agent) | Read durable summary | Reads the user-scoped `ConversationSummary` (`last_conversation`) for the JWT-resolved `userId`. |
+| 4 | System (Agent) | Return summary greeting | Returns a visible summary message describing the previous conversation. |
+| 5 | Guest Browser | Render greeting | Renders the summary as the opening assistant message. The user continues the conversation from there (Flow B). |
+
+### Postconditions
+
+- The agent has presented the previous conversation's summary as the opening message.
+- The user can continue; the next message starts a fresh `conversationId` while the agent's context is seeded by the summary.
+
+### Error Cases
+
+| Scenario | Condition | Outcome |
+|----------|-----------|---------|
+| No prior summary | First conversation ever for this user | No greeting is shown. The popup opens with an empty conversation. |
+| Summary read fails | Reading `last_conversation` errors | The popup opens empty; no greeting is shown and no error is surfaced. Normal chat proceeds. |
+| Unauthenticated request | No valid JWT | System returns HTTP 401. Frontend redirects to `/login`. |
+
+---
+
+## Flow H — Regenerate Conversation Summary (per turn)
+
+After each completed turn, the backend regenerates the durable user-scoped summary. This flow has no direct user interaction — it runs on the backend as part of completing a turn.
+
+### Actors
+
+- **System (Agent)**: The `agent` backend and the PostgreSQL-backed ADK `SessionService`.
+
+### Preconditions
+
+- A turn has just completed (Flow B step 10 / Flow C step 5).
+
+### Steps
+
+| # | Actor | Action | Description |
+|---|-------|--------|-------------|
+| 1 | System (Agent) | Build summary | Generates a condensed summary of the current conversation, including the just-completed turn. |
+| 2 | System (Agent) | Persist to user scope | Writes the summary to user-scoped ADK state under `last_conversation` for the conversation's `userId`, refreshing `updatedAt`. Persisted via the PostgreSQL-backed ADK `SessionService`. |
+
+### Postconditions
+
+- The user-scoped `ConversationSummary` reflects the most recent turn and is durable across restart and reload.
+
+### Error Cases
+
+| Scenario | Condition | Outcome |
+|----------|-----------|---------|
+| Persist fails | The summary write to the session store errors | The reply is unaffected. The summary retains its previous value; the next successful turn refreshes it. No error is surfaced to the user. |
+
+---
+
 ## Query Request Specification
 
 `POST /api/v1/agent/query`
@@ -220,17 +331,18 @@ When a delegated portfolio query needs the user's real data, the Portfolio Analy
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
 | accountId | uuid | yes | The account selected in frontend state. Carried on every request and consumed by the Portfolio Analyst's holdings tool to scope portfolio retrieval to this account. |
-| conversationId | uuid | yes | Frontend-generated conversation key. New on the first turn; reused on every subsequent turn. |
+| conversationId | uuid | yes | Frontend-generated conversation key. New on the first turn and after a "New conversation" reset; reused on every subsequent turn of the same conversation. |
 | message | string | yes | The user's message text. |
 
-- `userId` is resolved server-side from the JWT and is never present in the request body. It is also the `userId` supplied to the holdings tool.
+- `userId` is resolved server-side from the JWT and is never present in the request body. It is also the `userId` supplied to the holdings tool and the key for the user-scoped `ConversationSummary`.
 - The response is a Server-Sent Events stream of reply tokens (ADK `StreamingMode.SSE`). If streaming cannot be established, a single buffered reply is returned instead.
 
 ---
 
 ## Domain Models Involved
 
-- **AgentConversation**: Created on the first query for a `conversationId` and appended to on every subsequent turn. Held in the ADK in-memory session; never persisted. Its `accountId` scopes the Portfolio Analyst's holdings tool call. See `domain/model/agent-conversation.md`.
+- **AgentConversation**: Created on the first query for a `conversationId` and appended to on every subsequent turn. Held in the ephemeral ADK session; its verbatim turns are not durably persisted. Its `accountId` scopes the Portfolio Analyst's holdings tool call. See `domain/model/agent-conversation.md`.
+- **ConversationSummary**: Regenerated after each turn (Flow H) and presented as the opening summary on resume or new conversation (Flow G). The single durable continuity artefact, held as user-scoped ADK state (`last_conversation`). See `domain/model/conversation-summary.md`.
 - **Position**: Read by the holdings tool via the Portfolio `api/` interface (the same read path as `GET /api/v1/portfolio/holdings`). Fields used: `ticker`, `quantity`, `avgPrice`, plus live `currentPrice` and computed unrealised P&L. Never shared as an entity across domains; the `agent` domain consumes only the tool result. See `domain/model/position.md`.
-- **Session**: `userId` is resolved server-side from the JWT (see `domain/flows/jwt-authentication.md`) and is the identity passed to the holdings tool. The frontend `accessToken` is attached via the shared Axios interceptor. The widget only renders while a frontend session exists.
+- **Session**: `userId` is resolved server-side from the JWT (see `domain/flows/jwt-authentication.md`) and is the identity passed to the holdings tool and used as the summary scope key. The frontend `accessToken` is attached via the shared Axios interceptor. The widget only renders while a frontend session exists.
 - **Account**: The selected `accountId` is read from the `portfolio` Zustand slice and sent with each query. It scopes the holdings tool to a single account. The `agent` domain stores the UUID only; no `Account` entity is shared across domains.
