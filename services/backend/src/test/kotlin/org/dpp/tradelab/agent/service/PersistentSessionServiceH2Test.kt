@@ -11,6 +11,7 @@ import org.dpp.tradelab.agent.repository.AgentEventRepository
 import org.dpp.tradelab.agent.repository.AgentSessionRepository
 import org.dpp.tradelab.agent.repository.AgentUserStateRepository
 import org.dpp.tradelab.config.AGENT_APP_NAME
+import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.annotation.DirtiesContext
@@ -48,7 +49,7 @@ class PersistentSessionServiceH2Test(
             service.appendEvent(created, event("first", 1)).blockingGet()
             service.appendEvent(created, event("second", 2)).blockingGet()
 
-            val restartedService = PersistentSessionService(sessions, events, userStates, serializer)
+            val restartedService = PersistentSessionService(sessions, events, userStates, serializer, mock())
             val restored = restartedService.getSession(
                 AGENT_APP_NAME,
                 userId,

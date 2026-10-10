@@ -14,6 +14,7 @@ import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.mockito.kotlin.any
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
@@ -68,7 +69,7 @@ class PersistentSessionServicePostgresTest @Autowired constructor(
         service.appendEvent(created, event("second", 2)).blockingGet()
         service.updateUserScopedValue(AGENT_APP_NAME, userId, "user:last_conversation", "Previous discussion")
 
-        val restartedService = PersistentSessionService(sessions, events, states, serializer)
+        val restartedService = PersistentSessionService(sessions, events, states, serializer, mock())
         val restored = restartedService.getSession(AGENT_APP_NAME, userId, conversationId, Optional.empty()).blockingGet()!!
 
         restored.state()["accountId"] shouldBe "account-1"
@@ -158,6 +159,50 @@ class PersistentSessionServicePostgresTest @Autowired constructor(
             .blockingGet()!!.state()["user:last_conversation"] shouldBe "shared summary"
         service.getSession(AGENT_APP_NAME, otherUserId, otherSessionId, Optional.empty())
             .blockingGet()!!.state().containsKey("user:last_conversation") shouldBe false
+    }
+
+    @Test
+    fun concurrentFirstSessions_sameUserCreateSingleUserStateRow() {
+        val userId = UUID.randomUUID().toString()
+        val start = CountDownLatch(1)
+        val executor = Executors.newFixedThreadPool(4)
+
+        try {
+            val tasks = (0 until 4).map { index ->
+                executor.submit {
+                    start.await()
+                    service.createSession(
+                        AGENT_APP_NAME,
+                        userId,
+                        ConcurrentHashMap(),
+                        "first-session-$index"
+                    ).blockingGet()
+                }
+            }
+            start.countDown()
+            tasks.forEach { it.get() }
+        } finally {
+            executor.shutdownNow()
+        }
+
+        sessions.findAllByAppNameAndUserId(AGENT_APP_NAME, userId).size shouldBe 4
+        (states.findByAppNameAndUserId(AGENT_APP_NAME, userId) != null) shouldBe true
+    }
+
+    @Test
+    fun summaryUpdate_olderGenerationCannotOverwriteNewerSummary() {
+        val userId = UUID.randomUUID().toString()
+        val newerTimestamp = Instant.parse("2026-10-10T10:00:00Z")
+
+        service.updateConversationSummaryIfNewer(AGENT_APP_NAME, userId, "newer summary", newerTimestamp) shouldBe true
+        service.updateConversationSummaryIfNewer(
+            AGENT_APP_NAME,
+            userId,
+            "older summary",
+            newerTimestamp.minusSeconds(1)
+        ) shouldBe false
+
+        service.getUserScopedValue(AGENT_APP_NAME, userId, "user:last_conversation") shouldBe "newer summary"
     }
 
     private fun event(text: String, timestampSeconds: Long, stateDelta: Map<String, Any> = emptyMap()): Event =

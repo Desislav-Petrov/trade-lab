@@ -42,7 +42,7 @@ class AdkJsonSerializerTest : FunSpec({
         val state = mapOf(
             "userId" to UUID.randomUUID().toString(),
             "updatedAt" to Instant.parse("2026-01-01T00:00:00Z"),
-            "nested" to mapOf("count" to 3, "items" to listOf("one", "two")),
+            "nested" to mapOf("count" to 3, "items" to listOf("one", null, "two"), "optional" to null),
             "temp:token" to "ephemeral",
             "service" to Any()
         )
@@ -50,7 +50,7 @@ class AdkJsonSerializerTest : FunSpec({
         val restored = serializer.deserializeState(serializer.serializeState(state))
 
         restored.keys shouldBe setOf("userId", "updatedAt", "nested")
-        restored["nested"] shouldBe mapOf("count" to 3, "items" to listOf("one", "two"))
+        restored["nested"] shouldBe mapOf("count" to 3, "items" to listOf("one", null, "two"), "optional" to null)
         serializer.sanitizeState(mapOf("user:summary" to "remembered", "removed" to State.REMOVED))
             .shouldContain("user:summary", "remembered")
     }

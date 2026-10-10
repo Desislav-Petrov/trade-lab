@@ -27,7 +27,8 @@ class AgentConfigurationTest : FunSpec({
         mock<AgentSessionRepository>(),
         mock<AgentEventRepository>(),
         mock<AgentUserStateRepository>(),
-        AdkJsonSerializer()
+        AdkJsonSerializer(),
+        mock()
     )
 
     test("agentRunConfig_streamingModeSse_returnsSseConfig") {

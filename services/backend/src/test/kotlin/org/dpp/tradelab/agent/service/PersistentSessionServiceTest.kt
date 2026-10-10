@@ -32,8 +32,15 @@ class PersistentSessionServiceTest : FunSpec() {
     private val sessionRepository = mock<AgentSessionRepository>()
     private val eventRepository = mock<AgentEventRepository>()
     private val userStateRepository = mock<AgentUserStateRepository>()
+    private val userStateProvisioner = mock<AgentUserStateProvisioner>()
     private val serializer = AdkJsonSerializer()
-    private val service = PersistentSessionService(sessionRepository, eventRepository, userStateRepository, serializer)
+    private val service = PersistentSessionService(
+        sessionRepository,
+        eventRepository,
+        userStateRepository,
+        serializer,
+        userStateProvisioner
+    )
     private val userId = "user-1"
     private val sessionId = "session-1"
     private val sessionKey = SessionKey(AGENT_APP_NAME, userId, sessionId)
@@ -48,7 +55,7 @@ class PersistentSessionServiceTest : FunSpec() {
 
     init {
         beforeEach {
-            reset(sessionRepository, eventRepository, userStateRepository)
+            reset(sessionRepository, eventRepository, userStateRepository, userStateProvisioner)
             sessionEntity.stateJson = """{"accountId":"account-1"}"""
             userStateEntity.stateJson = "{}"
         }
@@ -57,7 +64,7 @@ class PersistentSessionServiceTest : FunSpec() {
             whenever(sessionRepository.findByAppNameAndUserIdAndSessionId(AGENT_APP_NAME, userId, sessionId))
                 .thenReturn(null)
             whenever(userStateRepository.findByAppNameAndUserIdForUpdate(AGENT_APP_NAME, userId))
-                .thenReturn(null)
+                .thenReturn(userStateEntity)
             whenever(userStateRepository.saveAndFlush(any<AgentUserState>()))
                 .thenAnswer { it.getArgument<AgentUserState>(0) }
             whenever(userStateRepository.findByAppNameAndUserId(AGENT_APP_NAME, userId))
@@ -179,6 +186,25 @@ class PersistentSessionServiceTest : FunSpec() {
 
             userStateEntity.stateJson = """{"user:last_conversation":"summary"}"""
             service.getUserScopedValue(AGENT_APP_NAME, userId, "user:last_conversation") shouldBe "summary"
+        }
+
+        test("summaryUpdate_olderGenerationCannotOverwriteNewerSummary") {
+            whenever(userStateRepository.findByAppNameAndUserIdForUpdate(AGENT_APP_NAME, userId))
+                .thenReturn(userStateEntity)
+            whenever(userStateRepository.findByAppNameAndUserId(AGENT_APP_NAME, userId))
+                .thenReturn(userStateEntity)
+            whenever(userStateRepository.saveAndFlush(any<AgentUserState>()))
+                .thenAnswer { it.getArgument<AgentUserState>(0) }
+            val newerTimestamp = Instant.parse("2026-10-10T10:00:00Z")
+
+            service.updateConversationSummaryIfNewer(AGENT_APP_NAME, userId, "newer", newerTimestamp) shouldBe true
+            service.updateConversationSummaryIfNewer(
+                AGENT_APP_NAME,
+                userId,
+                "older",
+                newerTimestamp.minusSeconds(1)
+            ) shouldBe false
+            service.getUserScopedValue(AGENT_APP_NAME, userId, "user:last_conversation") shouldBe "newer"
         }
 
         test("getSession_databaseFailure_throwsTypedException") {

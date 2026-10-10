@@ -66,7 +66,7 @@ class AdkJsonSerializer {
 
         state.forEach { (key, value) ->
             if (key.startsWith(State.TEMP_PREFIX) || value == null || value === State.REMOVED) return@forEach
-            normalize(value, visiting, 0)?.let { result[key] = it }
+            normalize(value, visiting, 0).takeUnless { it === UNSAFE_STATE_VALUE }?.let { result[key] = it }
         }
         return result
     }
@@ -96,13 +96,18 @@ class AdkJsonSerializer {
             is Map<*, *> -> {
                 if (!visiting.add(value)) return null
                 try {
-                    value.entries.mapNotNull { (key, child) ->
-                        if (key !is String || child == null || child === State.REMOVED) {
-                            null
-                        } else {
-                            normalize(child, visiting, depth + 1)?.let { key to it }
+                    val normalized = LinkedHashMap<String, Any?>()
+                    value.forEach { (key, child) ->
+                        if (key is String && child !== State.REMOVED) {
+                            if (child == null) {
+                                normalized[key] = null
+                            } else {
+                                val normalizedChild = normalize(child, visiting, depth + 1)
+                                if (normalizedChild !== UNSAFE_STATE_VALUE) normalized[key] = normalizedChild
+                            }
                         }
-                    }.toMap(LinkedHashMap())
+                    }
+                    normalized
                 } finally {
                     visiting.remove(value)
                 }
@@ -110,9 +115,16 @@ class AdkJsonSerializer {
             is Iterable<*> -> {
                 if (!visiting.add(value)) return null
                 try {
-                    value.mapNotNull { child ->
-                        if (child == null || child === State.REMOVED) null else normalize(child, visiting, depth + 1)
+                    val normalized = ArrayList<Any?>()
+                    value.forEach { child ->
+                        if (child == null) {
+                            normalized.add(null)
+                        } else if (child !== State.REMOVED) {
+                            val normalizedChild = normalize(child, visiting, depth + 1)
+                            if (normalizedChild !== UNSAFE_STATE_VALUE) normalized.add(normalizedChild)
+                        }
                     }
+                    normalized
                 } finally {
                     visiting.remove(value)
                 }
@@ -125,5 +137,6 @@ class AdkJsonSerializer {
     private companion object {
         const val MAX_STATE_DEPTH = 64
         val REMOVED_STATE_MARKER = mapOf("__trade_lab_adk_removed_state" to "v1")
+        val UNSAFE_STATE_VALUE = Any()
     }
 }

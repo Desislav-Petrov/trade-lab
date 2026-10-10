@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.Optional
 import java.util.UUID
+import java.time.Instant
 
 @Service
 class ConversationSummaryService(
@@ -59,11 +60,11 @@ class ConversationSummaryService(
                 .trim()
 
             if (summary.isBlank()) throw IllegalStateException("Summary model returned an empty response.")
-            persistentSessionService.updateUserScopedValue(
+            persistentSessionService.updateConversationSummaryIfNewer(
                 AGENT_APP_NAME,
                 userId.toString(),
-                "user:last_conversation",
-                summary
+                summary,
+                session.lastUpdateTime() ?: Instant.now()
             )
         } catch (ex: Exception) {
             logger.warn("Could not regenerate assistant summary for user={} conversation={}", userId, conversationId, ex)

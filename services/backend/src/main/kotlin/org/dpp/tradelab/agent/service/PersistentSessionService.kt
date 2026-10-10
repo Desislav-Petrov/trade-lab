@@ -32,9 +32,15 @@ class PersistentSessionService(
     private val agentSessionRepository: AgentSessionRepository,
     private val agentEventRepository: AgentEventRepository,
     private val agentUserStateRepository: AgentUserStateRepository,
-    private val serializer: AdkJsonSerializer
+    private val serializer: AdkJsonSerializer,
+    private val userStateProvisioner: AgentUserStateProvisioner
 ) : BaseSessionService {
     private val logger = LoggerFactory.getLogger(PersistentSessionService::class.java)
+
+    private companion object {
+        const val LAST_CONVERSATION_KEY = "user:last_conversation"
+        const val LAST_CONVERSATION_SOURCE_TIME_KEY = "user:last_conversation_source_time"
+    }
 
     @Transactional
     override fun createSession(
@@ -52,19 +58,15 @@ class PersistentSessionService(
             val initialState = serializer.sanitizeState(state ?: emptyMap<String, Any>())
             val sessionState = initialState.filterKeys { !it.startsWith(State.USER_PREFIX) }
             val userState = initialState.filterKeys { it.startsWith(State.USER_PREFIX) }
-            val existingUserState = agentUserStateRepository.findByAppNameAndUserIdForUpdate(appName, userId)
-            val userStateEntity = existingUserState ?: AgentUserState(
-                id = UUID.randomUUID(),
-                appName = appName,
-                userId = userId,
-                stateJson = "{}"
-            )
+            userStateProvisioner.ensureExists(appName, userId)
+            val userStateEntity = agentUserStateRepository.findByAppNameAndUserIdForUpdate(appName, userId)
+                ?: throw SessionPersistenceException("Could not provision agent user state.")
             if (userState.isNotEmpty()) {
                 val values = serializer.deserializeState(userStateEntity.stateJson)
                 values.putAll(userState)
                 userStateEntity.stateJson = serializer.serializeState(values)
             }
-            if (existingUserState == null || userState.isNotEmpty()) {
+            if (userState.isNotEmpty()) {
                 agentUserStateRepository.saveAndFlush(userStateEntity)
             }
 
@@ -223,6 +225,33 @@ class PersistentSessionService(
         }
     }
 
+    @Transactional
+    fun updateConversationSummaryIfNewer(
+        appName: String,
+        userId: String,
+        summary: String,
+        sourceUpdatedAt: Instant
+    ): Boolean =
+        try {
+            val entity = lockOrCreateUserState(appName, userId)
+            val state = serializer.deserializeState(entity.stateJson)
+            val currentSourceTime = (state[LAST_CONVERSATION_SOURCE_TIME_KEY] as? String)
+                ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            if (currentSourceTime != null && currentSourceTime.isAfter(sourceUpdatedAt)) {
+                false
+            } else {
+                state[LAST_CONVERSATION_KEY] = summary
+                state[LAST_CONVERSATION_SOURCE_TIME_KEY] = sourceUpdatedAt.toString()
+                entity.stateJson = serializer.serializeState(state)
+                agentUserStateRepository.saveAndFlush(entity)
+                true
+            }
+        } catch (ex: SessionPersistenceException) {
+            throw ex
+        } catch (ex: Exception) {
+            throw persistenceFailure("Could not update agent conversation summary.", ex)
+        }
+
     private fun loadEvents(appName: String, userId: String, sessionId: String): List<AgentEvent> =
         agentEventRepository.findAllByAppNameAndUserIdAndSessionIdOrderBySequenceAsc(appName, userId, sessionId)
 
@@ -231,16 +260,11 @@ class PersistentSessionService(
             ?.let { serializer.deserializeState(it.stateJson) }
             ?: ConcurrentHashMap()
 
-    private fun lockOrCreateUserState(appName: String, userId: String): AgentUserState =
-        agentUserStateRepository.findByAppNameAndUserIdForUpdate(appName, userId)
-            ?: agentUserStateRepository.saveAndFlush(
-                AgentUserState(
-                    id = UUID.randomUUID(),
-                    appName = appName,
-                    userId = userId,
-                    stateJson = "{}"
-                )
-            )
+    private fun lockOrCreateUserState(appName: String, userId: String): AgentUserState {
+        userStateProvisioner.ensureExists(appName, userId)
+        return agentUserStateRepository.findByAppNameAndUserIdForUpdate(appName, userId)
+            ?: throw SessionPersistenceException("Could not provision agent user state.")
+    }
 
     private fun buildSession(
         entity: AgentSession,
