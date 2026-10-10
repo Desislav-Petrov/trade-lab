@@ -4,7 +4,7 @@ import com.google.adk.agents.LlmAgent
 import com.google.adk.agents.RunConfig
 import com.google.adk.models.Gemini
 import com.google.adk.runner.Runner
-import com.google.adk.sessions.InMemorySessionService
+import com.google.adk.sessions.BaseSessionService
 import org.dpp.tradelab.agent.tool.PortfolioHoldingsTool
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -64,9 +64,6 @@ class AgentConfiguration(
             .build()
 
     @Bean
-    fun agentSessionService(): InMemorySessionService = InMemorySessionService()
-
-    @Bean
     fun agentRunConfig(): RunConfig =
         RunConfig.builder()
             .streamingMode(RunConfig.StreamingMode.SSE)
@@ -74,7 +71,7 @@ class AgentConfiguration(
             .build()
 
     @Bean
-    fun agentRunner(mainAgent: LlmAgent, agentSessionService: InMemorySessionService): Runner =
+    fun agentRunner(mainAgent: LlmAgent, agentSessionService: BaseSessionService): Runner =
         Runner.builder()
             .appName(AGENT_APP_NAME)
             .agent(mainAgent)

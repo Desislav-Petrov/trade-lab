@@ -66,6 +66,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /agent/summary:
+    get:
+      tags:
+        - Agent
+      summary: Get the authenticated user's previous conversation summary
+      operationId: getConversationSummary
+      responses:
+        '200':
+          description: Current conversation summary, if one exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSummaryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
 
@@ -98,6 +118,15 @@ components:
           format: uuid
         reply:
           type: string
+
+    AgentSummaryResponse:
+      type: object
+      required:
+        - summary
+      properties:
+        summary:
+          type: string
+          nullable: true
 
     ErrorResponse:
       type: object

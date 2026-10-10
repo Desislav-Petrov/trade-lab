@@ -3,7 +3,7 @@ package org.dpp.tradelab.agent.service
 import com.google.adk.agents.RunConfig
 import com.google.adk.events.Event
 import com.google.adk.runner.Runner
-import com.google.adk.sessions.InMemorySessionService
+import com.google.adk.sessions.BaseSessionService
 import com.google.adk.sessions.Session
 import com.google.adk.sessions.SessionKey
 import com.google.genai.types.Content
@@ -19,20 +19,29 @@ import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
+import org.mockito.kotlin.timeout
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.UUID
 
 class AgentServiceTest : FunSpec({
     val agentRunner = mock<Runner>()
-    val agentSessionService = mock<InMemorySessionService>()
+    val agentSessionService = mock<BaseSessionService>()
+    val conversationSummaryService = mock<ConversationSummaryService>()
     val agentRunConfig = RunConfig.builder()
         .streamingMode(RunConfig.StreamingMode.SSE)
         .build()
-    val agentService = AgentService(agentRunner, agentSessionService, agentRunConfig, timeoutSeconds = 30)
+    val agentService = AgentService(
+        agentRunner,
+        agentSessionService,
+        conversationSummaryService,
+        agentRunConfig,
+        timeoutSeconds = 30
+    )
 
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
@@ -92,7 +101,7 @@ class AgentServiceTest : FunSpec({
     }
 
     beforeEach {
-        reset(agentRunner, agentSessionService)
+        reset(agentRunner, agentSessionService, conversationSummaryService)
     }
 
     test("query_firstTurn_createsSessionAndStreamsChunks") {
@@ -199,7 +208,13 @@ class AgentServiceTest : FunSpec({
     }
 
     test("query_modelStallsBeyondTimeout_surfacesAgentUnavailableException") {
-        val stallingService = AgentService(agentRunner, agentSessionService, agentRunConfig, timeoutSeconds = 1)
+        val stallingService = AgentService(
+            agentRunner,
+            agentSessionService,
+            conversationSummaryService,
+            agentRunConfig,
+            timeoutSeconds = 1
+        )
         stubExistingSession()
         // Model never emits a chunk within the timeout window.
         whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
@@ -208,5 +223,18 @@ class AgentServiceTest : FunSpec({
         shouldThrow<AgentUnavailableException> {
             stallingService.query(userId, accountId, conversationId, "Hi").blockingFirst()
         }.message shouldBe "The AI assistant is temporarily unavailable."
+    }
+
+    test("query_completionSchedulesSummaryWithoutAffectingReply") {
+        stubExistingSession()
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.just(eventWithText("Reply")))
+        doAnswer { throw IllegalStateException("summary unavailable") }
+            .whenever(conversationSummaryService)
+            .regenerate(userId, conversationId)
+
+        agentService.query(userId, accountId, conversationId, "Question").toList().blockingGet() shouldContainExactly listOf("Reply")
+
+        verify(conversationSummaryService, timeout(1_000)).regenerate(userId, conversationId)
     }
 })
