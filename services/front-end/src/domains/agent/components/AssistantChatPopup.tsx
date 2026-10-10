@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Alert, AlertDescription } from '../../../shared/components/ui/alert'
 import { Button } from '../../../shared/components/ui/button'
@@ -27,11 +27,23 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
   const open = useAgentStore((state) => state.open)
   const close = useAgentStore((state) => state.close)
   const startNewConversation = useAgentStore((state) => state.startNewConversation)
+  const seedSummaryGreeting = useAgentStore((state) => state.seedSummaryGreeting)
   const { error, hasSelectedAccount, isSending, sendMessage, clearError } = useAgentChat()
-  const { refetch: refetchSummary } = useConversationSummary()
+  const { summary, refetch: refetchSummary } = useConversationSummary()
   const [message, setMessage] = useState('')
 
   const canSend = hasSelectedAccount && message.trim().length > 0 && !isSending
+
+  // Flow G / Flow D step 5: when the popup opens onto an empty conversation and
+  // a durable summary exists, present it as the opening assistant message. The
+  // store action no-ops once the transcript has real turns, so the greeting is
+  // never duplicated and never overwrites a live conversation. When summary is
+  // null (first-ever conversation) the popup opens empty with no greeting.
+  useEffect(() => {
+    if (isOpen && transcript.length === 0 && summary) {
+      seedSummaryGreeting(summary)
+    }
+  }, [isOpen, transcript.length, summary, seedSummaryGreeting])
 
   async function handleSend() {
     clearError()

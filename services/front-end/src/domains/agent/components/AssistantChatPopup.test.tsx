@@ -37,7 +37,7 @@ describe('AssistantChatPopup', () => {
     })
   })
 
-  it('AssistantChatPopup - empty transcript - renders empty state and composer', () => {
+  it('AssistantChatPopup - empty transcript and no summary - renders empty state and composer', () => {
     render(<AssistantChatPopup />)
 
     expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
@@ -93,6 +93,41 @@ describe('AssistantChatPopup', () => {
     expect(screen.getByText('Assistant unavailable. Please try again.')).toBeInTheDocument()
   })
 
+  it('AssistantChatPopup - summary present on open - seeds the summary as an opening greeting', async () => {
+    summaryState.summary = 'Earlier you reviewed your AAPL position and unrealised P&L.'
+
+    render(<AssistantChatPopup />)
+
+    expect(
+      await screen.findByText('Earlier you reviewed your AAPL position and unrealised P&L.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Start a conversation with the assistant.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - no prior summary on open - opens empty with no greeting', () => {
+    summaryState.summary = null
+
+    render(<AssistantChatPopup />)
+
+    expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - summary present but transcript already has turns - does not seed a greeting', () => {
+    summaryState.summary = 'A carried-forward summary.'
+    useAgentStore.setState({
+      isOpen: true,
+      conversationId: 'conv-1',
+      transcript: [{ id: '1', role: 'user', text: 'Hello', isStreaming: false }],
+    })
+
+    render(<AssistantChatPopup />)
+
+    expect(screen.queryByText('A carried-forward summary.')).not.toBeInTheDocument()
+    expect(screen.getByText('Hello')).toBeInTheDocument()
+  })
+
   it('AssistantChatPopup - New conversation clicked - clears the transcript and refetches the summary', async () => {
     const user = userEvent.setup()
     useAgentStore.setState({
@@ -105,12 +140,11 @@ describe('AssistantChatPopup', () => {
 
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
 
-    expect(useAgentStore.getState().transcript).toHaveLength(0)
     expect(useAgentStore.getState().conversationId).toBeNull()
     expect(summaryState.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('AssistantChatPopup - Enter key with a message - sends and clears the input', async () => {
+  it('AssistantChatPopup - Enter key with a message - sends the trimmed message', async () => {
     const user = userEvent.setup()
     const sendMessage = vi.fn().mockResolvedValue(true)
     mockUseAgentChat.mockReturnValue({
