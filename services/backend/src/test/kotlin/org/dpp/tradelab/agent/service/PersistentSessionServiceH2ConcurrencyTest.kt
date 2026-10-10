@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
-@SpringBootTest
+@SpringBootTest(properties = ["spring.datasource.url=jdbc:h2:mem:agent-persistence;DB_CLOSE_DELAY=-1"])
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PersistentSessionServiceH2ConcurrencyTest @Autowired constructor(
     private val service: PersistentSessionService,
