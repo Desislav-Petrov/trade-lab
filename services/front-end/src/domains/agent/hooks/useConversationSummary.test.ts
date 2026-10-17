@@ -31,27 +31,45 @@ describe('useConversationSummary', () => {
     const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
 
     expect(result.current.summary).toBeNull()
+    expect(result.current.name).toBeNull()
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('useConversationSummary - popup open with a stored summary - returns the summary text', async () => {
     useAgentStore.setState({ isOpen: true })
-    mockFetch.mockResolvedValueOnce({ summary: 'Earlier you reviewed your AAPL position.' })
+    mockFetch.mockResolvedValueOnce({
+      summary: 'Earlier you reviewed your AAPL position.',
+      name: null,
+    })
 
     const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
 
-    await waitFor(() => expect(result.current.summary).toBe('Earlier you reviewed your AAPL position.'))
+    await waitFor(() =>
+      expect(result.current.summary).toBe('Earlier you reviewed your AAPL position.'),
+    )
+    expect(result.current.name).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('useConversationSummary - popup open with a name - returns the name', async () => {
+    useAgentStore.setState({ isOpen: true })
+    mockFetch.mockResolvedValueOnce({ summary: null, name: 'Ada Lovelace' })
+
+    const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.name).toBe('Ada Lovelace'))
+    expect(result.current.summary).toBeNull()
   })
 
   it('useConversationSummary - popup open with no prior summary - returns null', async () => {
     useAgentStore.setState({ isOpen: true })
-    mockFetch.mockResolvedValueOnce({ summary: null })
+    mockFetch.mockResolvedValueOnce({ summary: null, name: null })
 
     const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
     expect(result.current.summary).toBeNull()
+    expect(result.current.name).toBeNull()
   })
 
   it('useConversationSummary - read fails - resolves to null with no error surfaced', async () => {
@@ -62,16 +80,17 @@ describe('useConversationSummary', () => {
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
     expect(result.current.summary).toBeNull()
+    expect(result.current.name).toBeNull()
   })
 
   it('useConversationSummary - refetch - re-pulls the carried-forward summary', async () => {
     useAgentStore.setState({ isOpen: true })
-    mockFetch.mockResolvedValue({ summary: 'First summary' })
+    mockFetch.mockResolvedValue({ summary: 'First summary', name: null })
 
     const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.summary).toBe('First summary'))
 
-    mockFetch.mockResolvedValue({ summary: 'Second summary' })
+    mockFetch.mockResolvedValue({ summary: 'Second summary', name: null })
     result.current.refetch()
 
     await waitFor(() => expect(result.current.summary).toBe('Second summary'))
