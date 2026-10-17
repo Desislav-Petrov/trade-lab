@@ -6,6 +6,7 @@ import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.ConversationSummaryService
 import org.dpp.tradelab.agent.service.AgentService
+import org.dpp.tradelab.agent.service.AgentUserProfileService
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.service.LedgerService
 import org.dpp.tradelab.common.service.JwtService
@@ -39,7 +40,8 @@ class AgentApiDelegateImplTest(
     @Autowired val jwtService: JwtService,
     @MockitoBean val agentService: AgentService,
     @MockitoBean val ledgerService: LedgerService,
-    @MockitoBean val conversationSummaryService: ConversationSummaryService
+    @MockitoBean val conversationSummaryService: ConversationSummaryService,
+    @MockitoBean val agentUserProfileService: AgentUserProfileService
 ) : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
@@ -74,14 +76,29 @@ class AgentApiDelegateImplTest(
             mockMvc.perform(authenticatedSummaryRequest())
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("\$.summary").value("Discussed investment goals."))
+                .andExpect(jsonPath("\$.name").value(org.hamcrest.Matchers.nullValue()))
+
+            verify(agentUserProfileService, never()).resolveName(any())
         }
 
-        test("getConversationSummary_summaryAbsent_returnsNull") {
+        test("getConversationSummary_summaryAbsent_returnsName") {
             whenever(conversationSummaryService.getSummary(userId)).thenReturn(null)
+            whenever(agentUserProfileService.resolveName(userId)).thenReturn("Jane Doe")
 
             mockMvc.perform(authenticatedSummaryRequest())
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("\$.summary").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("\$.name").value("Jane Doe"))
+        }
+
+        test("getConversationSummary_summaryAndNameAbsent_returnsNullFields") {
+            whenever(conversationSummaryService.getSummary(userId)).thenReturn(null)
+            whenever(agentUserProfileService.resolveName(userId)).thenReturn(null)
+
+            mockMvc.perform(authenticatedSummaryRequest())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("\$.summary").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("\$.name").value(org.hamcrest.Matchers.nullValue()))
         }
 
         test("getConversationSummary_unauthenticated_returns401") {
@@ -89,6 +106,7 @@ class AgentApiDelegateImplTest(
                 .andExpect(status().isUnauthorized)
 
             verify(conversationSummaryService, never()).getSummary(any())
+            verify(agentUserProfileService, never()).resolveName(any())
         }
 
         fun stubOwnedAccount() {

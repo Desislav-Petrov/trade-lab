@@ -11,6 +11,7 @@ import org.dpp.tradelab.agent.generated.model.AgentSummaryResponse
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.ConversationSummaryService
 import org.dpp.tradelab.agent.service.AgentService
+import org.dpp.tradelab.agent.service.AgentUserProfileService
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.common.exception.InvalidTokenException
@@ -34,7 +35,8 @@ import java.util.concurrent.atomic.AtomicReference
 class AgentApiDelegateImpl(
     private val agentService: AgentService,
     private val ledgerAccountApi: LedgerAccountApi,
-    private val conversationSummaryService: ConversationSummaryService
+    private val conversationSummaryService: ConversationSummaryService,
+    private val agentUserProfileService: AgentUserProfileService
 ) : AgentApiDelegate {
     companion object {
         private const val SSE_PIPE_BUFFER_SIZE = 16 * 1024
@@ -46,7 +48,9 @@ class AgentApiDelegateImpl(
     override fun getConversationSummary(): ResponseEntity<AgentSummaryResponse> {
         val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID
             ?: throw InvalidTokenException("Authentication required")
-        return ResponseEntity.ok(AgentSummaryResponse(summary = conversationSummaryService.getSummary(userId)))
+        val summary = conversationSummaryService.getSummary(userId)
+        val name = if (summary == null) agentUserProfileService.resolveName(userId) else null
+        return ResponseEntity.ok(AgentSummaryResponse(summary = summary, name = name))
     }
 
     override fun queryAgent(agentQueryRequest: AgentQueryRequest, accept: String?): ResponseEntity<Resource> {

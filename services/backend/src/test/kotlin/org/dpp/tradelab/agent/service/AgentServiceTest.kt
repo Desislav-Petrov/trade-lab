@@ -20,6 +20,7 @@ import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
@@ -32,6 +33,7 @@ class AgentServiceTest : FunSpec({
     val agentRunner = mock<Runner>()
     val agentSessionService = mock<BaseSessionService>()
     val conversationSummaryService = mock<ConversationSummaryService>()
+    val agentUserProfileService = mock<AgentUserProfileService>()
     val agentRunConfig = RunConfig.builder()
         .streamingMode(RunConfig.StreamingMode.SSE)
         .build()
@@ -39,6 +41,7 @@ class AgentServiceTest : FunSpec({
         agentRunner,
         agentSessionService,
         conversationSummaryService,
+        agentUserProfileService,
         agentRunConfig,
         timeoutSeconds = 30
     )
@@ -101,7 +104,7 @@ class AgentServiceTest : FunSpec({
     }
 
     beforeEach {
-        reset(agentRunner, agentSessionService, conversationSummaryService)
+        reset(agentRunner, agentSessionService, conversationSummaryService, agentUserProfileService)
     }
 
     test("query_firstTurn_createsSessionAndStreamsChunks") {
@@ -129,6 +132,18 @@ class AgentServiceTest : FunSpec({
 
         result shouldContainExactly listOf("Hello", " world")
         verify(agentSessionService).createSession(any(), any(), any(), any())
+        verify(agentUserProfileService).resolveName(userId)
+    }
+
+    test("query_nameResolutionFails_stillStreamsReply") {
+        stubExistingSession()
+        doThrow(IllegalStateException("name unavailable"))
+            .whenever(agentUserProfileService)
+            .resolveName(userId)
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.just(eventWithText("Reply")))
+
+        agentService.query(userId, accountId, conversationId, "Hi").toList().blockingGet() shouldContainExactly listOf("Reply")
     }
 
     test("query_existingSession_reusesSession") {
@@ -212,6 +227,7 @@ class AgentServiceTest : FunSpec({
             agentRunner,
             agentSessionService,
             conversationSummaryService,
+            agentUserProfileService,
             agentRunConfig,
             timeoutSeconds = 1
         )

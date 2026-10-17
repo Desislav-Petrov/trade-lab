@@ -57,6 +57,7 @@ class AgentConfiguration(
                 Never perform portfolio analysis yourself.
                 Delegate every portfolio, positions, holdings, allocation, or account analysis question to the portfolio-analyst sub-agent.
                 Do not claim to have live account-specific portfolio data unless dedicated portfolio tools are introduced.
+                If the user-scoped state value {user:user_profile?} is present, use its first whitespace-delimited name token to address the user throughout the conversation. If it is absent or blank, address the user neutrally without inventing a name.
                 Handle only general non-portfolio assistant questions directly.
                 """.trimIndent()
             )
