@@ -50,6 +50,40 @@ describe('useAgentStore', () => {
     })
   })
 
+  it('useAgentStore - startNewConversation - suppresses the summary greeting until the popup is reopened', () => {
+    act(() => {
+      useAgentStore.getState().open()
+      useAgentStore.getState().startNewConversation()
+    })
+
+    expect(useAgentStore.getState().suppressSummaryGreeting).toBe(true)
+
+    act(() => {
+      useAgentStore.getState().close()
+      useAgentStore.getState().open()
+    })
+
+    expect(useAgentStore.getState().suppressSummaryGreeting).toBe(false)
+  })
+
+  it('useAgentStore - toggle open - clears summary greeting suppression', () => {
+    act(() => {
+      useAgentStore.getState().open()
+      useAgentStore.getState().startNewConversation()
+      useAgentStore.getState().toggle()
+    })
+
+    expect(useAgentStore.getState().isOpen).toBe(false)
+    expect(useAgentStore.getState().suppressSummaryGreeting).toBe(true)
+
+    act(() => {
+      useAgentStore.getState().toggle()
+    })
+
+    expect(useAgentStore.getState().isOpen).toBe(true)
+    expect(useAgentStore.getState().suppressSummaryGreeting).toBe(false)
+  })
+
   it('useAgentStore - seedSummaryGreeting - seeds one completed assistant turn when transcript is empty', () => {
     const randomUuidSpy = vi.spyOn(globalThis.crypto, 'randomUUID')
     randomUuidSpy.mockReturnValueOnce(assistantTurnId)

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AssistantChatPopup } from './AssistantChatPopup'
 import { useAgentStore } from '../hooks/useAgentStore'
@@ -11,14 +11,14 @@ vi.mock('../hooks/useAgentChat', () => ({
 }))
 
 const { summaryState } = vi.hoisted(() => ({
-  summaryState: { summary: null as string | null, refetch: vi.fn() },
+  summaryState: { summary: null as string | null },
 }))
 
 vi.mock('../hooks/useConversationSummary', () => ({
   useConversationSummary: () => ({
     summary: summaryState.summary,
     isLoading: false,
-    refetch: summaryState.refetch,
+    refetch: vi.fn(),
   }),
 }))
 
@@ -27,7 +27,6 @@ describe('AssistantChatPopup', () => {
     useAgentStore.getState().reset()
     useAgentStore.getState().open()
     summaryState.summary = null
-    summaryState.refetch.mockClear()
     mockUseAgentChat.mockReturnValue({
       error: null,
       hasSelectedAccount: true,
@@ -128,8 +127,9 @@ describe('AssistantChatPopup', () => {
     expect(screen.getByText('Hello')).toBeInTheDocument()
   })
 
-  it('AssistantChatPopup - New conversation clicked - clears the transcript and refetches the summary', async () => {
+  it('AssistantChatPopup - New conversation clicked - clears the transcript and opens a blank history', async () => {
     const user = userEvent.setup()
+    summaryState.summary = 'A carried-forward summary.'
     useAgentStore.setState({
       isOpen: true,
       conversationId: 'conv-1',
@@ -141,7 +141,30 @@ describe('AssistantChatPopup', () => {
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
 
     expect(useAgentStore.getState().conversationId).toBeNull()
-    expect(summaryState.refetch).toHaveBeenCalledTimes(1)
+    expect(useAgentStore.getState().transcript).toHaveLength(0)
+    expect(screen.queryByText('A carried-forward summary.')).not.toBeInTheDocument()
+    expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - reopen after New conversation - greets with the carried-forward summary again', async () => {
+    const user = userEvent.setup()
+    summaryState.summary = 'A carried-forward summary.'
+    useAgentStore.setState({
+      isOpen: true,
+      conversationId: 'conv-1',
+      transcript: [{ id: '1', role: 'user', text: 'Hello', isStreaming: false }],
+    })
+
+    render(<AssistantChatPopup />)
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+    expect(screen.queryByText('A carried-forward summary.')).not.toBeInTheDocument()
+
+    act(() => {
+      useAgentStore.getState().open()
+    })
+
+    expect(await screen.findByText('A carried-forward summary.')).toBeInTheDocument()
   })
 
   it('AssistantChatPopup - Enter key with a message - sends the trimmed message', async () => {
