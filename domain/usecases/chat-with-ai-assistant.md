@@ -48,7 +48,7 @@ User clicks the assistant widget and sends a message.
 7. The user sends a follow-up message. The frontend reuses the same `conversationId`; the ADK session supplies prior context so the answer is in-context, calling the holdings tool again when fresh data is needed.
 8. The user closes the popup and navigates elsewhere; the transcript persists in frontend session state and the widget remains available on every page.
 9. The user reloads the page (or returns the next day, possibly after a backend restart); the verbatim transcript is gone, but on reopening the agent opens with a summary of the previous conversation drawn from the durable `last_conversation` state, and the user continues from there.
-10. The user clicks "New conversation" to start a fresh session; the previous conversation becomes unreachable, and the agent again opens with the carried-forward summary until the new conversation updates it.
+10. The user clicks "New conversation" to start a fresh session; the previous conversation becomes unreachable and the popup opens on a blank history (no summary greeting at that moment). The durable summary still carries forward and reappears the next time the user opens the assistant, until the new conversation's first turn overwrites it.
 
 ## Failure Scenarios
 

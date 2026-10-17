@@ -18,8 +18,8 @@ Represents a durable, condensed summary of a single user's most recent AI Assist
 ## Behaviors
 
 - **Regenerate**: After each completed turn of the active conversation, the backend regenerates `summary` from the current conversation and writes it to the user-scoped `last_conversation` state, refreshing `updatedAt`. Because it is updated every turn, the summary is always current — even if the backend restarts mid-conversation before the user starts a new one.
-- **Present on open**: When the user opens the assistant (on resume after a reload/restart, or on starting a new conversation), the agent reads `last_conversation` and presents the summary as a visible opening message. See `domain/flows/agent-assistant-chat.md` — Flow G.
-- **CarryForward**: When the user clicks "New conversation", the previous session is abandoned but `last_conversation` persists unchanged. It continues to be presented until the new conversation produces its first summary regeneration, at which point it is overwritten.
+- **Present on open**: When the user opens the assistant onto an empty conversation (on resume after a reload/restart, or on reopening the popup), the agent reads `last_conversation` and presents the summary as a visible opening message. Clicking "New conversation" is a deliberate fresh start and does **not** re-present the summary at that moment. See `domain/flows/agent-assistant-chat.md` — Flow G.
+- **CarryForward**: When the user clicks "New conversation", the previous session is abandoned but `last_conversation` persists unchanged. It is not shown on the blank new-conversation view, but it reappears the next time the assistant is opened — and continues to carry forward until the new conversation produces its first summary regeneration, at which point it is overwritten.
 
 ## Events
 

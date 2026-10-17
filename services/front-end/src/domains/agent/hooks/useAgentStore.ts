@@ -5,6 +5,7 @@ interface AgentStoreState {
   isOpen: boolean
   transcript: Turn[]
   conversationId: string | null
+  suppressSummaryGreeting: boolean
   open: () => void
   close: () => void
   toggle: () => void
@@ -32,10 +33,15 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
   isOpen: false,
   transcript: [],
   conversationId: null,
-  open: () => set({ isOpen: true }),
+  suppressSummaryGreeting: false,
+  open: () => set({ isOpen: true, suppressSummaryGreeting: false }),
   close: () => set({ isOpen: false }),
-  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
-  startNewConversation: () => set({ transcript: [], conversationId: null }),
+  toggle: () =>
+    set((state) =>
+      state.isOpen ? { isOpen: false } : { isOpen: true, suppressSummaryGreeting: false },
+    ),
+  startNewConversation: () =>
+    set({ transcript: [], conversationId: null, suppressSummaryGreeting: true }),
   ensureConversationId: () => {
     const currentConversationId = get().conversationId
     if (currentConversationId) return currentConversationId
@@ -98,5 +104,5 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
 
       return { transcript: state.transcript.slice(0, -1) }
     }),
-  reset: () => set({ isOpen: false, transcript: [], conversationId: null }),
+  reset: () => set({ isOpen: false, transcript: [], conversationId: null, suppressSummaryGreeting: false }),
 }))

@@ -28,22 +28,24 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
   const close = useAgentStore((state) => state.close)
   const startNewConversation = useAgentStore((state) => state.startNewConversation)
   const seedSummaryGreeting = useAgentStore((state) => state.seedSummaryGreeting)
+  const suppressSummaryGreeting = useAgentStore((state) => state.suppressSummaryGreeting)
   const { error, hasSelectedAccount, isSending, sendMessage, clearError } = useAgentChat()
-  const { summary, refetch: refetchSummary } = useConversationSummary()
+  const { summary } = useConversationSummary()
   const [message, setMessage] = useState('')
 
   const canSend = hasSelectedAccount && message.trim().length > 0 && !isSending
 
-  // Flow G / Flow D step 5: when the popup opens onto an empty conversation and
-  // a durable summary exists, present it as the opening assistant message. The
-  // store action no-ops once the transcript has real turns, so the greeting is
-  // never duplicated and never overwrites a live conversation. When summary is
-  // null (first-ever conversation) the popup opens empty with no greeting.
+  // Flow G: when the popup opens onto an empty conversation and a durable summary
+  // exists, present it as the opening assistant message. Suppressed right after an
+  // explicit "New conversation" so that deliberately starting fresh opens on a
+  // blank history. The store action also no-ops once the transcript has real turns,
+  // so the greeting is never duplicated and never overwrites a live conversation.
+  // When summary is null (first-ever conversation) the popup opens empty.
   useEffect(() => {
-    if (isOpen && transcript.length === 0 && summary) {
+    if (isOpen && !suppressSummaryGreeting && transcript.length === 0 && summary) {
       seedSummaryGreeting(summary)
     }
-  }, [isOpen, transcript.length, summary, seedSummaryGreeting])
+  }, [isOpen, suppressSummaryGreeting, transcript.length, summary, seedSummaryGreeting])
 
   async function handleSend() {
     clearError()
@@ -61,11 +63,12 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
     void handleSend()
   }
 
-  // Flow F: clear the current conversation, then re-pull the durable summary so
-  // the popup re-greets the user with the carried-forward summary.
+  // Flow F: start a new conversation from scratch. Wipes the in-memory transcript
+  // and conversationId and opens on a blank history — the carried-forward summary
+  // is deliberately NOT shown here (it reappears only when the assistant is opened
+  // fresh, per Flow G).
   function handleNewConversation() {
     startNewConversation()
-    refetchSummary()
   }
 
   function handleOpenChange(nextOpen: boolean) {

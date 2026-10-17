@@ -222,7 +222,7 @@ When a delegated portfolio query needs the user's real data, the Portfolio Analy
 
 ## Flow F — Start a New Conversation
 
-The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable; the durable summary carries forward until the new conversation updates it.
+The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable and the popup opens on a blank history — the carried-forward summary is **not** re-presented here. The durable summary still persists on the backend and carries forward: it is surfaced again the next time the user *opens* the assistant onto an empty conversation (Flow G), until the new conversation's first turn overwrites it.
 
 ### Actors
 
@@ -240,20 +240,21 @@ The user explicitly starts a fresh conversation via a "New conversation" button 
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Click "New conversation" | Clicks the "New conversation" button in the popup. |
 | 2 | Guest Browser | Reset conversation state | Discards the in-memory transcript and the current `conversationId`. The previous conversation becomes unreachable — there is no way back to it. |
-| 3 | Guest Browser | Present carried-forward summary | Requests and renders the opening summary of the previous conversation from the durable user-scoped state (Flow G). The popup opens on this summary rather than a blank history. |
+| 3 | Guest Browser | Open on a blank history | The popup opens empty. The carried-forward summary is **not** re-presented as a greeting here — starting a new conversation is a deliberate fresh start. (The durable summary still persists and reappears on the next *open* of the assistant, per Flow G.) |
 | 4 | Authenticated User | Send the first new message | On the next send, the frontend generates a fresh `conversationId` (Flow B step 2), beginning a new session. |
 | 5 | System (Agent) | Overwrite summary on first turn | When the new conversation's first turn completes, the user-scoped `ConversationSummary` is regenerated from the new conversation (Flow B step 11), overwriting the carried-forward summary. |
 
 ### Postconditions
 
 - The previous conversation is unreachable; a new session begins on the next message.
-- The durable summary carries forward until the new conversation's first turn overwrites it.
+- The popup opens on a blank history; no summary greeting is shown at the moment of starting the new conversation.
+- The durable summary carries forward (and reappears on the next *open* per Flow G) until the new conversation's first turn overwrites it.
 
 ---
 
 ## Flow G — Resume with Summary Greeting
 
-When the user opens the assistant and a durable summary exists, the agent opens with a visible summary of the previous conversation. This is how continuity is surfaced after a reload, a restart, or a "New conversation" reset.
+When the user opens the assistant and a durable summary exists, the agent opens with a visible summary of the previous conversation. This is how continuity is surfaced after a reload, a restart, or reopening the popup.
 
 ### Actors
 
@@ -272,7 +273,7 @@ When the user opens the assistant and a durable summary exists, the agent opens 
 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
-| 1 | Authenticated User | Open the assistant | Opens the popup (on first open after a reload/restart, or after clicking "New conversation"). |
+| 1 | Authenticated User | Open the assistant | Opens the popup (on first open after a reload/restart, or on reopening the popup onto an empty conversation). |
 | 2 | Guest Browser | Request opening summary | With an empty local transcript, requests the opening summary greeting from the backend. |
 | 3 | System (Agent) | Read durable summary | Reads the user-scoped `ConversationSummary` (`last_conversation`) for the JWT-resolved `userId`. |
 | 4 | System (Agent) | Return summary greeting | Returns a visible summary message describing the previous conversation. |
@@ -342,7 +343,7 @@ After each completed turn, the backend regenerates the durable user-scoped summa
 ## Domain Models Involved
 
 - **AgentConversation**: Created on the first query for a `conversationId` and appended to on every subsequent turn. Held in the ephemeral ADK session; its verbatim turns are not durably persisted. Its `accountId` scopes the Portfolio Analyst's holdings tool call. See `domain/model/agent-conversation.md`.
-- **ConversationSummary**: Regenerated after each turn (Flow H) and presented as the opening summary on resume or new conversation (Flow G). The single durable continuity artefact, held as user-scoped ADK state (`last_conversation`). See `domain/model/conversation-summary.md`.
+- **ConversationSummary**: Regenerated after each turn (Flow H) and presented as the opening summary when the assistant is opened onto an empty conversation (Flow G). The single durable continuity artefact, held as user-scoped ADK state (`last_conversation`). See `domain/model/conversation-summary.md`.
 - **Position**: Read by the holdings tool via the Portfolio `api/` interface (the same read path as `GET /api/v1/portfolio/holdings`). Fields used: `ticker`, `quantity`, `avgPrice`, plus live `currentPrice` and computed unrealised P&L. Never shared as an entity across domains; the `agent` domain consumes only the tool result. See `domain/model/position.md`.
 - **Session**: `userId` is resolved server-side from the JWT (see `domain/flows/jwt-authentication.md`) and is the identity passed to the holdings tool and used as the summary scope key. The frontend `accessToken` is attached via the shared Axios interceptor. The widget only renders while a frontend session exists.
 - **Account**: The selected `accountId` is read from the `portfolio` Zustand slice and sent with each query. It scopes the holdings tool to a single account. The `agent` domain stores the UUID only; no `Account` entity is shared across domains.
