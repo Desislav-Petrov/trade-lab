@@ -8,13 +8,15 @@ The Portfolio Analyst is granted a single tool — a **portfolio holdings tool**
 
 The verbatim conversation context is held server-side by the ephemeral ADK session, keyed by a frontend-generated `conversationId`. Durable continuity across restarts, reloads, and new conversations is provided separately by a user-scoped `ConversationSummary` (`last_conversation`): the agent regenerates it after every turn and presents it as an opening summary when the user returns. There is one active conversation per user — the platform does not track multiple conversations. See `domain/model/agent-conversation.md`, `domain/model/conversation-summary.md`, and `decisions/2026-10-10-agent-conversation-summary-continuity.md`.
 
+The assistant also greets the user **by name**. The user's first name is resolved via a durable, user-scoped `AgentUserProfile` (`user_profile`) and, on a cache miss, fetched from the User domain's `api/` interface and cached for future sessions. The name is injected into the Main Agent's context so it can address the user by name throughout the conversation, and it is presented as the opening greeting whenever the assistant opens onto an empty conversation with no summary to show. See `domain/model/agent-user-profile.md`, Flow I, and `decisions/2026-10-17-agent-personalised-name-greeting.md`.
+
 ---
 
 ## Agent Hierarchy
 
 The `agent` domain defines a two-level agent hierarchy. This structure is the spine of the feature and is designed to grow — future sub-agents are added under the Main Agent without changing the endpoint or the widget.
 
-- **Main Agent (orchestrator)**: The single entry point invoked by `AgentService`. It receives the user message plus prior conversation context and decides how to route it. **The Main Agent must not itself perform portfolio analysis.** It delegates portfolio-related queries to the Portfolio Analyst sub-agent and streams the sub-agent's reply back to the caller.
+- **Main Agent (orchestrator)**: The single entry point invoked by `AgentService`. It receives the user message plus prior conversation context and decides how to route it. **The Main Agent must not itself perform portfolio analysis.** It delegates portfolio-related queries to the Portfolio Analyst sub-agent and streams the sub-agent's reply back to the caller. The Main Agent is additionally provided the user's first name (resolved via the `AgentUserProfile` user-scoped state — Flow I) so it can greet and address the user by name throughout the conversation.
 - **Portfolio Analyst (sub-agent)**: Specialises in analysing portfolio performance and answering questions about the user's holdings. It is the first and only sub-agent in this feature. It is granted a single **portfolio holdings tool**, backed by the Portfolio domain's `api/` interface, which returns the priced holdings, cash, and unrealised P&L for the conversation's `accountId`. It is scoped to that one account and to holdings only — it has no access to trade-fill history or to the user's other accounts.
 
 ### Delegation rule
@@ -43,7 +45,7 @@ The user opens or closes the global assistant popup. The widget is only rendered
 |---|-------|--------|-------------|
 | 1 | Guest Browser | Render docked widget | While a session exists, renders the "Trade Lab AI Assistant" widget docked at the bottom of every page. |
 | 2 | Authenticated User | Click the widget | Clicks the docked widget to open the chat popup. |
-| 3 | Guest Browser | Open popup | Opens the chat popup. If a transcript already exists in frontend session state, it is rendered. Otherwise the popup requests the opening summary greeting (see Flow G) and shows it, or an empty conversation if no prior summary exists. |
+| 3 | Guest Browser | Open popup | Opens the chat popup. If a transcript already exists in frontend session state, it is rendered. Otherwise the popup requests the opening greeting: the summary greeting (Flow G) when a summary exists, or the name greeting (Flow I) when it does not. |
 | 4 | Authenticated User | Click close | Closes the popup. |
 | 5 | Guest Browser | Hide popup, retain transcript | Hides the popup but retains the transcript and `conversationId` in frontend session state so reopening resumes the same conversation. |
 
@@ -84,7 +86,7 @@ The user sends a message. The frontend calls the agent endpoint; the Main Agent 
 | 3 | Guest Browser | Append user turn to transcript | Immediately renders the user's message in the popup and shows a streaming placeholder for the reply. |
 | 4 | Guest Browser | Call agent endpoint | Calls `POST /api/v1/agent/query` with body `{ accountId, conversationId, message }`. The selected `accountId` is read from the `portfolio` slice. The JWT is attached via the shared Axios interceptor. The request accepts a Server-Sent Events stream. |
 | 5 | System (Agent) | Resolve userId | The controller resolves `userId` from the JWT (`SecurityContextHolder`), never from the body. |
-| 6 | System (Agent) | Forward to agent | `AgentService` forwards the message to the ADK Main Agent for the session keyed by `conversationId`, creating the session on first use. It performs no business logic of its own beyond this forwarding. |
+| 6 | System (Agent) | Forward to agent | `AgentService` forwards the message to the ADK Main Agent for the session keyed by `conversationId`, creating the session on first use. It performs no business logic of its own beyond this forwarding. The Main Agent has the user's name available (Flow I) so it may address the user by name. |
 | 7 | System (Agent) | Route or delegate | The Main Agent inspects the message. Portfolio-related queries are delegated to the Portfolio Analyst sub-agent; other queries are handled by the Main Agent directly. The Main Agent never performs portfolio analysis itself. When the delegated query needs the user's real holdings, the Portfolio Analyst invokes its holdings tool — see Flow E. |
 | 8 | System (Agent) | Stream reply (SSE) | The agent reply is streamed back to the caller token-by-token using ADK `StreamingMode.SSE`. The backend bridges the ADK `Flowable<Event>` to an SSE HTTP response. |
 | 9 | Guest Browser | Render streamed tokens | Appends streamed tokens into the reply placeholder in real time as they arrive. |
@@ -222,13 +224,13 @@ When a delegated portfolio query needs the user's real data, the Portfolio Analy
 
 ## Flow F — Start a New Conversation
 
-The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable and the popup opens on a blank history — the carried-forward summary is **not** re-presented here. The durable summary still persists on the backend and carries forward: it is surfaced again the next time the user *opens* the assistant onto an empty conversation (Flow G), until the new conversation's first turn overwrites it.
+The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable and the popup opens on a blank history. The carried-forward **summary** is **not** re-presented here (see `decisions/2026-10-17-new-conversation-blank-slate.md`). However, when no summary exists to carry forward, the blank view shows the **name greeting** instead (Flow I). The durable summary still persists on the backend and carries forward: it is surfaced again the next time the user *opens* the assistant onto an empty conversation (Flow G), until the new conversation's first turn overwrites it.
 
 ### Actors
 
 - **Authenticated User**: A logged-in user who wants to start over.
 - **Guest Browser**: The React frontend resetting conversation state.
-- **System (Agent)**: The `agent` backend holding the durable user-scoped summary.
+- **System (Agent)**: The `agent` backend holding the durable user-scoped summary and the user-scoped `AgentUserProfile`.
 
 ### Preconditions
 
@@ -240,21 +242,21 @@ The user explicitly starts a fresh conversation via a "New conversation" button 
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Click "New conversation" | Clicks the "New conversation" button in the popup. |
 | 2 | Guest Browser | Reset conversation state | Discards the in-memory transcript and the current `conversationId`. The previous conversation becomes unreachable — there is no way back to it. |
-| 3 | Guest Browser | Open on a blank history | The popup opens empty. The carried-forward summary is **not** re-presented as a greeting here — starting a new conversation is a deliberate fresh start. (The durable summary still persists and reappears on the next *open* of the assistant, per Flow G.) |
+| 3 | Guest Browser | Open on a blank history | The popup opens empty. The carried-forward **summary** is **not** re-presented as a greeting here — starting a new conversation is a deliberate fresh start. When **no summary exists** for the user, the **name greeting** (Flow I) is presented on the blank view instead, so the user is still greeted by name. (The durable summary still persists and reappears on the next *open* of the assistant, per Flow G.) |
 | 4 | Authenticated User | Send the first new message | On the next send, the frontend generates a fresh `conversationId` (Flow B step 2), beginning a new session. |
 | 5 | System (Agent) | Overwrite summary on first turn | When the new conversation's first turn completes, the user-scoped `ConversationSummary` is regenerated from the new conversation (Flow B step 11), overwriting the carried-forward summary. |
 
 ### Postconditions
 
 - The previous conversation is unreachable; a new session begins on the next message.
-- The popup opens on a blank history; no summary greeting is shown at the moment of starting the new conversation.
+- The popup opens on a blank history; no summary greeting is shown at the moment of starting the new conversation. A name greeting (Flow I) is shown only when no summary exists.
 - The durable summary carries forward (and reappears on the next *open* per Flow G) until the new conversation's first turn overwrites it.
 
 ---
 
 ## Flow G — Resume with Summary Greeting
 
-When the user opens the assistant and a durable summary exists, the agent opens with a visible summary of the previous conversation. This is how continuity is surfaced after a reload, a restart, or reopening the popup.
+When the user opens the assistant and a durable summary exists, the agent opens with a visible summary of the previous conversation. This is how continuity is surfaced after a reload, a restart, or reopening the popup. When no summary exists, the agent instead greets the user by name (Flow I).
 
 ### Actors
 
@@ -265,7 +267,7 @@ When the user opens the assistant and a durable summary exists, the agent opens 
 ### Preconditions
 
 - The user has an active session (is logged in).
-- A user-scoped `ConversationSummary` (`last_conversation`) exists for this user. (If none exists — the first conversation ever — the popup opens empty with no greeting.)
+- A user-scoped `ConversationSummary` (`last_conversation`) exists for this user. (If none exists — e.g. the first conversation ever — the agent presents the name greeting instead; see Flow I.)
 
 > **Open implementation detail (left to decomposition):** the transport for presenting the opening summary is not prescribed here. It may be a lightweight greeting trigger when the popup opens, or the summary may be prefixed to the first agent reply. The behaviour below is fixed; the mechanism is an implementation choice.
 
@@ -274,22 +276,22 @@ When the user opens the assistant and a durable summary exists, the agent opens 
 | # | Actor | Action | Description |
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Open the assistant | Opens the popup (on first open after a reload/restart, or on reopening the popup onto an empty conversation). |
-| 2 | Guest Browser | Request opening summary | With an empty local transcript, requests the opening summary greeting from the backend. |
+| 2 | Guest Browser | Request opening greeting | With an empty local transcript, requests the opening greeting from the backend. |
 | 3 | System (Agent) | Read durable summary | Reads the user-scoped `ConversationSummary` (`last_conversation`) for the JWT-resolved `userId`. |
-| 4 | System (Agent) | Return summary greeting | Returns a visible summary message describing the previous conversation. |
-| 5 | Guest Browser | Render greeting | Renders the summary as the opening assistant message. The user continues the conversation from there (Flow B). |
+| 4 | System (Agent) | Return greeting | If a summary exists, returns a visible summary message describing the previous conversation. If no summary exists, the agent instead returns the name greeting (Flow I). |
+| 5 | Guest Browser | Render greeting | Renders the summary (or the name greeting) as the opening assistant message. The user continues the conversation from there (Flow B). |
 
 ### Postconditions
 
-- The agent has presented the previous conversation's summary as the opening message.
+- The agent has presented the previous conversation's summary as the opening message, or — when no summary exists — a name greeting (Flow I).
 - The user can continue; the next message starts a fresh `conversationId` while the agent's context is seeded by the summary.
 
 ### Error Cases
 
 | Scenario | Condition | Outcome |
 |----------|-----------|---------|
-| No prior summary | First conversation ever for this user | No greeting is shown. The popup opens with an empty conversation. |
-| Summary read fails | Reading `last_conversation` errors | The popup opens empty; no greeting is shown and no error is surfaced. Normal chat proceeds. |
+| No prior summary | First conversation ever for this user | No summary is shown. The agent presents the name greeting instead (Flow I). |
+| Summary read fails | Reading `last_conversation` errors | The popup opens without a summary; the agent may still present the name greeting (Flow I). No error is surfaced. Normal chat proceeds. |
 | Unauthenticated request | No valid JWT | System returns HTTP 401. Frontend redirects to `/login`. |
 
 ---
@@ -325,6 +327,51 @@ After each completed turn, the backend regenerates the durable user-scoped summa
 
 ---
 
+## Flow I — Resolve User Name and Greet by Name
+
+The assistant greets the user by name and makes the name available to the Main Agent for the whole conversation. The name is resolved from a durable, user-scoped cache and, on a miss, fetched from the User domain and cached for future sessions. This flow has no screen of its own — it supplies the greeting presented on the blank new-conversation view (Flow F) and on open when no summary exists (Flow G).
+
+### Actors
+
+- **Authenticated User**: A logged-in user opening the assistant or starting a new conversation.
+- **Guest Browser**: The React frontend rendering the opening greeting.
+- **System (Agent)**: The `agent` backend reading/writing the user-scoped `AgentUserProfile`.
+- **System (User)**: The User backend service, reached via its `api/` interface for a name lookup by `userId`.
+
+### Preconditions
+
+- The user has an active session (is logged in); the request carries a valid JWT.
+- The assistant is opening onto an empty conversation and **no `ConversationSummary` is being presented** (first-ever user, or the blank new-conversation view with no summary).
+
+### Steps
+
+| # | Actor | Action | Description |
+|---|-------|--------|-------------|
+| 1 | System (Agent) | Resolve userId | Resolves `userId` from the JWT `sub` claim (`SecurityContextHolder`), never from the request body. |
+| 2 | System (Agent) | Read cached profile | Reads the user-scoped `AgentUserProfile` state (`user_profile`). If present, uses its `displayName`. |
+| 3 | System (User) | Fetch name on miss | On a cache miss, the agent calls the User domain's `api/` interface with `userId` to obtain `firstName`. |
+| 4 | System (Agent) | Resolve and cache displayName | Resolves `displayName` from `firstName`; when `firstName` is missing or blank, uses a generic fallback (e.g. "there"). On a successful fetch, writes `displayName` to the user-scoped `user_profile` state for reuse by all future sessions. |
+| 5 | System (Agent) | Provide name to Main Agent | Supplies `displayName` to the Main Agent's context/instruction so it can address the user by name throughout the conversation. |
+| 6 | System (Agent) | Return name greeting | Returns a visible greeting that addresses the user by name (e.g. "Hello {displayName}"). |
+| 7 | Guest Browser | Render greeting | Renders the name greeting as the opening assistant message. The user continues the conversation from there (Flow B). |
+
+### Postconditions
+
+- The user has been greeted by name on the empty-open / blank-new-conversation view when no summary was presented.
+- `displayName` is available to the Main Agent for the remainder of the conversation.
+- On a successful fetch, `AgentUserProfile` is populated and reused by future sessions.
+
+### Error Cases
+
+| Scenario | Condition | Outcome |
+|----------|-----------|---------|
+| Name fetch fails | The User `api/` call errors or times out | The agent greets with the generic fallback (e.g. "Hello there") and does **not** cache a value, so it retries the fetch on the next attempt. No error is surfaced to the user. |
+| firstName missing or blank | The User record has no usable first name | The agent uses the generic fallback for `displayName`. |
+| Stale cached name | The user changed their profile name after the cache was written | The previously cached `displayName` is used; staleness is accepted in this iteration (see `decisions/2026-10-17-agent-personalised-name-greeting.md`). |
+| Unauthenticated request | No valid JWT | System returns HTTP 401. Frontend redirects to `/login`. |
+
+---
+
 ## Query Request Specification
 
 `POST /api/v1/agent/query`
@@ -335,7 +382,7 @@ After each completed turn, the backend regenerates the durable user-scoped summa
 | conversationId | uuid | yes | Frontend-generated conversation key. New on the first turn and after a "New conversation" reset; reused on every subsequent turn of the same conversation. |
 | message | string | yes | The user's message text. |
 
-- `userId` is resolved server-side from the JWT and is never present in the request body. It is also the `userId` supplied to the holdings tool and the key for the user-scoped `ConversationSummary`.
+- `userId` is resolved server-side from the JWT and is never present in the request body. It is also the `userId` supplied to the holdings tool, the key for the user-scoped `ConversationSummary`, and the key for the user-scoped `AgentUserProfile`.
 - The response is a Server-Sent Events stream of reply tokens (ADK `StreamingMode.SSE`). If streaming cannot be established, a single buffered reply is returned instead.
 
 ---
@@ -344,6 +391,8 @@ After each completed turn, the backend regenerates the durable user-scoped summa
 
 - **AgentConversation**: Created on the first query for a `conversationId` and appended to on every subsequent turn. Held in the ephemeral ADK session; its verbatim turns are not durably persisted. Its `accountId` scopes the Portfolio Analyst's holdings tool call. See `domain/model/agent-conversation.md`.
 - **ConversationSummary**: Regenerated after each turn (Flow H) and presented as the opening summary when the assistant is opened onto an empty conversation (Flow G). The single durable continuity artefact, held as user-scoped ADK state (`last_conversation`). See `domain/model/conversation-summary.md`.
+- **AgentUserProfile**: Durable, user-scoped ADK state (`user_profile`) caching the user's greeting `displayName`. Read on open; populated on a miss from the User domain's `api/` interface. Supplies the name greeting (Flow I) and the name injected into the Main Agent's context. See `domain/model/agent-user-profile.md`.
 - **Position**: Read by the holdings tool via the Portfolio `api/` interface (the same read path as `GET /api/v1/portfolio/holdings`). Fields used: `ticker`, `quantity`, `avgPrice`, plus live `currentPrice` and computed unrealised P&L. Never shared as an entity across domains; the `agent` domain consumes only the tool result. See `domain/model/position.md`.
-- **Session**: `userId` is resolved server-side from the JWT (see `domain/flows/jwt-authentication.md`) and is the identity passed to the holdings tool and used as the summary scope key. The frontend `accessToken` is attached via the shared Axios interceptor. The widget only renders while a frontend session exists.
+- **User**: The user's `firstName` is read via the User domain's `api/` interface (keyed by the JWT-resolved `userId`) to resolve the greeting name (Flow I). The `agent` domain stores only the resolved `displayName` in `AgentUserProfile`, never the `User` entity. See `domain/model/user.md`.
+- **Session**: `userId` is resolved server-side from the JWT (see `domain/flows/jwt-authentication.md`) and is the identity passed to the holdings tool, used as the summary scope key, and used as the `AgentUserProfile` scope key. The frontend `accessToken` is attached via the shared Axios interceptor. The widget only renders while a frontend session exists.
 - **Account**: The selected `accountId` is read from the `portfolio` Zustand slice and sent with each query. It scopes the holdings tool to a single account. The `agent` domain stores the UUID only; no `Account` entity is shared across domains.
