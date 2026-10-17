@@ -30,22 +30,29 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
   const seedSummaryGreeting = useAgentStore((state) => state.seedSummaryGreeting)
   const suppressSummaryGreeting = useAgentStore((state) => state.suppressSummaryGreeting)
   const { error, hasSelectedAccount, isSending, sendMessage, clearError } = useAgentChat()
-  const { summary } = useConversationSummary()
+  const { summary, name } = useConversationSummary()
   const [message, setMessage] = useState('')
 
   const canSend = hasSelectedAccount && message.trim().length > 0 && !isSending
 
-  // Flow G: when the popup opens onto an empty conversation and a durable summary
-  // exists, present it as the opening assistant message. Suppressed right after an
-  // explicit "New conversation" so that deliberately starting fresh opens on a
-  // blank history. The store action also no-ops once the transcript has real turns,
-  // so the greeting is never duplicated and never overwrites a live conversation.
-  // When summary is null (first-ever conversation) the popup opens empty.
+  // Flow G: when the popup opens onto an empty conversation, present a durable
+  // summary if one exists, otherwise greet the user by name. Summary greetings are
+  // suppressed right after "New conversation"; name greetings are not (Flow F/I).
+  // The store action also no-ops once the transcript has turns, avoiding duplicate
+  // greetings and preserving live conversations.
   useEffect(() => {
-    if (isOpen && !suppressSummaryGreeting && transcript.length === 0 && summary) {
-      seedSummaryGreeting(summary)
+    if (!isOpen || transcript.length > 0) return
+
+    if (summary) {
+      if (!suppressSummaryGreeting) seedSummaryGreeting(summary)
+      return
     }
-  }, [isOpen, suppressSummaryGreeting, transcript.length, summary, seedSummaryGreeting])
+
+    const firstName = name?.trim().split(/\s+/)[0]
+    if (firstName) {
+      seedSummaryGreeting(`Hello ${firstName}`)
+    }
+  }, [isOpen, suppressSummaryGreeting, transcript.length, summary, name, seedSummaryGreeting])
 
   async function handleSend() {
     clearError()
@@ -64,9 +71,8 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
   }
 
   // Flow F: start a new conversation from scratch. Wipes the in-memory transcript
-  // and conversationId and opens on a blank history — the carried-forward summary
-  // is deliberately NOT shown here (it reappears only when the assistant is opened
-  // fresh, per Flow G).
+  // and conversationId; the carried-forward summary stays suppressed, but when no
+  // summary exists the name greeting is still shown.
   function handleNewConversation() {
     startNewConversation()
   }
@@ -101,7 +107,9 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
           <CardContent className="flex flex-col gap-3">
             {!hasSelectedAccount && (
               <Alert variant="warning">
-                <AlertDescription>Select an account in Portfolio before starting a chat.</AlertDescription>
+                <AlertDescription>
+                  Select an account in Portfolio before starting a chat.
+                </AlertDescription>
               </Alert>
             )}
 

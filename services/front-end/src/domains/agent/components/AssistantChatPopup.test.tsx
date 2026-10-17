@@ -11,12 +11,13 @@ vi.mock('../hooks/useAgentChat', () => ({
 }))
 
 const { summaryState } = vi.hoisted(() => ({
-  summaryState: { summary: null as string | null },
+  summaryState: { summary: null as string | null, name: null as string | null },
 }))
 
 vi.mock('../hooks/useConversationSummary', () => ({
   useConversationSummary: () => ({
     summary: summaryState.summary,
+    name: summaryState.name,
     isLoading: false,
     refetch: vi.fn(),
   }),
@@ -27,6 +28,7 @@ describe('AssistantChatPopup', () => {
     useAgentStore.getState().reset()
     useAgentStore.getState().open()
     summaryState.summary = null
+    summaryState.name = null
     mockUseAgentChat.mockReturnValue({
       error: null,
       hasSelectedAccount: true,
@@ -100,9 +102,7 @@ describe('AssistantChatPopup', () => {
     expect(
       await screen.findByText('Earlier you reviewed your AAPL position and unrealised P&L.'),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByText('Start a conversation with the assistant.'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Start a conversation with the assistant.')).not.toBeInTheDocument()
   })
 
   it('AssistantChatPopup - no prior summary on open - opens empty with no greeting', () => {
@@ -111,6 +111,15 @@ describe('AssistantChatPopup', () => {
     render(<AssistantChatPopup />)
 
     expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - no summary and multi-word name - greets using the first token', async () => {
+    summaryState.name = '  Ada   Lovelace  '
+
+    render(<AssistantChatPopup />)
+
+    expect(await screen.findByText('Hello Ada')).toBeInTheDocument()
+    expect(screen.queryByText('Start a conversation with the assistant.')).not.toBeInTheDocument()
   })
 
   it('AssistantChatPopup - summary present but transcript already has turns - does not seed a greeting', () => {
@@ -144,6 +153,23 @@ describe('AssistantChatPopup', () => {
     expect(useAgentStore.getState().transcript).toHaveLength(0)
     expect(screen.queryByText('A carried-forward summary.')).not.toBeInTheDocument()
     expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
+  })
+
+  it('AssistantChatPopup - New conversation with no summary - still greets by name', async () => {
+    const user = userEvent.setup()
+    summaryState.name = 'Ada Lovelace'
+    useAgentStore.setState({
+      isOpen: true,
+      conversationId: 'conv-1',
+      transcript: [{ id: '1', role: 'user', text: 'Hello', isStreaming: false }],
+    })
+
+    render(<AssistantChatPopup />)
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+
+    expect(await screen.findByText('Hello Ada')).toBeInTheDocument()
+    expect(screen.queryByText('Start a conversation with the assistant.')).not.toBeInTheDocument()
   })
 
   it('AssistantChatPopup - reopen after New conversation - greets with the carried-forward summary again', async () => {
