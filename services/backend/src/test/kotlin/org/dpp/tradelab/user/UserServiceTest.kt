@@ -142,6 +142,33 @@ class UserServiceTest : FunSpec({
         result shouldBe emptyList()
     }
 
+    test("getName_existingUser_returnsFullName") {
+        whenever(userRepository.findById(validId)).thenReturn(Optional.of(makeUser()))
+
+        userService.getName(validId) shouldBe "Jane Doe"
+    }
+
+    test("getName_blankLastName_returnsFirstNameOnly") {
+        whenever(userRepository.findById(validId))
+            .thenReturn(Optional.of(makeUser().let { user ->
+                User(
+                    id = user.id,
+                    firstName = user.firstName,
+                    lastName = " ",
+                    address = user.address,
+                    email = user.email
+                )
+            }))
+
+        userService.getName(validId) shouldBe "Jane"
+    }
+
+    test("getName_unknownUser_returnsNull") {
+        whenever(userRepository.findById(validId)).thenReturn(Optional.empty())
+
+        userService.getName(validId) shouldBe null
+    }
+
     test("getUserById_existingId_returnsUser") {
         val user = makeUser()
         val settings = makeSettings()
