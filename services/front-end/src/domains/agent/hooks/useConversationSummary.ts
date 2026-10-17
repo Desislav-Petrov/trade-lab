@@ -5,14 +5,15 @@ import { useAgentStore } from './useAgentStore'
 
 export interface UseConversationSummaryResult {
   summary: string | null
+  name: string | null
   isLoading: boolean
   refetch: () => void
 }
 
 // Fetches the authenticated user's durable conversation summary when the
-// assistant popup is open (Flow G). A read failure resolves to no greeting
-// (summary treated as null) and is never surfaced as an error — continuity
-// simply falls back to no summary until the next turn refreshes it.
+// assistant popup is open (Flow G). A read failure resolves both values to null
+// and is never surfaced as an error — continuity and the name greeting are
+// unavailable until the next turn refreshes the data.
 export function useConversationSummary(): UseConversationSummaryResult {
   const isOpen = useAgentStore((state) => state.isOpen)
 
@@ -26,6 +27,7 @@ export function useConversationSummary(): UseConversationSummaryResult {
 
   return {
     summary: query.data?.summary ?? null,
+    name: query.data?.name ?? null,
     isLoading: query.isLoading,
     refetch: () => {
       void query.refetch()
