@@ -44,5 +44,5 @@ first turn) is retained unchanged.
   - No change to `useAgentStore` (the `suppressSummaryGreeting` flag still suppresses the
     summary; it no longer implies "no greeting").
 - No backend change: summary persistence and carry-forward semantics are untouched.
-- Note: when no first name is resolvable, no greeting is seeded (unchanged); the Flow I
-  generic fallback remains out of scope for the client-seeded greeting in this iteration.
+- Name resolution for the greeting: `useConversationSummary` uses the `name` from `GET /api/v1/agent/summary` when present, and otherwise falls back to the signed-in user's `firstName` from the session store. This is required because the backend endpoint only populates `name` when no summary exists (`name = if (summary == null) resolveName(userId) else null` in `AgentApiDelegateImpl`), so after "New conversation" — where a summary typically still exists — the session is the reliable source for the name greeting. When neither is available, no greeting is seeded; the Flow I generic "Hello there" fallback remains out of scope for the client-seeded greeting in this iteration.
+- Follow-up for the backend team (out of frontend scope): consider having `GET /api/v1/agent/summary` always resolve and return `name` alongside the summary, which would remove the need for the frontend session fallback.
