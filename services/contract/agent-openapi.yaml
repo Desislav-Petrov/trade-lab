@@ -72,9 +72,7 @@ paths:
         - Agent
       summary: Get the authenticated user's previous conversation summary
       description: >
-        Returns the previous conversation summary when one exists. Otherwise, `name`
-        contains the user's full name for the client to greet with. Both fields may
-        be null when no summary or name is available.
+        Returns the authenticated user's durable previous-conversation summary when one exists, together with the user's greeting name (resolved whenever available, regardless of whether a summary is present).
       operationId: getConversationSummary
       responses:
         '200':
@@ -132,6 +130,8 @@ components:
         name:
           type: string
           nullable: true
+          description: >
+            The user's greeting name (first name or display name), resolved whenever available regardless of whether a summary is present. Null only when no name can be resolved.
 
     ErrorResponse:
       type: object
