@@ -49,7 +49,7 @@ class AgentApiDelegateImpl(
         val userId = SecurityContextHolder.getContext().authentication?.principal as? UUID
             ?: throw InvalidTokenException("Authentication required")
         val summary = conversationSummaryService.getSummary(userId)
-        val name = if (summary == null) agentUserProfileService.resolveName(userId) else null
+        val name = agentUserProfileService.resolveName(userId)
         return ResponseEntity.ok(AgentSummaryResponse(summary = summary, name = name))
     }
 

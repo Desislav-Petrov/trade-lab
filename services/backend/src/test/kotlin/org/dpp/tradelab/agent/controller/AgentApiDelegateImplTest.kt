@@ -70,15 +70,16 @@ class AgentApiDelegateImplTest(
             get("/api/v1/agent/summary")
                 .header(HttpHeaders.AUTHORIZATION, "Bea" + "rer " + jwtService.issueToken(userId))
 
-        test("getConversationSummary_summaryPresent_returnsSummary") {
+        test("getConversationSummary_summaryPresent_returnsSummaryAndName") {
             whenever(conversationSummaryService.getSummary(userId)).thenReturn("Discussed investment goals.")
+            whenever(agentUserProfileService.resolveName(userId)).thenReturn("Jane Doe")
 
             mockMvc.perform(authenticatedSummaryRequest())
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("\$.summary").value("Discussed investment goals."))
-                .andExpect(jsonPath("\$.name").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("\$.name").value("Jane Doe"))
 
-            verify(agentUserProfileService, never()).resolveName(any())
+            verify(agentUserProfileService).resolveName(userId)
         }
 
         test("getConversationSummary_summaryAbsent_returnsName") {
