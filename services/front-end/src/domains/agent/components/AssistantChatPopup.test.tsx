@@ -136,9 +136,10 @@ describe('AssistantChatPopup', () => {
     expect(screen.getByText('Hello')).toBeInTheDocument()
   })
 
-  it('AssistantChatPopup - New conversation clicked - clears the transcript and opens a blank history', async () => {
+  it('AssistantChatPopup - New conversation with a summary present - clears context and greets by name', async () => {
     const user = userEvent.setup()
     summaryState.summary = 'A carried-forward summary.'
+    summaryState.name = 'Ada Lovelace'
     useAgentStore.setState({
       isOpen: true,
       conversationId: 'conv-1',
@@ -150,9 +151,8 @@ describe('AssistantChatPopup', () => {
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
 
     expect(useAgentStore.getState().conversationId).toBeNull()
-    expect(useAgentStore.getState().transcript).toHaveLength(0)
     expect(screen.queryByText('A carried-forward summary.')).not.toBeInTheDocument()
-    expect(screen.getByText('Start a conversation with the assistant.')).toBeInTheDocument()
+    expect(await screen.findByText('Hello Ada')).toBeInTheDocument()
   })
 
   it('AssistantChatPopup - New conversation with no summary - still greets by name', async () => {
