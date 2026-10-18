@@ -17,7 +17,7 @@ describe('fetchConversationSummary', () => {
 
   it('fetchConversationSummary - summary present - returns the summary text from GET /v1/agent/summary', async () => {
     mockGet.mockResolvedValue({
-      data: { summary: 'Earlier you reviewed your AAPL position and unrealised P&L.' },
+      data: { summary: 'Earlier you reviewed your AAPL position and unrealised P&L.', name: null },
     })
 
     const result = await fetchConversationSummary()
@@ -25,16 +25,17 @@ describe('fetchConversationSummary', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/agent/summary')
     expect(result).toEqual({
       summary: 'Earlier you reviewed your AAPL position and unrealised P&L.',
+      name: null,
     })
   })
 
-  it('fetchConversationSummary - no prior summary - returns a null summary', async () => {
-    mockGet.mockResolvedValue({ data: { summary: null } })
+  it('fetchConversationSummary - no prior summary - returns the available user name', async () => {
+    mockGet.mockResolvedValue({ data: { summary: null, name: 'Ada Lovelace' } })
 
     const result = await fetchConversationSummary()
 
     expect(mockGet).toHaveBeenCalledWith('/v1/agent/summary')
-    expect(result).toEqual({ summary: null })
+    expect(result).toEqual({ summary: null, name: 'Ada Lovelace' })
   })
 })
 

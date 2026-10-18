@@ -11,6 +11,7 @@ export interface QueryAgentResponse {
 
 export interface AgentSummaryResponse {
   summary: string | null
+  name: string | null
 }
 
 export type TurnRole = 'user' | 'assistant'
