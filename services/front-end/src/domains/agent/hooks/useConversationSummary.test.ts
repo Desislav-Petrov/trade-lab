@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { useConversationSummary } from './useConversationSummary'
 import { useAgentStore } from './useAgentStore'
+import { useSessionStore } from '../../user/hooks/useSessionStore'
 
 vi.mock('../api/fetchConversationSummary', () => ({
   fetchConversationSummary: vi.fn(),
@@ -25,6 +26,7 @@ describe('useConversationSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAgentStore.setState({ isOpen: false, transcript: [], conversationId: null })
+    useSessionStore.setState({ user: null })
   })
 
   it('useConversationSummary - popup closed - query is disabled and no fetch occurs', () => {
@@ -70,6 +72,47 @@ describe('useConversationSummary', () => {
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
     expect(result.current.summary).toBeNull()
     expect(result.current.name).toBeNull()
+  })
+
+  it('useConversationSummary - endpoint name null but session has a first name - falls back to the session first name', async () => {
+    useAgentStore.setState({ isOpen: true })
+    useSessionStore.setState({
+      user: {
+        userId: 'u1',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        address: null,
+        email: 'ada@example.com',
+        status: 'active',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    })
+    mockFetch.mockResolvedValueOnce({ summary: 'A carried-forward summary.', name: null })
+
+    const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.summary).toBe('A carried-forward summary.'))
+    expect(result.current.name).toBe('Ada')
+  })
+
+  it('useConversationSummary - endpoint name present - prefers the endpoint name over the session', async () => {
+    useAgentStore.setState({ isOpen: true })
+    useSessionStore.setState({
+      user: {
+        userId: 'u1',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        address: null,
+        email: 'ada@example.com',
+        status: 'active',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    })
+    mockFetch.mockResolvedValueOnce({ summary: null, name: 'Grace Hopper' })
+
+    const { result } = renderHook(() => useConversationSummary(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.name).toBe('Grace Hopper'))
   })
 
   it('useConversationSummary - read fails - resolves to null with no error surfaced', async () => {
