@@ -224,7 +224,7 @@ When a delegated portfolio query needs the user's real data, the Portfolio Analy
 
 ## Flow F — Start a New Conversation
 
-The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable and the popup opens on a blank history. The carried-forward **summary** is **not** re-presented here (see `decisions/2026-10-17-new-conversation-blank-slate.md`). However, when no summary exists to carry forward, the blank view shows the **name greeting** instead (Flow I). The durable summary still persists on the backend and carries forward: it is surfaced again the next time the user *opens* the assistant onto an empty conversation (Flow G), until the new conversation's first turn overwrites it.
+The user explicitly starts a fresh conversation via a "New conversation" button in the popup. The previous conversation becomes unreachable and the popup is cleared of all prior context. Starting a new conversation always greets the user **by name** (Flow I); the carried-forward **summary** is **not** re-presented here (see `decisions/2026-10-18-new-conversation-name-greeting.md`, superseding `decisions/2026-10-17-new-conversation-blank-slate.md`). The durable summary still persists on the backend and carries forward: it is surfaced again the next time the user *opens* the assistant onto an empty conversation (e.g. after a page reload or backend restart), per Flow G, until the new conversation's first turn overwrites it.
 
 ### Actors
 
@@ -242,15 +242,15 @@ The user explicitly starts a fresh conversation via a "New conversation" button 
 |---|-------|--------|-------------|
 | 1 | Authenticated User | Click "New conversation" | Clicks the "New conversation" button in the popup. |
 | 2 | Guest Browser | Reset conversation state | Discards the in-memory transcript and the current `conversationId`. The previous conversation becomes unreachable — there is no way back to it. |
-| 3 | Guest Browser | Open on a blank history | The popup opens empty. The carried-forward **summary** is **not** re-presented as a greeting here — starting a new conversation is a deliberate fresh start. When **no summary exists** for the user, the **name greeting** (Flow I) is presented on the blank view instead, so the user is still greeted by name. (The durable summary still persists and reappears on the next *open* of the assistant, per Flow G.) |
+| 3 | Guest Browser | Greet by name on a cleared view | The popup is cleared of prior context and the **name greeting** (Flow I) is presented, so the user is greeted by name. The carried-forward **summary** is **not** re-presented here — starting a new conversation is a deliberate fresh start. (The durable summary still persists and reappears on the next *open* onto an empty conversation, per Flow G.) |
 | 4 | Authenticated User | Send the first new message | On the next send, the frontend generates a fresh `conversationId` (Flow B step 2), beginning a new session. |
 | 5 | System (Agent) | Overwrite summary on first turn | When the new conversation's first turn completes, the user-scoped `ConversationSummary` is regenerated from the new conversation (Flow B step 11), overwriting the carried-forward summary. |
 
 ### Postconditions
 
 - The previous conversation is unreachable; a new session begins on the next message.
-- The popup opens on a blank history; no summary greeting is shown at the moment of starting the new conversation. A name greeting (Flow I) is shown only when no summary exists.
-- The durable summary carries forward (and reappears on the next *open* per Flow G) until the new conversation's first turn overwrites it.
+- The popup is cleared of prior context and greets the user by name (Flow I); no summary greeting is shown at the moment of starting the new conversation.
+- The durable summary carries forward (and reappears on the next *open* onto an empty conversation, per Flow G) until the new conversation's first turn overwrites it.
 
 ---
 

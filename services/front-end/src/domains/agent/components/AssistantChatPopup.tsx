@@ -35,16 +35,18 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
 
   const canSend = hasSelectedAccount && message.trim().length > 0 && !isSending
 
-  // Flow G: when the popup opens onto an empty conversation, present a durable
-  // summary if one exists, otherwise greet the user by name. Summary greetings are
-  // suppressed right after "New conversation"; name greetings are not (Flow F/I).
-  // The store action also no-ops once the transcript has turns, avoiding duplicate
-  // greetings and preserving live conversations.
+  // Flow F/G/I: when the popup opens onto an empty conversation, decide the opening
+  // greeting. On a genuine open with a durable summary present, show the summary
+  // (Flow G). After an explicit "New conversation" the summary is suppressed and the
+  // user is greeted by name instead (Flow F -> Flow I) — starting a new conversation is
+  // a deliberate fresh start that clears prior context. When no summary exists the name
+  // greeting is shown too (Flow I). The store action no-ops once the transcript has
+  // turns, avoiding duplicate greetings and preserving live conversations.
   useEffect(() => {
     if (!isOpen || transcript.length > 0) return
 
-    if (summary) {
-      if (!suppressSummaryGreeting) seedSummaryGreeting(summary)
+    if (summary && !suppressSummaryGreeting) {
+      seedSummaryGreeting(summary)
       return
     }
 
@@ -70,9 +72,10 @@ export function AssistantChatPopup({ className }: AssistantChatPopupProps) {
     void handleSend()
   }
 
-  // Flow F: start a new conversation from scratch. Wipes the in-memory transcript
-  // and conversationId; the carried-forward summary stays suppressed, but when no
-  // summary exists the name greeting is still shown.
+  // Flow F: start a new conversation from scratch. Wipes the in-memory transcript and
+  // conversationId and clears prior context; the greeting effect then seeds the name
+  // greeting (Flow I). The durable summary is untouched on the backend and reappears on
+  // the next genuine empty open (page reload / restart), per Flow G.
   function handleNewConversation() {
     startNewConversation()
   }
