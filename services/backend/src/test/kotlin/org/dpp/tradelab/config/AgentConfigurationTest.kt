@@ -64,5 +64,7 @@ class AgentConfigurationTest : FunSpec({
         mainAgent.subAgents().first().name() shouldBe "portfolio-analyst"
         mainAgent.instruction().toString() shouldContain "Never perform portfolio analysis yourself"
         mainAgent.instruction().toString() shouldContain "Delegate every portfolio"
+        mainAgent.instruction().toString() shouldContain "{user:user_profile?}"
+        mainAgent.instruction().toString() shouldContain "address the user neutrally"
     }
 })

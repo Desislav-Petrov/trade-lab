@@ -32,6 +32,16 @@ class UserService(
     @Transactional(readOnly = true)
     override fun existsById(userId: UUID): Boolean = userRepository.existsById(userId)
 
+    @Transactional(readOnly = true)
+    override fun getName(userId: UUID): String? =
+        userRepository.findById(userId)
+            .orElse(null)
+            ?.let { user ->
+                listOf(user.firstName.trim(), user.lastName.trim())
+                    .filter(String::isNotBlank)
+                    .joinToString(" ")
+            }
+
     @Transactional
     fun registerUser(firstName: String, lastName: String, address: String?, email: String): UUID {
         if (userRepository.existsByEmail(email)) {

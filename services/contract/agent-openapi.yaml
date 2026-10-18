@@ -71,10 +71,14 @@ paths:
       tags:
         - Agent
       summary: Get the authenticated user's previous conversation summary
+      description: >
+        Returns the previous conversation summary when one exists. Otherwise, `name`
+        contains the user's full name for the client to greet with. Both fields may
+        be null when no summary or name is available.
       operationId: getConversationSummary
       responses:
         '200':
-          description: Current conversation summary, if one exists
+          description: Conversation summary or greeting name
           content:
             application/json:
               schema:
@@ -121,10 +125,11 @@ components:
 
     AgentSummaryResponse:
       type: object
-      required:
-        - summary
       properties:
         summary:
+          type: string
+          nullable: true
+        name:
           type: string
           nullable: true
 

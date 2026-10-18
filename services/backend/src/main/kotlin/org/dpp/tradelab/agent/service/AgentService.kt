@@ -30,6 +30,7 @@ class AgentService(
     private val agentRunner: Runner,
     private val agentSessionService: BaseSessionService,
     private val conversationSummaryService: ConversationSummaryService,
+    private val agentUserProfileService: AgentUserProfileService,
     private val agentRunConfig: RunConfig,
     @Value("\${app.agent.timeout-seconds:30}")
     private val timeoutSeconds: Long
@@ -48,6 +49,11 @@ class AgentService(
         message: String
     ): Flowable<String> =
         try {
+            try {
+                agentUserProfileService.resolveName(userId)
+            } catch (ex: Exception) {
+                logger.warn("Could not resolve assistant user name for user={}", userId, ex)
+            }
             val session = loadOrCreateSession(userId, accountId, conversationId)
 
             // Per-subscription flag: true once we have streamed a partial (delta)
