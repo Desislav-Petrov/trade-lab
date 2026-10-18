@@ -11,31 +11,49 @@ class AgentUserProfileService(
     private val userLookupApi: UserLookupApi
 ) {
     fun resolveName(userId: UUID): String? {
-        return try {
-            val stateUserId = userId.toString()
-            val cachedName = persistentSessionService.getUserScopedValue(
+        val stateUserId = userId.toString()
+
+        val cachedName = readCachedName(stateUserId)
+        if (!cachedName.isNullOrBlank()) {
+            return cachedName
+        }
+
+        val name = resolveNameFromUser(userId)
+        if (name.isNullOrBlank()) {
+            return null
+        }
+
+        cacheName(stateUserId, name)
+        return name
+    }
+
+    private fun resolveNameFromUser(userId: UUID): String? =
+        try {
+            userLookupApi.getName(userId)
+        } catch (_: Exception) {
+            null
+        }
+
+    private fun readCachedName(stateUserId: String): String? =
+        try {
+            persistentSessionService.getUserScopedValue(
                 AGENT_APP_NAME,
                 stateUserId,
                 USER_PROFILE_KEY
             ) as? String
-            if (!cachedName.isNullOrBlank()) {
-                cachedName
-            } else {
-                val name = userLookupApi.getName(userId)
-                if (name.isNullOrBlank()) {
-                    null
-                } else {
-                    persistentSessionService.updateUserScopedValue(
-                        AGENT_APP_NAME,
-                        stateUserId,
-                        USER_PROFILE_KEY,
-                        name
-                    )
-                    name
-                }
-            }
         } catch (_: Exception) {
             null
+        }
+
+    private fun cacheName(stateUserId: String, name: String) {
+        try {
+            persistentSessionService.updateUserScopedValue(
+                AGENT_APP_NAME,
+                stateUserId,
+                USER_PROFILE_KEY,
+                name
+            )
+        } catch (_: Exception) {
         }
     }
 

@@ -82,17 +82,24 @@ class AgentUserProfileServiceTest : FunSpec({
         verify(persistentSessionService, never()).updateUserScopedValue(any(), any(), any(), any())
     }
 
-    test("resolveName_stateReadThrows_returnsNullWithoutLookup") {
+    test("resolveName_stateReadThrows_fallsBackToLookupAndReturnsName") {
         whenever(
             persistentSessionService.getUserScopedValue(AGENT_APP_NAME, userId.toString(), "user:user_profile")
         ).thenThrow(IllegalStateException("state read failed"))
+        whenever(userLookupApi.getName(userId)).thenReturn("Jane Doe")
 
-        service.resolveName(userId) shouldBe null
+        service.resolveName(userId) shouldBe "Jane Doe"
 
-        verify(userLookupApi, never()).getName(any())
+        verify(userLookupApi).getName(userId)
+        verify(persistentSessionService).updateUserScopedValue(
+            AGENT_APP_NAME,
+            userId.toString(),
+            "user:user_profile",
+            "Jane Doe"
+        )
     }
 
-    test("resolveName_stateWriteThrows_returnsNull") {
+    test("resolveName_stateWriteThrows_stillReturnsResolvedName") {
         whenever(
             persistentSessionService.getUserScopedValue(AGENT_APP_NAME, userId.toString(), "user:user_profile")
         ).thenReturn(null)
@@ -101,6 +108,6 @@ class AgentUserProfileServiceTest : FunSpec({
             .whenever(persistentSessionService)
             .updateUserScopedValue(eq(AGENT_APP_NAME), eq(userId.toString()), eq("user:user_profile"), eq("Jane Doe"))
 
-        service.resolveName(userId) shouldBe null
+        service.resolveName(userId) shouldBe "Jane Doe"
     }
 })
