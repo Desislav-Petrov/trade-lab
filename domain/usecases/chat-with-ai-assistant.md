@@ -1,3 +1,4 @@
+successfully downloaded text file (SHA: 57f61717603067732ba49d6094297b8a1c57d719)
 # Use Case: Chat with the AI Assistant
 
 ## Goal
@@ -76,6 +77,6 @@ User clicks the assistant widget and sends a message.
 - Any sub-agent other than the Portfolio Analyst.
 - Voice, audio, image, or file input (no ADK BIDI/live streaming).
 - Cross-account or multi-account reasoning within a single conversation — a single `accountId` is carried per conversation and the holdings tool is scoped to it.
-- Actions that mutate state (placing trades, changing settings) initiated from the assistant.
+- Changing settings or any state mutation from the assistant **other than placing stock orders**. Placing buy/sell orders through the assistant is a separate journey covered by `domain/usecases/execute-trades-via-assistant` and the Trade Executor sub-agent; this use case covers only the read-only Portfolio Analyst experience.
 - Authentication or account selection UI inside the popup — the widget relies on the existing session and the selected account in frontend state.
 - Invalidating or refreshing the cached greeting name when the user changes their profile name — staleness is accepted in this iteration (see `decisions/2026-10-17-agent-personalised-name-greeting.md`).
