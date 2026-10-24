@@ -1,8 +1,9 @@
+successfully downloaded text file (SHA: 7396ed72bbeb35dc522472cab2f7def5fe757ea7)
 # Agent Assistant Chat
 
 ## Overview
 
-Covers the Trade Lab AI Assistant — a chat widget docked at the bottom of every page and available on the whole platform to logged-in users only. Clicking it opens a chat popup where the user can hold a multi-turn conversation with the platform's agent. Each user message is sent to a single backend endpoint (`POST /api/v1/agent/query`) which forwards it to a Main orchestration agent built on Google ADK for Java. The Main Agent delegates portfolio-related questions to a Portfolio Analyst sub-agent. The agent's reply is streamed back to the popup token-by-token via Server-Sent Events (ADK `StreamingMode.SSE`).
+Covers the Trade Lab AI Assistant — a chat widget docked at the bottom of every page and available on the whole platform to logged-in users only. Clicking it opens a chat popup where the user can hold a multi-turn conversation with the platform's agent. Each user message is sent to a single backend endpoint (`POST /api/v1/agent/query`) which forwards it to a Main orchestration agent built on Google ADK for Java. The Main Agent delegates portfolio-related questions to a Portfolio Analyst sub-agent and trade-execution requests to a Trade Executor sub-agent. The agent's reply is streamed back to the popup token-by-token via Server-Sent Events (ADK `StreamingMode.SSE`).
 
 The Portfolio Analyst is granted a single tool — a **portfolio holdings tool** — that lets it read the authenticated user's real priced holdings, cash, and unrealised P&L for the account carried on the conversation. It calls this tool to ground its answers in real data, scoped to one account at a time. Trade-fill history and cross-account reasoning are not exposed. The tool is backed by the Portfolio domain's `api/` interface (the same read path as `GET /api/v1/portfolio/holdings`); no logic is duplicated for the agent. See `decisions/2026-09-27-portfolio-analyst-holdings-tool.md`, which supersedes the no-tools stance of `decisions/2026-09-21-agent-query-streaming-endpoint.md`.
 
@@ -14,15 +15,17 @@ The assistant also greets the user **by name**. The user's first name is resolve
 
 ## Agent Hierarchy
 
-The `agent` domain defines a two-level agent hierarchy. This structure is the spine of the feature and is designed to grow — future sub-agents are added under the Main Agent without changing the endpoint or the widget.
+The `agent` domain defines a two-level agent hierarchy. This structure is the spine of the feature and is designed to grow — sub-agents are added under the Main Agent without changing the endpoint or the widget. There are currently two sub-agents: the read-only **Portfolio Analyst** and the state-mutating **Trade Executor**.
 
-- **Main Agent (orchestrator)**: The single entry point invoked by `AgentService`. It receives the user message plus prior conversation context and decides how to route it. **The Main Agent must not itself perform portfolio analysis.** It delegates portfolio-related queries to the Portfolio Analyst sub-agent and streams the sub-agent's reply back to the caller. The Main Agent is additionally provided the user's first name (resolved via the `AgentUserProfile` user-scoped state — Flow I) so it can greet and address the user by name throughout the conversation.
-- **Portfolio Analyst (sub-agent)**: Specialises in analysing portfolio performance and answering questions about the user's holdings. It is the first and only sub-agent in this feature. It is granted a single **portfolio holdings tool**, backed by the Portfolio domain's `api/` interface, which returns the priced holdings, cash, and unrealised P&L for the conversation's `accountId`. It is scoped to that one account and to holdings only — it has no access to trade-fill history or to the user's other accounts.
+- **Main Agent (orchestrator)**: The single entry point invoked by `AgentService`. It receives the user message plus prior conversation context and decides how to route it. **The Main Agent must not itself perform portfolio analysis, and must not place trades itself.** It delegates portfolio-related queries to the Portfolio Analyst sub-agent and trade-execution requests to the Trade Executor sub-agent, and streams the sub-agent's reply back to the caller. The Main Agent is additionally provided the user's first name (resolved via the `AgentUserProfile` user-scoped state — Flow I) so it can greet and address the user by name throughout the conversation.
+- **Portfolio Analyst (sub-agent)**: Specialises in analysing portfolio performance and answering questions about the user's holdings. It is granted a single **portfolio holdings tool**, backed by the Portfolio domain's `api/` interface, which returns the priced holdings, cash, and unrealised P&L for the conversation's `accountId`. It is scoped to that one account and to holdings only — it has no access to trade-fill history or to the user's other accounts. It is read-only and never mutates state.
+- **Trade Executor (sub-agent)**: Specialises in placing stock orders on the user's behalf. It parses a request into a batch of `MARKET` buy/sell orders, proposes them for a single confirmation, and on confirmation executes them one at a time via its **trade tool**, backed by a Stock Trading domain `api/` interface that reuses the same order service as `POST /api/v1/stock-orders`. It then reports each order's outcome. It is the only sub-agent that mutates state. See `domain/flows/agent-execute-trades.md` and `decisions/2026-10-24-agent-trade-execution.md`.
 
 ### Delegation rule
 
 - Portfolio-related queries are always handled by the Portfolio Analyst, never by the Main Agent directly.
-- Non-portfolio queries are handled by the Main Agent per its own instructions (there is no other sub-agent yet).
+- Trade-execution requests (placing buy/sell orders) are always handled by the Trade Executor, never by the Main Agent directly.
+- Non-portfolio, non-trade queries are handled by the Main Agent per its own instructions.
 
 ---
 
