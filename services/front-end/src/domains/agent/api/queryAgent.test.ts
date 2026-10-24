@@ -60,6 +60,50 @@ describe('queryAgent', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  it('queryAgent - trade executed event - emits account signal without a token', async () => {
+    const onToken = vi.fn()
+    const onTradeExecuted = vi.fn()
+    const onError = vi.fn()
+    const onDone = vi.fn()
+    const encoder = new TextEncoder()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode(
+                  'data: Order filled\n\nevent: trade-executed\ndata: {"accountId":"acc-1"}\n\ndata: Done\n\n',
+                ),
+              )
+              controller.close()
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          },
+        ),
+      ),
+    )
+
+    await queryAgent(
+      { accountId: 'acc-1', conversationId: 'conv-1', message: 'Buy AAPL' },
+      onToken,
+      onError,
+      onDone,
+      onTradeExecuted,
+    )
+
+    expect(onTradeExecuted).toHaveBeenCalledOnce()
+    expect(onTradeExecuted).toHaveBeenCalledWith('acc-1')
+    expect(onToken.mock.calls).toEqual([['Order filled'], ['Done']])
+    expect(onDone).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('queryAgent - buffered fallback - emits buffered reply and completes', async () => {
     const onToken = vi.fn()
     const onError = vi.fn()

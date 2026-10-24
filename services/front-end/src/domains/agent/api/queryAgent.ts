@@ -12,6 +12,7 @@ export const AGENT_STREAM_TIMEOUT_MS = 35_000
 type TokenHandler = (token: string) => void
 type ErrorHandler = (error: Error) => void
 type DoneHandler = () => void
+type TradeExecutedHandler = (accountId: string) => void
 
 function extractToken(data: string): string {
   const trimmed = data.trim()
@@ -41,19 +42,52 @@ function extractToken(data: string): string {
   return ''
 }
 
-function flushSseBuffer(buffer: string, onToken: TokenHandler, flushAll: boolean = false): string {
+function extractTradeExecutedAccountId(data: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'accountId' in parsed &&
+      typeof parsed.accountId === 'string' &&
+      parsed.accountId.length > 0
+    ) {
+      return parsed.accountId
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function flushSseBuffer(
+  buffer: string,
+  onToken: TokenHandler,
+  onTradeExecuted: TradeExecutedHandler,
+  flushAll: boolean = false,
+): string {
   const normalized = buffer.replace(/\r\n/g, '\n')
   const parts = normalized.split('\n\n')
   const completeEvents = flushAll ? parts : parts.slice(0, -1)
   const remainder = flushAll ? '' : (parts[parts.length - 1] ?? '')
 
   completeEvents.forEach((eventBlock) => {
-    const data = eventBlock
-      .split('\n')
-      .map((line) => line.trimStart())
+    const lines = eventBlock.split('\n').map((line) => line.trimStart())
+    const eventTypes = lines
+      .filter((line) => line.startsWith('event:'))
+      .map((line) => line.slice(6).trim())
+    const eventType = eventTypes[eventTypes.length - 1]
+    const data = lines
       .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trimStart())
       .join('\n')
+
+    if (eventType === 'trade-executed') {
+      const accountId = extractTradeExecutedAccountId(data)
+      if (accountId !== null) onTradeExecuted(accountId)
+      return
+    }
 
     const token = extractToken(data)
     if (token.length > 0) onToken(token)
@@ -95,6 +129,7 @@ export async function queryAgent(
   onToken: TokenHandler,
   onError: ErrorHandler,
   onDone: DoneHandler,
+  onTradeExecuted: TradeExecutedHandler = () => {},
 ): Promise<void> {
   const controller = new AbortController()
   let timeoutId: ReturnType<typeof setTimeout> | undefined
@@ -152,11 +187,15 @@ export async function queryAgent(
         // Reset the inactivity timer every time bytes arrive so a healthy,
         // long-running stream is never aborted — only a stall triggers it.
         armTimeout()
-        buffer = flushSseBuffer(buffer + decoder.decode(value, { stream: true }), onToken)
+        buffer = flushSseBuffer(
+          buffer + decoder.decode(value, { stream: true }),
+          onToken,
+          onTradeExecuted,
+        )
       }
 
       buffer += decoder.decode()
-      flushSseBuffer(buffer, onToken, true)
+      flushSseBuffer(buffer, onToken, onTradeExecuted, true)
       onDone()
       return
     }
