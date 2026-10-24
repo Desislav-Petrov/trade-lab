@@ -10,6 +10,7 @@ import org.dpp.tradelab.agent.generated.model.AgentQueryResponse
 import org.dpp.tradelab.agent.generated.model.AgentSummaryResponse
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.ConversationSummaryService
+import org.dpp.tradelab.agent.service.AgentStreamEvent
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.agent.service.AgentUserProfileService
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
@@ -100,7 +101,7 @@ class AgentApiDelegateImpl(
         }
     }
 
-    private fun streamReply(reply: Flowable<String>): ResponseEntity<Resource> {
+    private fun streamReply(reply: Flowable<AgentStreamEvent>): ResponseEntity<Resource> {
         val subscriptionRef = AtomicReference<Disposable?>()
         val inputStream = object : PipedInputStream(SSE_PIPE_BUFFER_SIZE) {
             override fun close() {
@@ -114,8 +115,11 @@ class AgentApiDelegateImpl(
         val subscription = reply
             .subscribeOn(Schedulers.io())
             .subscribe(
-                { chunk ->
-                    writeDataEvent(writer, chunk)
+                { event ->
+                    when (event) {
+                        is AgentStreamEvent.TextChunk -> writeDataEvent(writer, event.text)
+                        is AgentStreamEvent.TradeExecuted -> writeTradeExecutedEvent(writer, event.accountId)
+                    }
                 },
                 { ex ->
                     if (!isClientDisconnect(ex)) {
@@ -156,6 +160,19 @@ class AgentApiDelegateImpl(
         }
     }
 
+    private fun writeTradeExecutedEvent(writer: java.io.Writer, accountId: UUID) {
+        try {
+            synchronized(writer) {
+                writer.write("event: trade-executed\n")
+                writer.write("data: ")
+                writer.write(objectMapper.writeValueAsString(mapOf("accountId" to accountId)))
+                writer.write("\n\n")
+                writer.flush()
+            }
+        } catch (_: IOException) {
+        }
+    }
+
     private fun closeQuietly(writer: java.io.Writer) {
         try {
             writer.close()
@@ -181,8 +198,10 @@ class AgentApiDelegateImpl(
         return false
     }
 
-    private fun bufferedReply(conversationId: UUID, reply: Flowable<String>): ResponseEntity<Resource> {
-        val bufferedReply = reply.collectInto(StringBuilder()) { builder, chunk ->
+    private fun bufferedReply(conversationId: UUID, reply: Flowable<AgentStreamEvent>): ResponseEntity<Resource> {
+        val bufferedReply = reply.collectInto(StringBuilder()) { builder, event ->
+            if (event !is AgentStreamEvent.TextChunk) return@collectInto
+            val chunk = event.text
             if (builder.length + chunk.length > MAX_BUFFERED_REPLY_CHARS) {
                 throw AgentUnavailableException(
                     "The AI assistant is temporarily unavailable.",

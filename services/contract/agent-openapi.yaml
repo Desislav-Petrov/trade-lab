@@ -44,12 +44,20 @@ paths:
               $ref: '#/components/schemas/AgentQueryRequest'
       responses:
         '200':
-          description: Assistant response stream or buffered fallback
+          description: >
+            Assistant response stream or buffered fallback. Server-Sent Event text chunks use
+            the default `message` event. After a turn with one or more filled orders, the stream
+            also emits a `trade-executed` event with a JSON `TradeExecutedEvent` payload.
           content:
             text/event-stream:
               schema:
                 type: string
                 format: binary
+              x-sse-events:
+                - name: trade-executed
+                  contentType: application/json
+                  schema:
+                    $ref: '#/components/schemas/TradeExecutedEvent'
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentQueryResponse'
@@ -120,6 +128,15 @@ components:
           format: uuid
         reply:
           type: string
+
+    TradeExecutedEvent:
+      type: object
+      required:
+        - accountId
+      properties:
+        accountId:
+          type: string
+          format: uuid
 
     AgentSummaryResponse:
       type: object

@@ -13,7 +13,11 @@ import org.dpp.tradelab.agent.repository.AgentSessionRepository
 import org.dpp.tradelab.agent.repository.AgentUserStateRepository
 import org.dpp.tradelab.agent.service.AdkJsonSerializer
 import org.dpp.tradelab.agent.service.PersistentSessionService
+import org.dpp.tradelab.agent.service.TradeProposalService
+import org.dpp.tradelab.agent.tool.ExecuteTradesTool
 import org.dpp.tradelab.agent.tool.PortfolioHoldingsTool
+import org.dpp.tradelab.agent.tool.ProposeTradesTool
+import org.dpp.tradelab.stocktrading.api.StockTradingApi
 import org.dpp.tradelab.portfolio.api.PortfolioApi
 import org.mockito.kotlin.mock
 
@@ -23,6 +27,9 @@ class AgentConfigurationTest : FunSpec({
         apiKey = "test-api-key"
     )
     val portfolioHoldingsTool = PortfolioHoldingsTool(mock<PortfolioApi>())
+    val tradeProposalService = TradeProposalService()
+    val proposeTradesTool = ProposeTradesTool(tradeProposalService)
+    val executeTradesTool = ExecuteTradesTool(tradeProposalService, mock<StockTradingApi>())
     val persistentSessionService = PersistentSessionService(
         mock<AgentSessionRepository>(),
         mock<AgentEventRepository>(),
@@ -40,7 +47,11 @@ class AgentConfigurationTest : FunSpec({
     test("agentRunner_usesPersistentSessionService") {
         val model = configuration.agentModel()
         val portfolioAnalyst = configuration.portfolioAnalystAgent(model, portfolioHoldingsTool)
-        val runner = configuration.agentRunner(configuration.mainAgent(model, portfolioAnalyst), persistentSessionService)
+        val tradeExecutor = configuration.tradeExecutorAgent(model, proposeTradesTool, executeTradesTool)
+        val runner = configuration.agentRunner(
+            configuration.mainAgent(model, portfolioAnalyst, tradeExecutor),
+            persistentSessionService
+        )
 
         runner.shouldBeInstanceOf<Runner>()
         runner.sessionService() shouldBe persistentSessionService
@@ -55,15 +66,27 @@ class AgentConfigurationTest : FunSpec({
         agent.instruction().toString() shouldContain "surface that error message"
     }
 
-    test("mainAgent_registersPortfolioSubAgent_andForbidsDirectPortfolioAnalysis") {
+    test("tradeExecutorAgent_registersProposalAndExecutionTools_andRequiresConfirmation") {
+        val model = configuration.agentModel()
+        val tradeExecutor = configuration.tradeExecutorAgent(model, proposeTradesTool, executeTradesTool)
+
+        tradeExecutor.name() shouldBe "trade-executor"
+        tradeExecutor.tools().blockingGet() shouldHaveSize 2
+        tradeExecutor.instruction().toString() shouldContain "wait for one explicit confirmation"
+        tradeExecutor.instruction().toString() shouldContain "continue/report failures individually"
+    }
+
+    test("mainAgent_registersBothSubAgents_andDelegatesTradesAndPortfolioAnalysis") {
         val model = configuration.agentModel()
         val portfolioAnalystAgent = configuration.portfolioAnalystAgent(model, portfolioHoldingsTool)
-        val mainAgent = configuration.mainAgent(model, portfolioAnalystAgent)
+        val tradeExecutor = configuration.tradeExecutorAgent(model, proposeTradesTool, executeTradesTool)
+        val mainAgent = configuration.mainAgent(model, portfolioAnalystAgent, tradeExecutor)
 
-        mainAgent.subAgents() shouldHaveSize 1
-        mainAgent.subAgents().first().name() shouldBe "portfolio-analyst"
+        mainAgent.subAgents() shouldHaveSize 2
+        mainAgent.subAgents().map { it.name() } shouldBe listOf("portfolio-analyst", "trade-executor")
         mainAgent.instruction().toString() shouldContain "Never perform portfolio analysis yourself"
         mainAgent.instruction().toString() shouldContain "Delegate every portfolio"
+        mainAgent.instruction().toString() shouldContain "Delegate every request to buy or sell stocks"
         mainAgent.instruction().toString() shouldContain "{user:user_profile?}"
         mainAgent.instruction().toString() shouldContain "address the user neutrally"
     }
