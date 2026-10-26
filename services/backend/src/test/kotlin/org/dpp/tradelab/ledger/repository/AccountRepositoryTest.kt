@@ -85,4 +85,31 @@ class AccountRepositoryTest(
             result.shouldBeEmpty()
         }
     }
+
+    describe("AccountRepository.findByIdForUpdate") {
+
+        it("findByIdForUpdate_existingAccount_returnsAccount") {
+            val account = Account(
+                accountId = UUID.randomUUID(),
+                userId = UUID.randomUUID(),
+                name = "Lockable",
+                currency = Currency.USD,
+                status = AccountStatus.ACTIVE
+            )
+            repository.save(account)
+            em.flush()
+            em.clear()
+
+            val result = repository.findByIdForUpdate(account.accountId)
+
+            result.isPresent shouldBe true
+            result.get().accountId shouldBe account.accountId
+        }
+
+        it("findByIdForUpdate_missingAccount_returnsEmpty") {
+            val result = repository.findByIdForUpdate(UUID.randomUUID())
+
+            result.isPresent shouldBe false
+        }
+    }
 })

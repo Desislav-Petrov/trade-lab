@@ -64,8 +64,19 @@ class LedgerService(
             TransactionAssetType.STOCK_SELL -> AssetType.STOCK_SELL
         }
 
-        val account = accountRepository.findById(accountId)
-            .orElseThrow { AccountNotFoundException(accountId) }
+        val mutatesCashBalance = entryType == EntryType.DEBIT && entryAssetType == AssetType.CASH
+
+        // A cash debit mutates the stored balance: load the account under a pessimistic
+        // write lock so concurrent balance mutations on the same account are serialized and
+        // the balance re-check below reflects committed state. Non-mutating entry types only
+        // need an existence check. See decision 2026-10-26-account-balance-pessimistic-locking.
+        val account = if (mutatesCashBalance) {
+            accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow { AccountNotFoundException(accountId) }
+        } else {
+            accountRepository.findById(accountId)
+                .orElseThrow { AccountNotFoundException(accountId) }
+        }
 
         val entry = LedgerEntry(
             entryId = UUID.randomUUID(),
@@ -79,7 +90,7 @@ class LedgerService(
         )
         ledgerEntryRepository.save(entry)
 
-        if (entryType == EntryType.DEBIT && entryAssetType == AssetType.CASH) {
+        if (mutatesCashBalance) {
             val newBalance = account.balance.subtract(amount)
             if (newBalance < BigDecimal.ZERO) {
                 throw IllegalStateException(
@@ -109,6 +120,17 @@ class LedgerService(
     @Transactional(readOnly = true)
     override fun getBalance(accountId: UUID): AccountBalanceResult {
         val account = accountRepository.findById(accountId)
+            .orElseThrow { AccountNotFoundException(accountId) }
+
+        return AccountBalanceResult(
+            balance = account.balance,
+            currency = account.currency.name
+        )
+    }
+
+    @Transactional
+    override fun getBalanceForUpdate(accountId: UUID): AccountBalanceResult {
+        val account = accountRepository.findByIdForUpdate(accountId)
             .orElseThrow { AccountNotFoundException(accountId) }
 
         return AccountBalanceResult(

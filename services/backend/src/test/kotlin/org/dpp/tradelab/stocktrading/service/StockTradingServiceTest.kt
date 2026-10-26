@@ -4,6 +4,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import org.dpp.tradelab.ledger.api.AccountBalanceResult
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
@@ -84,6 +85,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("1000.0000"), "USD"))
 
         val order = service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -106,6 +108,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("1000.0000"), "USD"))
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -126,6 +129,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("1000.0000"), "USD"))
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -163,6 +167,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("1000.0000"), "USD"))
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -193,6 +198,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("10.0000"), "USD"))
 
         val order = service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -214,6 +220,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("10.0000"), "USD"))
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -234,6 +241,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("10.0000"), "USD"))
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -251,6 +259,31 @@ class StockTradingServiceTest : FunSpec({
         captor.firstValue.accountId shouldBe accountId
         captor.firstValue.rejectionReason shouldBe "Insufficient funds"
         captor.firstValue.side shouldBe OrderSide.BUY
+    }
+
+    test("placeOrder_committedBalanceLowerThanSnapshot_returnsRejectedOrder") {
+        // Snapshot at request start looked funded, but a concurrent debit lowered the
+        // committed balance read under the pessimistic lock — the order must be rejected.
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("1000.0000")))
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.getBalanceForUpdate(accountId)).thenReturn(AccountBalanceResult(BigDecimal("10.0000"), "USD"))
+
+        val order = service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.rejectionReason shouldBe "Insufficient funds"
+        verify(ledgerApi, never()).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
     }
 
     // ── SELL FILLED happy path ────────────────────────────────────────────────

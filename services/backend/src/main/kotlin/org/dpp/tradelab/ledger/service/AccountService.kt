@@ -62,7 +62,10 @@ class AccountService(
     @Transactional
     fun topUpAccount(accountId: UUID, userId: UUID, amount: BigDecimal): Pair<Account, LedgerEntry> {
         topUpValidator.validateAmount(amount)
-        val account = accountRepository.findById(accountId).orElseThrow { AccountNotFoundException(accountId) }
+        // Load under a pessimistic write lock so concurrent top-ups / debits on the same
+        // account are serialized and no balance update is lost. See decision
+        // 2026-10-26-account-balance-pessimistic-locking.
+        val account = accountRepository.findByIdForUpdate(accountId).orElseThrow { AccountNotFoundException(accountId) }
         topUpValidator.validateAccountEligibility(account, userId)
         // Update balance
         account.balance = account.balance.add(amount)

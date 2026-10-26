@@ -103,8 +103,13 @@ class StockTradingService(
         val executionPrice = marketDataApi.getCurrentPrice(ticker)
         val requiredCash = quantity.multiply(executionPrice)
 
-        // Fund check
-        if (accountSummary.balance < requiredCash) {
+        // Fund check — read the committed balance under a pessimistic write lock so that
+        // concurrent buys on the same account are serialized and cannot overspend. The lock
+        // participates in this transaction and is held until it commits; a losing concurrent
+        // buy blocks here, then reads the committed (already-debited) balance and is cleanly
+        // rejected. See decision 2026-10-26-account-balance-pessimistic-locking.
+        val availableBalance = ledgerApi.getBalanceForUpdate(accountId).balance
+        if (availableBalance < requiredCash) {
             return reject(order, "Insufficient funds")
         }
 

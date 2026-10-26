@@ -30,4 +30,17 @@ interface LedgerApi {
      * @throws AccountNotFoundException if the account does not exist
      */
     fun getBalance(accountId: UUID): AccountBalanceResult
+
+    /**
+     * Get the balance and currency for a specific account under a pessimistic write lock
+     * (SELECT ... FOR UPDATE). The lock participates in the caller's transaction and is
+     * held until it commits, so a subsequent debit reflects committed state. Used by the
+     * stock-buy fund check to serialize concurrent balance mutations. See decision
+     * 2026-10-26-account-balance-pessimistic-locking.
+     *
+     * @param accountId The unique identifier of the account
+     * @return AccountBalanceResult containing the locked balance and currency
+     * @throws AccountNotFoundException if the account does not exist
+     */
+    fun getBalanceForUpdate(accountId: UUID): AccountBalanceResult
 }
