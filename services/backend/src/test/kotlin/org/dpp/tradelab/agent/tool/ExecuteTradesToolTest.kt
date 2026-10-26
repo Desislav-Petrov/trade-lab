@@ -37,8 +37,8 @@ class ExecuteTradesToolTest : FunSpec({
     val accountId = UUID.randomUUID()
     val sessionService = InMemorySessionService()
     val orders = listOf(
-        TradeOrderInput("AAPL", "BUY", BigDecimal("2")),
-        TradeOrderInput("TSLA", "SELL", BigDecimal("1"))
+        TradeOrderInput("AAPL", "BUY", "2"),
+        TradeOrderInput("TSLA", "SELL", "1")
     )
 
     fun toolContext(): ToolContext {
@@ -117,7 +117,7 @@ class ExecuteTradesToolTest : FunSpec({
 
     test("executeTrades_rejectionAndException_continuesInProposalOrder") {
         val (context, proposal) = proposedContext(
-            orders + TradeOrderInput("MSFT", "BUY", BigDecimal("3"))
+            orders + TradeOrderInput("MSFT", "BUY", "3")
         )
         whenever(stockTradingApi.placeMarketOrder(
             eq(proposal.orders[0].idempotencyKey), eq(accountId), eq(userId),

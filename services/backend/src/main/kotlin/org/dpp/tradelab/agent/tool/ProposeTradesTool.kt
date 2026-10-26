@@ -20,9 +20,11 @@ class ProposeTradesTool(
         val invalidOrders = mutableListOf<InvalidOrder>()
 
         orders.forEachIndexed { index, order ->
+            val quantity = order.quantity.trim().toBigDecimalOrNull()
             val reason = when {
                 order.ticker.isBlank() -> "Ticker is required."
-                order.quantity <= BigDecimal.ZERO -> "Quantity must be greater than zero."
+                quantity == null -> "Quantity must be a number."
+                quantity <= BigDecimal.ZERO -> "Quantity must be greater than zero."
                 order.side !in setOf("BUY", "SELL") -> "Side must be BUY or SELL."
                 else -> null
             }
@@ -82,7 +84,7 @@ class ProposeTradesTool(
         val index: Int,
         val ticker: String,
         val side: String,
-        val quantity: BigDecimal,
+        val quantity: String,
         val reason: String
     )
 }
