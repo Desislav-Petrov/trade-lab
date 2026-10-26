@@ -4,6 +4,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.string.shouldContain
 import org.dpp.tradelab.ledger.exception.AccountNotActiveException
+import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.dpp.tradelab.ledger.model.Currency
@@ -60,9 +61,9 @@ class AccountTopUpValidatorTest : FunSpec({
         validator.validateAccountEligibility(account, userId)
     }
 
-    test("validateAccountEligibility_ownerMismatch_throwsAccountNotActiveException") {
+    test("validateAccountEligibility_ownerMismatch_throwsAccountOwnershipException") {
         val account = buildAccount(userId = UUID.randomUUID(), status = AccountStatus.ACTIVE)
-        shouldThrow<AccountNotActiveException> {
+        shouldThrow<AccountOwnershipException> {
             validator.validateAccountEligibility(account, UUID.randomUUID())
         }
     }
