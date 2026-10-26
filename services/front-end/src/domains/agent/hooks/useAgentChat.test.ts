@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createElement, type PropsWithChildren } from 'react'
 import { queryAgent } from '../api/queryAgent'
 import { useAgentStore } from './useAgentStore'
 import {
@@ -15,10 +17,17 @@ vi.mock('../api/queryAgent', () => ({
 }))
 
 const mockQueryAgent = vi.mocked(queryAgent)
+let queryClient: QueryClient
+
+const wrapper = ({ children }: PropsWithChildren) =>
+  createElement(QueryClientProvider, { client: queryClient }, children)
 
 describe('useAgentChat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
     act(() => {
       useSelectedAccountStore.getState().clearSelectedAccountId()
       useAgentStore.getState().reset()
@@ -36,7 +45,8 @@ describe('useAgentChat', () => {
       onDone()
     })
 
-    const { result } = renderHook(() => useAgentChat())
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
 
     await act(async () => {
       const sent = await result.current.sendMessage('Hello')
@@ -55,10 +65,38 @@ describe('useAgentChat', () => {
       isStreaming: false,
     })
     expect(result.current.error).toBeNull()
+    expect(invalidateSpy).not.toHaveBeenCalled()
+  })
+
+  it('useAgentChat - trade executed signal - invalidates accounts and signalled holdings', async () => {
+    act(() => {
+      useSelectedAccountStore.getState().setSelectedAccountId('acc-1')
+    })
+
+    mockQueryAgent.mockImplementationOnce(
+      async (_request, _onToken, _onError, _onDone, onTradeExecuted) => {
+        onTradeExecuted?.('acc-2')
+      },
+    )
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+
+    await act(async () => {
+      await result.current.sendMessage('Buy AAPL')
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(2)
+    expect(invalidateSpy).toHaveBeenNthCalledWith(1, {
+      queryKey: ['accounts'],
+    })
+    expect(invalidateSpy).toHaveBeenNthCalledWith(2, {
+      queryKey: ['portfolioHoldings', 'acc-2'],
+    })
   })
 
   it('useAgentChat - no selected account - blocks request and shows prompt', async () => {
-    const { result } = renderHook(() => useAgentChat())
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
 
     await act(async () => {
       const sent = await result.current.sendMessage('Hello')
@@ -80,7 +118,7 @@ describe('useAgentChat', () => {
       throw new Error('Stream dropped')
     })
 
-    const { result } = renderHook(() => useAgentChat())
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
 
     await act(async () => {
       const sent = await result.current.sendMessage('Hello')
@@ -102,7 +140,7 @@ describe('useAgentChat', () => {
 
     mockQueryAgent.mockRejectedValueOnce(new Error('Unavailable'))
 
-    const { result } = renderHook(() => useAgentChat())
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
 
     await act(async () => {
       const sent = await result.current.sendMessage('Hello')

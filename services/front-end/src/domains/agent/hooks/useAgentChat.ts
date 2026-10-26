@@ -1,12 +1,16 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
-import { queryAgent } from '../api/queryAgent'
 import { useSelectedAccountStore } from '../../../shared/hooks/useSelectedAccountStore'
+import { queryAgent } from '../api/queryAgent'
 import { useAgentStore } from './useAgentStore'
 
 export const NO_ACCOUNT_SELECTED_MESSAGE = 'Select a portfolio account to chat with the assistant.'
 export const ASSISTANT_UNAVAILABLE_MESSAGE = 'Assistant unavailable. Please try again.'
 export const STREAM_INTERRUPTED_MESSAGE =
   'The stream was interrupted. Partial reply kept — retry to continue.'
+
+const ACCOUNTS_QUERY_KEY = 'accounts'
+const PORTFOLIO_HOLDINGS_KEY = 'portfolioHoldings'
 
 export interface UseAgentChatResult {
   error: string | null
@@ -17,9 +21,20 @@ export interface UseAgentChatResult {
 }
 
 export function useAgentChat(): UseAgentChatResult {
+  const queryClient = useQueryClient()
   const selectedAccountId = useSelectedAccountStore((state) => state.selectedAccountId)
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
+
+  const handleTradeExecuted = useCallback(
+    (accountId: string): void => {
+      void queryClient.invalidateQueries({ queryKey: [ACCOUNTS_QUERY_KEY] })
+      void queryClient.invalidateQueries({
+        queryKey: [PORTFOLIO_HOLDINGS_KEY, accountId],
+      })
+    },
+    [queryClient],
+  )
 
   const sendMessage = useCallback(
     async (text: string): Promise<boolean> => {
@@ -52,6 +67,7 @@ export function useAgentChat(): UseAgentChatResult {
           () => {
             useAgentStore.getState().finalizeAssistantTurn()
           },
+          handleTradeExecuted,
         )
 
         return true
@@ -69,7 +85,7 @@ export function useAgentChat(): UseAgentChatResult {
         setIsSending(false)
       }
     },
-    [selectedAccountId],
+    [handleTradeExecuted, selectedAccountId],
   )
 
   const clearError = useCallback(() => {
