@@ -165,7 +165,7 @@ class AgentApiDelegateImpl(
             synchronized(writer) {
                 writer.write("event: trade-executed\n")
                 writer.write("data: ")
-                writer.write(objectMapper.writeValueAsString(mapOf("accountId" to accountId)))
+                writer.write(objectMapper.writeValueAsString(TradeExecutedEventPayload(accountId)))
                 writer.write("\n\n")
                 writer.flush()
             }
