@@ -1,6 +1,6 @@
 package org.dpp.tradelab.marketdata.service
 
-import com.fasterxml.jackson.core.json.JsonWriteFeature
+import com.fasterxml.jackson.core.StreamWriteFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import jakarta.annotation.PostConstruct
@@ -70,11 +70,11 @@ class MarketDataFeedService(
     /**
      * Dedicated mapper owning the WebSocket wire format. Configured locally — rather than
      * injecting the shared Spring bean — so the outbound message format stays deterministic
-     * and immune to global Jackson configuration changes. [JsonWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN]
+     * and immune to global Jackson configuration changes. [StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN]
      * keeps prices as plain JSON numbers (e.g. `150.000`) with no exponent notation.
      */
     private val objectMapper: ObjectMapper = JsonMapper.builder()
-        .enable(JsonWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+        .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
         .build()
 
     // ── Startup initialisation ───────────────────────────────────────────────
