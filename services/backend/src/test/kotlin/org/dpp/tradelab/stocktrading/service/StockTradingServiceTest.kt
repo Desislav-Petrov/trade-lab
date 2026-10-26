@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldNotBe
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.StockBuyResult
 import org.dpp.tradelab.ledger.api.TransactionAssetType
 import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
@@ -26,6 +27,7 @@ import org.dpp.tradelab.stocktrading.repository.OrderRepository
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -84,6 +86,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.COMPLETED)
 
         val order = service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -101,11 +104,12 @@ class StockTradingServiceTest : FunSpec({
         order.rejectionReason shouldBe null
     }
 
-    test("placeOrder_filledHappyPath_callsLedgerApiTwice") {
+    test("placeOrder_filledHappyPath_callsLedgerRecordStockBuyOnceWithCorrectArgs") {
         whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.COMPLETED)
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -118,44 +122,8 @@ class StockTradingServiceTest : FunSpec({
             side = OrderSide.BUY
         )
 
-        verify(ledgerApi, times(2)).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
-    }
-
-    test("placeOrder_filledHappyPath_firstLedgerCallIsDebitCash") {
-        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
-        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
-        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
-        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
-
-        service.placeOrder(
-            idempotencyKey = idempotencyKey,
-            accountId = accountId,
-            userId = userId,
-            ticker = ticker,
-            quantity = quantity,
-            orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot,
-            side = OrderSide.BUY
-        )
-
-        val typeCaptor = argumentCaptor<TransactionType>()
-        val assetTypeCaptor = argumentCaptor<TransactionAssetType>()
-        val amountCaptor = argumentCaptor<BigDecimal>()
-        verify(ledgerApi, times(2)).recordTransaction(
-            any(), any(),
-            typeCaptor.capture(),
-            assetTypeCaptor.capture(),
-            amountCaptor.capture(),
-            any(), anyOrNull(), anyOrNull()
-        )
-
-        typeCaptor.firstValue shouldBe TransactionType.DEBIT
-        assetTypeCaptor.firstValue shouldBe TransactionAssetType.CASH
-        amountCaptor.firstValue shouldBe quantity.multiply(executionPrice)
-
-        typeCaptor.secondValue shouldBe TransactionType.CREDIT
-        assetTypeCaptor.secondValue shouldBe TransactionAssetType.STOCK_BUY
-        amountCaptor.secondValue shouldBe quantity
+        verify(ledgerApi).recordStockBuy(eq(accountId), eq(userId), eq(ticker), eq(quantity), eq(executionPrice), eq("USD"))
+        verify(ledgerApi, never()).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
     }
 
     test("placeOrder_filledHappyPath_emitsOrderFilledEvent") {
@@ -163,6 +131,7 @@ class StockTradingServiceTest : FunSpec({
         whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.COMPLETED)
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -190,9 +159,10 @@ class StockTradingServiceTest : FunSpec({
 
     test("placeOrder_insufficientFunds_returnsRejectedOrder") {
         whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
-        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.INSUFFICIENT_FUNDS)
 
         val order = service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -209,31 +179,12 @@ class StockTradingServiceTest : FunSpec({
         order.rejectionReason shouldBe "Insufficient funds"
     }
 
-    test("placeOrder_insufficientFunds_doesNotCallLedgerApi") {
-        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
-        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
-        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
-        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
-
-        service.placeOrder(
-            idempotencyKey = idempotencyKey,
-            accountId = accountId,
-            userId = userId,
-            ticker = ticker,
-            quantity = quantity,
-            orderType = OrderType.MARKET,
-            priceSnapshot = priceSnapshot,
-            side = OrderSide.BUY
-        )
-
-        verify(ledgerApi, never()).recordTransaction(any(), any(), any(), any(), any(), any(), anyOrNull(), anyOrNull())
-    }
-
     test("placeOrder_insufficientFunds_emitsOrderRejectedEvent") {
         whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
-        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("10.0000")))
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary())
         whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
         whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.INSUFFICIENT_FUNDS)
 
         service.placeOrder(
             idempotencyKey = idempotencyKey,
@@ -251,6 +202,31 @@ class StockTradingServiceTest : FunSpec({
         captor.firstValue.accountId shouldBe accountId
         captor.firstValue.rejectionReason shouldBe "Insufficient funds"
         captor.firstValue.side shouldBe OrderSide.BUY
+    }
+
+    test("placeOrder_committedBalanceInsufficientUnderLock_returnsRejectedOrder") {
+        // The account snapshot looked funded, but the Ledger — checking under a pessimistic
+        // lock against committed state — reports insufficient funds (a concurrent debit landed
+        // first). The order must be rejected, not overspent.
+        whenever(marketDataApi.isTickerSupported(ticker)).thenReturn(true)
+        whenever(ledgerAccountApi.getAccount(accountId)).thenReturn(activeAccountSummary(BigDecimal("1000.0000")))
+        whenever(orderRepository.existsByIdempotencyKey(idempotencyKey)).thenReturn(false)
+        whenever(marketDataApi.getCurrentPrice(ticker)).thenReturn(executionPrice)
+        whenever(ledgerApi.recordStockBuy(any(), any(), any(), any(), any(), any())).thenReturn(StockBuyResult.INSUFFICIENT_FUNDS)
+
+        val order = service.placeOrder(
+            idempotencyKey = idempotencyKey,
+            accountId = accountId,
+            userId = userId,
+            ticker = ticker,
+            quantity = quantity,
+            orderType = OrderType.MARKET,
+            priceSnapshot = priceSnapshot,
+            side = OrderSide.BUY
+        )
+
+        order.status shouldBe OrderStatus.REJECTED
+        order.rejectionReason shouldBe "Insufficient funds"
     }
 
     // ── SELL FILLED happy path ────────────────────────────────────────────────
@@ -354,7 +330,7 @@ class StockTradingServiceTest : FunSpec({
             accountId = accountId,
             userId = userId,
             ticker = ticker,
-            quantity = quantity, // 2.0000 > 1.0000
+            quantity = quantity,
             orderType = OrderType.MARKET,
             priceSnapshot = priceSnapshot,
             side = OrderSide.SELL

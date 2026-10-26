@@ -77,7 +77,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = "USD",
             description = "Top-up"
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
@@ -113,7 +113,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = "GBP",
             description = "Top-up"
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
@@ -159,7 +159,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = "EUR",
             description = "Top-up"
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
@@ -204,7 +204,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = "USD",
             description = "Top-up"
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         whenever(accountRepository.save(any())).thenReturn(savedAccount)
         whenever(ledgerEntryRepository.save(any())).thenReturn(savedEntry)
 
@@ -225,7 +225,7 @@ class AccountServiceTopUpTest : FunSpec({
             accountService.topUpAccount(accountId, userId, BigDecimal.ZERO)
         }
 
-        verify(accountRepository, never()).findById(any())
+        verify(accountRepository, never()).findByIdForUpdate(any())
         verify(accountRepository, never()).save(any())
         verify(ledgerEntryRepository, never()).save(any())
         verify(eventPublisher, never()).publishEvent(any())
@@ -239,7 +239,7 @@ class AccountServiceTopUpTest : FunSpec({
             accountService.topUpAccount(accountId, userId, BigDecimal("-1"))
         }
 
-        verify(accountRepository, never()).findById(any())
+        verify(accountRepository, never()).findByIdForUpdate(any())
         verify(accountRepository, never()).save(any())
         verify(ledgerEntryRepository, never()).save(any())
         verify(eventPublisher, never()).publishEvent(any())
@@ -253,7 +253,7 @@ class AccountServiceTopUpTest : FunSpec({
             accountService.topUpAccount(accountId, userId, BigDecimal("1.5"))
         }
 
-        verify(accountRepository, never()).findById(any())
+        verify(accountRepository, never()).findByIdForUpdate(any())
         verify(accountRepository, never()).save(any())
         verify(ledgerEntryRepository, never()).save(any())
         verify(eventPublisher, never()).publishEvent(any())
@@ -267,7 +267,7 @@ class AccountServiceTopUpTest : FunSpec({
             accountService.topUpAccount(accountId, userId, BigDecimal("10000001"))
         }
 
-        verify(accountRepository, never()).findById(any())
+        verify(accountRepository, never()).findByIdForUpdate(any())
         verify(accountRepository, never()).save(any())
         verify(ledgerEntryRepository, never()).save(any())
         verify(eventPublisher, never()).publishEvent(any())
@@ -278,7 +278,7 @@ class AccountServiceTopUpTest : FunSpec({
     // -------------------------------------------------------------------------
 
     test("topUpAccount_accountNotFound_throwsAccountNotFoundException") {
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.empty())
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.empty())
 
         shouldThrow<AccountNotFoundException> {
             accountService.topUpAccount(accountId, userId, BigDecimal("100"))
@@ -299,7 +299,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = Currency.USD,
             status = AccountStatus.ACTIVE
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         doThrow(AccountNotActiveException(accountId))
             .whenever(topUpValidator).validateAccountEligibility(account, userId)
 
@@ -321,7 +321,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = Currency.USD,
             status = AccountStatus.SUSPENDED
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         doThrow(AccountNotActiveException(accountId))
             .whenever(topUpValidator).validateAccountEligibility(account, userId)
 
@@ -343,7 +343,7 @@ class AccountServiceTopUpTest : FunSpec({
             currency = Currency.USD,
             status = AccountStatus.CLOSED
         )
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         doThrow(AccountNotActiveException(accountId))
             .whenever(topUpValidator).validateAccountEligibility(account, userId)
 

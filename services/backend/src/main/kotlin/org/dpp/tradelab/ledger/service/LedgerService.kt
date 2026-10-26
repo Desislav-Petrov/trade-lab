@@ -4,6 +4,7 @@ import org.dpp.tradelab.ledger.api.AccountBalanceResult
 import org.dpp.tradelab.ledger.api.AccountSummary
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.StockBuyResult
 import org.dpp.tradelab.ledger.api.TransactionAssetType
 import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.ledger.exception.AccountNotFoundException
@@ -64,8 +65,19 @@ class LedgerService(
             TransactionAssetType.STOCK_SELL -> AssetType.STOCK_SELL
         }
 
-        val account = accountRepository.findById(accountId)
-            .orElseThrow { AccountNotFoundException(accountId) }
+        val mutatesCashBalance = entryType == EntryType.DEBIT && entryAssetType == AssetType.CASH
+
+        // A cash debit mutates the stored balance: load the account under a pessimistic
+        // write lock so concurrent balance mutations on the same account are serialized and
+        // the balance re-check below reflects committed state. Non-mutating entry types only
+        // need an existence check. See decision 2026-10-26-account-balance-pessimistic-locking.
+        val account = if (mutatesCashBalance) {
+            accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow { AccountNotFoundException(accountId) }
+        } else {
+            accountRepository.findById(accountId)
+                .orElseThrow { AccountNotFoundException(accountId) }
+        }
 
         val entry = LedgerEntry(
             entryId = UUID.randomUUID(),
@@ -79,7 +91,7 @@ class LedgerService(
         )
         ledgerEntryRepository.save(entry)
 
-        if (entryType == EntryType.DEBIT && entryAssetType == AssetType.CASH) {
+        if (mutatesCashBalance) {
             val newBalance = account.balance.subtract(amount)
             if (newBalance < BigDecimal.ZERO) {
                 throw IllegalStateException(
@@ -90,6 +102,63 @@ class LedgerService(
             account.balance = newBalance
             accountRepository.save(account)
         }
+    }
+
+    @Transactional
+    override fun recordStockBuy(
+        accountId: UUID,
+        userId: UUID,
+        ticker: String,
+        quantity: BigDecimal,
+        executionPrice: BigDecimal,
+        currency: String
+    ): StockBuyResult {
+        // Take the pessimistic write lock as we begin updating the ledger. The lock is held
+        // until this transaction commits, serializing concurrent buys/top-ups on the account.
+        val account = accountRepository.findByIdForUpdate(accountId)
+            .orElseThrow { AccountNotFoundException(accountId) }
+
+        val requiredCash = quantity.multiply(executionPrice)
+
+        // Fund check under the lock, against committed state. Write nothing if short.
+        if (account.balance < requiredCash) {
+            return StockBuyResult.INSUFFICIENT_FUNDS
+        }
+
+        val description = "Buy $ticker x$quantity at $executionPrice"
+
+        // DEBIT / CASH — cash leaves the account.
+        ledgerEntryRepository.save(
+            LedgerEntry(
+                entryId = UUID.randomUUID(),
+                accountId = accountId,
+                type = EntryType.DEBIT,
+                assetType = AssetType.CASH,
+                amount = requiredCash,
+                currency = currency,
+                ticker = null,
+                description = description
+            )
+        )
+
+        // CREDIT / STOCK_BUY — shares enter the position.
+        ledgerEntryRepository.save(
+            LedgerEntry(
+                entryId = UUID.randomUUID(),
+                accountId = accountId,
+                type = EntryType.CREDIT,
+                assetType = AssetType.STOCK_BUY,
+                amount = quantity,
+                currency = currency,
+                ticker = ticker,
+                description = description
+            )
+        )
+
+        account.balance = account.balance.subtract(requiredCash)
+        accountRepository.save(account)
+
+        return StockBuyResult.COMPLETED
     }
 
     @Transactional(readOnly = true)

@@ -48,7 +48,7 @@ class LedgerServiceRecordTransactionTest : FunSpec({
 
     test("recordTransaction_debitCash_happyPath_savesEntryAndDeductsBalance") {
         val account = buildAccount(BigDecimal("1000.0000"))
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
         whenever(accountRepository.save(any())).thenReturn(account)
         whenever(ledgerEntryRepository.save(any())).thenAnswer { it.arguments[0] }
 
@@ -67,6 +67,27 @@ class LedgerServiceRecordTransactionTest : FunSpec({
         val accountCaptor = argumentCaptor<Account>()
         verify(accountRepository).save(accountCaptor.capture())
         accountCaptor.firstValue.balance shouldBe BigDecimal("800.0000")
+    }
+
+    test("recordTransaction_debitCash_loadsAccountUnderPessimisticLock") {
+        val account = buildAccount(BigDecimal("1000.0000"))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.save(any())).thenReturn(account)
+        whenever(ledgerEntryRepository.save(any())).thenAnswer { it.arguments[0] }
+
+        ledgerService.recordTransaction(
+            accountId = accountId,
+            userId = userId,
+            type = TransactionType.DEBIT,
+            assetType = TransactionAssetType.CASH,
+            amount = BigDecimal("200.0000"),
+            currency = "USD",
+            ticker = null,
+            description = "Buy AAPL x2"
+        )
+
+        verify(accountRepository).findByIdForUpdate(accountId)
+        verify(accountRepository, never()).findById(any())
     }
 
     test("recordTransaction_creditStockBuy_happyPath_savesEntryDoesNotChangeBalance") {
@@ -90,7 +111,7 @@ class LedgerServiceRecordTransactionTest : FunSpec({
     }
 
     test("recordTransaction_accountNotFound_throwsAccountNotFoundException") {
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.empty())
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.empty())
 
         shouldThrow<AccountNotFoundException> {
             ledgerService.recordTransaction(
@@ -108,7 +129,7 @@ class LedgerServiceRecordTransactionTest : FunSpec({
 
     test("recordTransaction_debitCashWouldGoNegative_throwsIllegalStateException") {
         val account = buildAccount(BigDecimal("50.0000"))
-        whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
+        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
 
         shouldThrow<IllegalStateException> {
             ledgerService.recordTransaction(
