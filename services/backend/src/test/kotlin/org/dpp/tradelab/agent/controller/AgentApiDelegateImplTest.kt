@@ -5,6 +5,7 @@ import io.kotest.extensions.spring.SpringExtension
 import io.reactivex.rxjava3.core.Flowable
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.agent.service.ConversationSummaryService
+import org.dpp.tradelab.agent.service.AgentStreamEvent
 import org.dpp.tradelab.agent.service.AgentService
 import org.dpp.tradelab.agent.service.AgentUserProfileService
 import org.dpp.tradelab.ledger.api.AccountSummary
@@ -122,10 +123,12 @@ class AgentApiDelegateImplTest(
             )
         }
 
+        fun textEvent(text: String) = AgentStreamEvent.TextChunk(text)
+
         test("queryAgent_streamedSuccess_returnsEventStream") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("Hello", " world"))
+                .thenReturn(Flowable.just(textEvent("Hello"), textEvent(" world")))
 
             mockMvc.perform(
                 authenticatedRequest()
@@ -139,7 +142,7 @@ class AgentApiDelegateImplTest(
         test("queryAgent_wildcardAccept_returnsEventStream") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("Hello", " world"))
+                .thenReturn(Flowable.just(textEvent("Hello"), textEvent(" world")))
 
             mockMvc.perform(
                 authenticatedRequest()
@@ -150,10 +153,30 @@ class AgentApiDelegateImplTest(
                 .andExpect(content().string("data: Hello\n\ndata:  world\n\n"))
         }
 
+        test("queryAgent_tradeExecutedSignal_returnsNamedSseEvent") {
+            stubOwnedAccount()
+            whenever(agentService.query(any(), any(), any(), any()))
+                .thenReturn(
+                    Flowable.just(
+                        textEvent("Trade complete."),
+                        AgentStreamEvent.TradeExecuted(accountId)
+                    )
+                )
+
+            mockMvc.perform(authenticatedRequest().accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(status().isOk)
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(
+                    content().string(
+                        "data: Trade complete.\n\nevent: trade-executed\ndata: {\"accountId\":\"$accountId\"}\n\n"
+                    )
+                )
+        }
+
         test("queryAgent_jsonPreferredAccept_returnsBufferedReply") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("Buffered", " reply"))
+                .thenReturn(Flowable.just(textEvent("Buffered"), textEvent(" reply")))
 
             mockMvc.perform(
                 authenticatedRequest()
@@ -168,7 +191,13 @@ class AgentApiDelegateImplTest(
         test("queryAgent_bufferedFallback_returnsJsonReply") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("Buffered", " reply"))
+                .thenReturn(
+                    Flowable.just(
+                        textEvent("Buffered"),
+                        textEvent(" reply"),
+                        AgentStreamEvent.TradeExecuted(accountId)
+                    )
+                )
 
             mockMvc.perform(
                 authenticatedRequest()
@@ -185,7 +214,7 @@ class AgentApiDelegateImplTest(
             whenever(agentService.query(any(), any(), any(), any()))
                 .thenReturn(
                     Flowable.concat(
-                        Flowable.just("Partial"),
+                        Flowable.just(textEvent("Partial")),
                         Flowable.error(IllegalStateException("boom"))
                     )
                 )
@@ -203,7 +232,7 @@ class AgentApiDelegateImplTest(
         test("queryAgent_streamedSuccess_normalizesCarriageReturns") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("Hello\r\nworld\ragain"))
+                .thenReturn(Flowable.just(textEvent("Hello\r\nworld\ragain")))
 
             mockMvc.perform(
                 authenticatedRequest()
@@ -231,7 +260,7 @@ class AgentApiDelegateImplTest(
         test("queryAgent_oversizedBufferedReply_returns503") {
             stubOwnedAccount()
             whenever(agentService.query(any(), any(), any(), any()))
-                .thenReturn(Flowable.just("a".repeat(16_385)))
+                .thenReturn(Flowable.just(textEvent("a".repeat(16_385))))
 
             mockMvc.perform(
                 authenticatedRequest()

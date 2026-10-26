@@ -2,6 +2,7 @@ package org.dpp.tradelab.agent.service
 
 import com.google.adk.agents.RunConfig
 import com.google.adk.events.Event
+import com.google.adk.sessions.State
 import com.google.adk.runner.Runner
 import com.google.adk.sessions.BaseSessionService
 import com.google.adk.sessions.Session
@@ -18,6 +19,7 @@ import io.reactivex.rxjava3.core.Single
 import org.dpp.tradelab.agent.exception.AgentUnavailableException
 import org.dpp.tradelab.config.AGENT_APP_NAME
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
@@ -49,6 +51,7 @@ class AgentServiceTest : FunSpec({
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
     val conversationId = UUID.randomUUID()
+    val refreshStateKey = TradeProposalService.PENDING_TRADE_REFRESH_ACCOUNT_ID
 
     fun eventWithText(text: String): Event =
         Event.builder()
@@ -82,17 +85,21 @@ class AgentServiceTest : FunSpec({
             )
             .build()
 
-    fun session(sessionId: String = conversationId.toString()): Session =
+    fun session(
+        sessionId: String = conversationId.toString(),
+        state: Map<String, Any> = emptyMap()
+    ): Session =
         mock<Session>().also {
             whenever(it.sessionKey()).thenReturn(SessionKey(AGENT_APP_NAME, userId.toString(), sessionId))
+            whenever(it.state()).thenReturn(State(state))
         }
 
     // NOTE: build the session mock into a local val BEFORE the outer whenever(...).
     // session() itself calls whenever(...) to stub sessionKey(); inlining it inside
     // thenReturn(...) starts a nested stubbing and trips Mockito's
     // UnfinishedStubbingException.
-    fun stubExistingSession() {
-        val existingSession = session()
+    fun stubExistingSession(state: Map<String, Any> = emptyMap()): Session {
+        val existingSession = session(state = state)
         whenever(
             agentSessionService.getSession(
                 eq(AGENT_APP_NAME),
@@ -101,6 +108,7 @@ class AgentServiceTest : FunSpec({
                 any()
             )
         ).thenReturn(Maybe.just(existingSession))
+        return existingSession
     }
 
     beforeEach {
@@ -130,7 +138,7 @@ class AgentServiceTest : FunSpec({
 
         val result = agentService.query(userId, accountId, conversationId, "Hi").toList().blockingGet()
 
-        result shouldContainExactly listOf("Hello", " world")
+        result shouldContainExactly listOf(AgentStreamEvent.TextChunk("Hello"), AgentStreamEvent.TextChunk(" world"))
         verify(agentSessionService).createSession(any(), any(), any(), any())
         verify(agentUserProfileService).resolveName(userId)
     }
@@ -143,7 +151,8 @@ class AgentServiceTest : FunSpec({
         whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
             .thenReturn(Flowable.just(eventWithText("Reply")))
 
-        agentService.query(userId, accountId, conversationId, "Hi").toList().blockingGet() shouldContainExactly listOf("Reply")
+        agentService.query(userId, accountId, conversationId, "Hi").toList().blockingGet() shouldContainExactly
+            listOf(AgentStreamEvent.TextChunk("Reply"))
     }
 
     test("query_existingSession_reusesSession") {
@@ -161,7 +170,7 @@ class AgentServiceTest : FunSpec({
 
         val result = agentService.query(userId, accountId, conversationId, "Hi again").toList().blockingGet()
 
-        result shouldContainExactly listOf("Reused")
+        result shouldContainExactly listOf(AgentStreamEvent.TextChunk("Reused"))
         verify(agentSessionService, never()).createSession(any(), any(), any(), any())
     }
 
@@ -172,7 +181,7 @@ class AgentServiceTest : FunSpec({
 
         val result = agentService.query(userId, accountId, conversationId, "Hi").toList().blockingGet()
 
-        result shouldContainExactly listOf("Answer")
+        result shouldContainExactly listOf(AgentStreamEvent.TextChunk("Answer"))
     }
 
     test("query_functionCallAndResponseEvents_areNotSurfacedToClient") {
@@ -191,7 +200,7 @@ class AgentServiceTest : FunSpec({
 
         val result = agentService.query(userId, accountId, conversationId, "How am I doing?").toList().blockingGet()
 
-        result shouldContainExactly listOf("Your portfolio is 85% cash.")
+        result shouldContainExactly listOf(AgentStreamEvent.TextChunk("Your portfolio is 85% cash."))
     }
 
     test("query_partialDeltasThenFinalAggregate_emitsDeltasOnceWithoutDuplication") {
@@ -209,7 +218,10 @@ class AgentServiceTest : FunSpec({
 
         val result = agentService.query(userId, accountId, conversationId, "How am I doing?").toList().blockingGet()
 
-        result shouldContainExactly listOf("Your portfolio ", "is 85% cash.")
+        result shouldContainExactly listOf(
+            AgentStreamEvent.TextChunk("Your portfolio "),
+            AgentStreamEvent.TextChunk("is 85% cash.")
+        )
     }
 
     test("query_runnerFailure_surfacesAgentUnavailableException") {
@@ -249,8 +261,45 @@ class AgentServiceTest : FunSpec({
             .whenever(conversationSummaryService)
             .regenerate(userId, conversationId)
 
-        agentService.query(userId, accountId, conversationId, "Question").toList().blockingGet() shouldContainExactly listOf("Reply")
+        agentService.query(userId, accountId, conversationId, "Question").toList().blockingGet() shouldContainExactly
+            listOf(AgentStreamEvent.TextChunk("Reply"))
 
         verify(conversationSummaryService, timeout(1_000)).regenerate(userId, conversationId)
+    }
+
+    test("query_tradeFillMarker_emitsOneTradeExecutedEventAndClearsMarker") {
+        val existingSession = stubExistingSession(mapOf(refreshStateKey to accountId.toString()))
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.just(eventWithText("Order filled.")))
+        whenever(agentSessionService.appendEvent(any(), any())).thenAnswer { invocation ->
+            val event = invocation.getArgument<Event>(1)
+            existingSession.state().remove(refreshStateKey)
+            Single.just(event)
+        }
+
+        val result = agentService.query(userId, accountId, conversationId, "Buy AAPL").toList().blockingGet()
+
+        result shouldContainExactly listOf(
+            AgentStreamEvent.TextChunk("Order filled."),
+            AgentStreamEvent.TradeExecuted(accountId)
+        )
+        val clearEvent = argumentCaptor<Event>()
+        verify(agentSessionService).appendEvent(any(), clearEvent.capture())
+        clearEvent.firstValue.actions().stateDelta()[refreshStateKey] shouldBe State.REMOVED
+
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.just(eventWithText("Anything else?")))
+        val nextTurn = agentService.query(userId, accountId, conversationId, "Thanks").toList().blockingGet()
+        nextTurn shouldContainExactly listOf(AgentStreamEvent.TextChunk("Anything else?"))
+    }
+
+    test("query_plainTurn_doesNotEmitTradeExecutedEvent") {
+        stubExistingSession()
+        whenever(agentRunner.runAsync(any<SessionKey>(), any(), any<RunConfig>()))
+            .thenReturn(Flowable.just(eventWithText("Just chatting.")))
+
+        agentService.query(userId, accountId, conversationId, "Hello").toList().blockingGet() shouldContainExactly
+            listOf(AgentStreamEvent.TextChunk("Just chatting."))
+        verify(agentSessionService, never()).appendEvent(any(), any())
     }
 })

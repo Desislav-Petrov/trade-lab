@@ -2,9 +2,11 @@ package org.dpp.tradelab.agent.service
 
 import com.google.adk.agents.RunConfig
 import com.google.adk.events.Event
+import com.google.adk.events.EventActions
 import com.google.adk.runner.Runner
 import com.google.adk.sessions.BaseSessionService
 import com.google.adk.sessions.Session
+import com.google.adk.sessions.State
 import com.google.genai.types.Content
 import com.google.genai.types.Part
 import io.reactivex.rxjava3.core.Flowable
@@ -47,7 +49,7 @@ class AgentService(
         accountId: UUID,
         conversationId: UUID,
         message: String
-    ): Flowable<String> =
+    ): Flowable<AgentStreamEvent> =
         try {
             try {
                 agentUserProfileService.resolveName(userId)
@@ -61,14 +63,15 @@ class AgentService(
             // aggregated event, which repeats the whole turn's text verbatim.
             val streamedPartial = AtomicBoolean(false)
 
-            agentRunner.runAsync(
-                session.sessionKey(),
-                Content.fromParts(Part.fromText(message)),
-                agentRunConfig
-            )
+            val textStream: Flowable<AgentStreamEvent> = agentRunner.runAsync(
+                    session.sessionKey(),
+                    Content.fromParts(Part.fromText(message)),
+                    agentRunConfig
+                )
                 // concatMap (not flatMap) keeps token order and makes the dedup
                 // state above deterministic by processing events sequentially.
                 .concatMap { event -> eventToChunk(event, streamedPartial) }
+                .map { AgentStreamEvent.TextChunk(it) as AgentStreamEvent }
                 // Fail fast if the model produces no chunk within the window (initial
                 // hang or a stall mid-stream) instead of leaving the SSE connection —
                 // and the frontend — blocked forever.
@@ -81,6 +84,12 @@ class AgentService(
                         Flowable.error(AgentUnavailableException(AGENT_UNAVAILABLE_MESSAGE, error))
                     }
                 }
+            val refreshSignalStream: Flowable<AgentStreamEvent> = Flowable.defer<AgentStreamEvent> {
+                val signal = consumeTradeRefreshMarker(userId, conversationId)
+                if (signal == null) Flowable.empty() else Flowable.just(signal)
+            }
+            textStream
+                .concatWith(refreshSignalStream)
                 .doOnComplete { regenerateSummaryAfterCompletion(userId, conversationId) }
         } catch (ex: AgentUnavailableException) {
             logAgentFailure(userId, conversationId, ex)
@@ -107,6 +116,33 @@ class AgentService(
                 error.message,
                 error
             )
+        }
+    }
+
+    private fun consumeTradeRefreshMarker(userId: UUID, conversationId: UUID): AgentStreamEvent.TradeExecuted? {
+        val lock = acquireSessionLock("$userId:$conversationId")
+        try {
+            val session = agentSessionService.getSession(
+                AGENT_APP_NAME,
+                userId.toString(),
+                conversationId.toString(),
+                Optional.empty()
+            ).blockingGet() ?: return null
+            val accountId = session.state()[TradeProposalService.PENDING_TRADE_REFRESH_ACCOUNT_ID]
+                ?.toString()
+                ?.let(UUID::fromString)
+                ?: return null
+
+            val stateDelta = ConcurrentHashMap<String, Any>().apply {
+                put(TradeProposalService.PENDING_TRADE_REFRESH_ACCOUNT_ID, State.REMOVED)
+            }
+            val clearMarkerEvent = Event.builder()
+                .actions(EventActions.builder().stateDelta(stateDelta).build())
+                .build()
+            agentSessionService.appendEvent(session, clearMarkerEvent).blockingGet()
+            return AgentStreamEvent.TradeExecuted(accountId)
+        } finally {
+            releaseSessionLock(lock)
         }
     }
 
