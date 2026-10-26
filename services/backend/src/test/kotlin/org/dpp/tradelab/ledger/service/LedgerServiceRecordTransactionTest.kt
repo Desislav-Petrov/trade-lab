@@ -184,25 +184,4 @@ class LedgerServiceRecordTransactionTest : FunSpec({
         result.status shouldBe "suspended"
         result.currency shouldBe "GBP"
     }
-
-    // ── getBalanceForUpdate tests ────────────────────────────────────────────
-
-    test("getBalanceForUpdate_existingAccount_returnsLockedBalance") {
-        val account = buildAccount(BigDecimal("750.0000"))
-        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.of(account))
-
-        val result = ledgerService.getBalanceForUpdate(accountId)
-
-        result.balance shouldBe BigDecimal("750.0000")
-        result.currency shouldBe "USD"
-        verify(accountRepository).findByIdForUpdate(accountId)
-    }
-
-    test("getBalanceForUpdate_accountNotFound_throwsAccountNotFoundException") {
-        whenever(accountRepository.findByIdForUpdate(accountId)).thenReturn(Optional.empty())
-
-        shouldThrow<AccountNotFoundException> {
-            ledgerService.getBalanceForUpdate(accountId)
-        }
-    }
 })

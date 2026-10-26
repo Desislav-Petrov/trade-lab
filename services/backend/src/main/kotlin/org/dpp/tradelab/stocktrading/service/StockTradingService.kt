@@ -2,6 +2,7 @@ package org.dpp.tradelab.stocktrading.service
 
 import org.dpp.tradelab.ledger.api.LedgerAccountApi
 import org.dpp.tradelab.ledger.api.LedgerApi
+import org.dpp.tradelab.ledger.api.StockBuyResult
 import org.dpp.tradelab.ledger.api.TransactionAssetType
 import org.dpp.tradelab.ledger.api.TransactionType
 import org.dpp.tradelab.marketdata.api.MarketDataApi
@@ -101,43 +102,25 @@ class StockTradingService(
         )
 
         val executionPrice = marketDataApi.getCurrentPrice(ticker)
-        val requiredCash = quantity.multiply(executionPrice)
 
-        // Fund check — read the committed balance under a pessimistic write lock so that
-        // concurrent buys on the same account are serialized and cannot overspend. The lock
-        // participates in this transaction and is held until it commits; a losing concurrent
-        // buy blocks here, then reads the committed (already-debited) balance and is cleanly
-        // rejected. See decision 2026-10-26-account-balance-pessimistic-locking.
-        val availableBalance = ledgerApi.getBalanceForUpdate(accountId).balance
-        if (availableBalance < requiredCash) {
-            return reject(order, "Insufficient funds")
-        }
-
-        // Record DEBIT/CASH ledger entry (deduct cash)
-        ledgerApi.recordTransaction(
+        // Delegate the whole cash-debit + stock-credit settlement to the Ledger. The Ledger
+        // takes a pessimistic write lock as it starts writing, performs the fund check under
+        // that lock against committed state, and returns the outcome — writing nothing when
+        // funds are insufficient. No locking or balance concern leaks onto the ledger api.
+        // See decision 2026-10-26-account-balance-pessimistic-locking.
+        val result = ledgerApi.recordStockBuy(
             accountId = accountId,
             userId = userId,
-            type = TransactionType.DEBIT,
-            assetType = TransactionAssetType.CASH,
-            amount = requiredCash,
-            currency = accountSummary.currency,
-            ticker = null,
-            description = "Buy $ticker x$quantity at $executionPrice"
-        )
-
-        // Record CREDIT/STOCK_BUY ledger entry (add shares)
-        ledgerApi.recordTransaction(
-            accountId = accountId,
-            userId = userId,
-            type = TransactionType.CREDIT,
-            assetType = TransactionAssetType.STOCK_BUY,
-            amount = quantity,
-            currency = accountSummary.currency,
             ticker = ticker,
-            description = "Buy $ticker x$quantity at $executionPrice"
+            quantity = quantity,
+            executionPrice = executionPrice,
+            currency = accountSummary.currency
         )
 
-        return fill(order, executionPrice)
+        return when (result) {
+            StockBuyResult.INSUFFICIENT_FUNDS -> reject(order, "Insufficient funds")
+            StockBuyResult.COMPLETED -> fill(order, executionPrice)
+        }
     }
 
     private fun placeSellOrder(

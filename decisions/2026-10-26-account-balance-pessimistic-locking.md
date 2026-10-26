@@ -30,37 +30,47 @@ retry logic. No `@Version` column is added.
    `DEBIT / CASH` balance-mutating branch, re-reading and re-checking the balance under
    the lock before debiting. Non-mutating entry types keep the plain existence check.
 3. `AccountService.topUpAccount` loads the account via `findByIdForUpdate` before adding.
-4. The Ledger `api/` contract gains `LedgerApi.getBalanceForUpdate(accountId):
-   AccountBalanceResult`, a pessimistic-locked balance read that participates in the
-   caller's transaction (propagation REQUIRED, not read-only). `StockTradingService`'s
-   buy-flow fund check calls it instead of using the request-start snapshot. Because the
-   lock is held until the surrounding `placeOrder` transaction commits, a losing
-   concurrent buy blocks, then reads the committed (already-debited) balance and is
-   cleanly transitioned to `REJECTED` (HTTP 200) per the buy-stock flow.
+4. Stock buys are settled by a single cohesive Ledger operation,
+   `LedgerApi.recordStockBuy(accountId, userId, ticker, quantity, executionPrice,
+   currency): StockBuyResult`. The Ledger takes the pessimistic lock as it begins writing,
+   performs the fund check under that lock against committed state, and either writes the
+   `DEBIT / CASH` + `CREDIT / STOCK_BUY` entries and debits the balance
+   (`StockBuyResult.COMPLETED`) or writes nothing (`StockBuyResult.INSUFFICIENT_FUNDS`).
+   `StockTradingService.placeBuyOrder` maps the result to `FILLED` / `REJECTED`. No
+   balance read or locking primitive is exposed on the cross-domain api, and a losing
+   concurrent buy is cleanly `REJECTED` (HTTP 200) with no ledger entries — not a rollback.
+   This realigns the code with decision `2026-07-08-stock-trading-ledger-sync-api`, which
+   already specified a single `recordStockBuy` operation.
 
 ## Consequences
 
 - Concurrent balance mutations on the same account are serialized; no update is lost and
   the fund check reflects committed state (issue #232 "Expected").
 - The pessimistic lock works on both H2 (dev/test) and PostgreSQL (prod).
-- `getBalanceForUpdate` must run in a writable transaction; it is `@Transactional` (not
-  read-only) and relies on default `REQUIRED` propagation so the lock is held for the
-  duration of the stock-trading transaction.
+- The Ledger's cross-domain `api/` contract exposes only domain-meaningful operations
+  (`recordTransaction`, `getBalance`, `recordStockBuy`) — no locking or balance-for-update
+  primitive leaks to consumers.
+- `recordStockBuy` runs `@Transactional` (not read-only) and participates in the caller's
+  transaction via default `REQUIRED` propagation, so the lock is held for the duration of
+  the stock-trading transaction.
+- Stock Trading no longer orchestrates cash debits / stock credits or performs a balance
+  fund check; it places the order and reacts to the Ledger's result.
 - The existing negative-balance `IllegalStateException` guard in `recordTransaction`
-  remains as a defence-in-depth backstop.
+  remains as a defence-in-depth backstop for the generic path (now used by the sell flow).
 - No `@Version` field and no schema change to `Account`.
-- When Ledger is extracted into a standalone service, the in-process lock becomes a lock
-  held by the Ledger service's own transaction; the `LedgerApi` contract is unchanged.
 
 ## Alternatives considered
 
 - **Optimistic locking (`@Version`):** rejected. Concurrent writers would receive
   `ObjectOptimisticLockingFailureException` and require retry/backoff logic; it aborts
   rather than serializes, giving a worse fit for "serialized so no update is lost."
+- **Locked balance read on the api (`getBalanceForUpdate`) used by a fund check in Stock
+  Trading:** rejected. It leaked a locking/concurrency primitive onto the cross-domain
+  contract and placed the fund rule outside the domain that owns the money.
 
 ## Known pre-existing issue (not addressed here)
 
 `LedgerService.recordTransaction` updates `Account.balance` only on `DEBIT / CASH`; it
 does not increment the stored balance on `CREDIT / CASH` (sell proceeds). That is a
-separate, pre-existing correctness gap unrelated to concurrency and is intentionally out
-of scope for issue #232.
+separate, pre-existing correctness gap unrelated to concurrency and is out of scope for
+issue #232.
