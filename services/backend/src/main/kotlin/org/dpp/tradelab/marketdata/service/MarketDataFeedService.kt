@@ -254,11 +254,6 @@ class MarketDataFeedService(
     }
 
     // ── JSON building helpers ──────────────────────────────────────────────
-    //
-    // Outbound messages are serialised with Jackson rather than built by hand so that
-    // every message is valid JSON regardless of field contents. Jackson correctly escapes
-    // control characters (newline, tab, etc.) and quotes/backslashes in string fields such
-    // as [MarketDataSnapshot.companyName], which naive string concatenation did not.
 
     private fun buildTickJson(snapshot: MarketDataSnapshot): String =
         objectMapper.writeValueAsString(
