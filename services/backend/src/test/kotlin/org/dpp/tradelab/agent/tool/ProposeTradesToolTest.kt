@@ -6,6 +6,7 @@ import com.google.adk.events.EventActions
 import com.google.adk.sessions.InMemorySessionService
 import com.google.adk.sessions.Session
 import com.google.adk.tools.ToolContext
+import com.google.genai.types.Type
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -14,7 +15,6 @@ import io.kotest.matchers.shouldBe
 import org.dpp.tradelab.agent.service.TradeOrderInput
 import org.dpp.tradelab.agent.service.TradeProposalService
 import org.mockito.kotlin.mock
-import java.math.BigDecimal
 import java.util.UUID
 
 class ProposeTradesToolTest : FunSpec({
@@ -64,8 +64,8 @@ class ProposeTradesToolTest : FunSpec({
         val result = tool.proposeTrades(
             context,
             listOf(
-                TradeOrderInput("AAPL", "BUY", BigDecimal("2")),
-                TradeOrderInput("TSLA", "SELL", BigDecimal("1"))
+                TradeOrderInput("AAPL", "BUY", "2"),
+                TradeOrderInput("TSLA", "SELL", "1")
             )
         )
 
@@ -80,8 +80,8 @@ class ProposeTradesToolTest : FunSpec({
         val result = tool.proposeTrades(
             toolContext(),
             listOf(
-                TradeOrderInput("AAPL", "BUY", BigDecimal("2")),
-                TradeOrderInput("TSLA", "SELL", BigDecimal.ZERO)
+                TradeOrderInput("AAPL", "BUY", "2"),
+                TradeOrderInput("TSLA", "SELL", "0")
             )
         )
 
@@ -91,11 +91,26 @@ class ProposeTradesToolTest : FunSpec({
         result.invalidOrders.single().reason shouldBe "Quantity must be greater than zero."
     }
 
+    test("proposeTrades_nonNumericQuantity_omitsOnlyInvalidLine") {
+        val result = tool.proposeTrades(
+            toolContext(),
+            listOf(
+                TradeOrderInput("AAPL", "BUY", "2"),
+                TradeOrderInput("TSLA", "SELL", "a lot")
+            )
+        )
+
+        result.status shouldBe "proposed"
+        result.orders.map { it.ticker } shouldBe listOf("AAPL")
+        result.invalidOrders shouldHaveSize 1
+        result.invalidOrders.single().reason shouldBe "Quantity must be a number."
+    }
+
     test("proposeTrades_scopeMismatch_failsClosed") {
         shouldThrow<IllegalStateException> {
             tool.proposeTrades(
                 toolContext(sessionUserId = UUID.randomUUID()),
-                listOf(TradeOrderInput("AAPL", "BUY", BigDecimal.ONE))
+                listOf(TradeOrderInput("AAPL", "BUY", "1"))
             )
         }
     }
@@ -105,8 +120,9 @@ class ProposeTradesToolTest : FunSpec({
         declaration.name().orElseThrow() shouldBe "proposeTrades"
         val orderSchema = declaration.parameters().orElseThrow()
             .properties().orElseThrow()["orders"]!!
-        orderSchema.items().orElseThrow()
-            .properties().orElseThrow().keys shouldContainAll setOf("ticker", "side", "quantity")
+        val orderProperties = orderSchema.items().orElseThrow().properties().orElseThrow()
+        orderProperties.keys shouldContainAll setOf("ticker", "side", "quantity")
+        orderProperties["quantity"]!!.type().orElseThrow().knownEnum() shouldBe Type.Known.STRING
     }
 
     test("asFunctionTool_convertsStructuredOrderLines") {

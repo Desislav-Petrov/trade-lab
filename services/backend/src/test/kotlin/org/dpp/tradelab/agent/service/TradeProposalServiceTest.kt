@@ -18,8 +18,8 @@ class TradeProposalServiceTest : FunSpec({
     val userId = UUID.randomUUID()
     val accountId = UUID.randomUUID()
     val orders = listOf(
-        TradeOrderInput("AAPL", "BUY", BigDecimal("2")),
-        TradeOrderInput("TSLA", "SELL", BigDecimal("1.5"))
+        TradeOrderInput("AAPL", "BUY", "2"),
+        TradeOrderInput("TSLA", "SELL", "1.5")
     )
 
     beforeEach { state.clear() }

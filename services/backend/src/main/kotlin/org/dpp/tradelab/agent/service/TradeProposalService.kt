@@ -63,6 +63,10 @@ class TradeProposalService {
         orders: List<TradeOrderInput>
     ): TradeProposal {
         require(orders.isNotEmpty()) { "A trade proposal must contain at least one order." }
+        val parsedQuantities = orders.map { order ->
+            order.quantity.trim().toBigDecimalOrNull()
+                ?: throw IllegalArgumentException("Order quantity must be a number: ${order.quantity}")
+        }
 
         val existing = getProposal(state)
         if (existing?.status == ProposalStatus.AWAITING_CONFIRMATION) {
@@ -78,11 +82,11 @@ class TradeProposalService {
             conversationId = conversationId,
             userId = userId,
             accountId = accountId,
-            orders = orders.map { order ->
+            orders = orders.mapIndexed { index, order ->
                 ProposedOrder(
                     ticker = order.ticker,
                     side = order.side,
-                    quantity = order.quantity,
+                    quantity = parsedQuantities[index],
                     idempotencyKey = UUID.randomUUID()
                 )
             },
