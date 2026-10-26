@@ -1,5 +1,8 @@
 package org.dpp.tradelab.marketdata.service
 
+import com.fasterxml.jackson.core.StreamWriteFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.json.JsonMapper
 import jakarta.annotation.PostConstruct
 import org.dpp.tradelab.marketdata.api.MarketDataApi
 import org.dpp.tradelab.marketdata.config.SupportedTickerConfig
@@ -63,6 +66,16 @@ class MarketDataFeedService(
     internal val feedTypeCache: ConcurrentHashMap<UUID, FeedType> = ConcurrentHashMap()
 
     private val logger = LoggerFactory.getLogger(MarketDataFeedService::class.java)
+
+    /**
+     * Dedicated mapper owning the WebSocket wire format. Configured locally — rather than
+     * injecting the shared Spring bean — so the outbound message format stays deterministic
+     * and immune to global Jackson configuration changes. [StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN]
+     * keeps prices as plain JSON numbers (e.g. `150.000`) with no exponent notation.
+     */
+    private val objectMapper: ObjectMapper = JsonMapper.builder()
+        .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+        .build()
 
     // ── Startup initialisation ───────────────────────────────────────────────
 
@@ -242,26 +255,33 @@ class MarketDataFeedService(
 
     // ── JSON building helpers ──────────────────────────────────────────────
 
-    private fun buildTickJson(snapshot: MarketDataSnapshot): String {
-        return """{"type":"TICK","data":${snapshotToJson(snapshot)}}"""
-    }
+    private fun buildTickJson(snapshot: MarketDataSnapshot): String =
+        objectMapper.writeValueAsString(
+            linkedMapOf("type" to "TICK", "data" to snapshotToMap(snapshot))
+        )
 
-    private fun buildSnapshotJson(snapshots: List<MarketDataSnapshot>): String {
-        val dataJson = snapshots.joinToString(",") { snapshotToJson(it) }
-        return """{"type":"SNAPSHOT","data":[$dataJson]}"""
-    }
+    private fun buildSnapshotJson(snapshots: List<MarketDataSnapshot>): String =
+        objectMapper.writeValueAsString(
+            linkedMapOf("type" to "SNAPSHOT", "data" to snapshots.map { snapshotToMap(it) })
+        )
 
-    internal fun snapshotToJson(snapshot: MarketDataSnapshot): String {
-        val currentPrice = snapshot.currentPrice.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val open = snapshot.open.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val dayLow = snapshot.dayLow.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val dayHigh = snapshot.dayHigh.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val fiftyTwoWeekHigh = snapshot.fiftyTwoWeekHigh.setScale(3, RoundingMode.HALF_UP).toPlainString()
-        val ticker = escapeJson(snapshot.ticker)
-        val companyName = escapeJson(snapshot.companyName)
-        return """{"ticker":"$ticker","companyName":"$companyName","currentPrice":$currentPrice,"open":$open,"dayLow":$dayLow,"dayHigh":$dayHigh,"fiftyTwoWeekHigh":$fiftyTwoWeekHigh}"""
-    }
+    internal fun snapshotToJson(snapshot: MarketDataSnapshot): String =
+        objectMapper.writeValueAsString(snapshotToMap(snapshot))
 
-    private fun escapeJson(value: String): String =
-        value.replace("\\", "\\\\").replace("\"", "\\\"")
+    /**
+     * Builds an ordered map representation of a snapshot for JSON serialisation.
+     * Prices are scaled to exactly 3 decimal places. Field order is preserved via
+     * [LinkedHashMap] so the wire format stays byte-stable, and serialisation is delegated
+     * to Jackson, which guarantees valid JSON (including correct control-character escaping).
+     */
+    private fun snapshotToMap(snapshot: MarketDataSnapshot): Map<String, Any> =
+        linkedMapOf(
+            "ticker" to snapshot.ticker,
+            "companyName" to snapshot.companyName,
+            "currentPrice" to snapshot.currentPrice.setScale(3, RoundingMode.HALF_UP),
+            "open" to snapshot.open.setScale(3, RoundingMode.HALF_UP),
+            "dayLow" to snapshot.dayLow.setScale(3, RoundingMode.HALF_UP),
+            "dayHigh" to snapshot.dayHigh.setScale(3, RoundingMode.HALF_UP),
+            "fiftyTwoWeekHigh" to snapshot.fiftyTwoWeekHigh.setScale(3, RoundingMode.HALF_UP)
+        )
 }
