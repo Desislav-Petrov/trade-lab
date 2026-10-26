@@ -12,7 +12,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
-import java.util.UUID
 
 @Component
 class JwtAuthenticationFilter(
@@ -31,6 +30,10 @@ class JwtAuthenticationFilter(
     ) {
         val authHeader = request.getHeader(HttpHeaders.AUTHORIZATION)
 
+        // Only token validation is guarded. On an invalid token we write a 401 and
+        // return without continuing the chain. Every other path falls through to the
+        // single filterChain.doFilter call below, so the chain is invoked exactly once
+        // per request and never from inside this try/catch.
         try {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 val token = authHeader.substring("Bearer ".length)
@@ -42,7 +45,6 @@ class JwtAuthenticationFilter(
                 val authentication = UsernamePasswordAuthenticationToken(userId, null, emptyList())
                 SecurityContextHolder.getContext().authentication = authentication
             }
-            filterChain.doFilter(request, response)
         } catch (e: InvalidTokenException) {
             log.warn("[JwtFilter] InvalidTokenException: {}", e.message)
             response.status = HttpServletResponse.SC_UNAUTHORIZED
@@ -53,11 +55,9 @@ class JwtAuthenticationFilter(
                 "details" to listOf("Invalid or expired token")
             )
             response.writer.write(objectMapper.writeValueAsString(errorResponse))
-        } catch (e: Exception) {
-            // Catch-all: any unexpected exception during token validation should
-            // not silently swallow — log it so we can see it in the terminal.
-            log.error("[JwtFilter] Unexpected exception during token validation: {}", e.message, e)
-            filterChain.doFilter(request, response)
+            return
         }
+
+        filterChain.doFilter(request, response)
     }
 }
