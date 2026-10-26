@@ -1,6 +1,7 @@
 package org.dpp.tradelab.ledger.service
 
 import org.dpp.tradelab.ledger.exception.AccountNotActiveException
+import org.dpp.tradelab.ledger.exception.AccountOwnershipException
 import org.dpp.tradelab.ledger.model.Account
 import org.dpp.tradelab.ledger.model.AccountStatus
 import org.springframework.stereotype.Component
@@ -21,7 +22,7 @@ class AccountTopUpValidator {
 
     fun validateAccountEligibility(account: Account, requestingUserId: UUID) {
         if (account.userId != requestingUserId)
-            throw AccountNotActiveException(account.accountId)
+            throw AccountOwnershipException(account.accountId)
         if (account.status != AccountStatus.ACTIVE)
             throw AccountNotActiveException(account.accountId)
     }
