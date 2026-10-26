@@ -1,5 +1,6 @@
 package org.dpp.tradelab.marketdata.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -34,6 +35,7 @@ class MarketDataFeedServiceTest : FunSpec({
     val syntheticPriceFeedAdapter = mock<SyntheticPriceFeedAdapter>()
     val supportedTickerConfig = mock<SupportedTickerConfig>()
     val userSettingsApi = mock<UserSettingsApi>()
+    val jsonMapper = ObjectMapper()
 
     fun buildService() = MarketDataFeedService(
         repository, syntheticPriceFeedAdapter, supportedTickerConfig, userSettingsApi,
@@ -401,6 +403,44 @@ class MarketDataFeedServiceTest : FunSpec({
         val fiftyTwoWeekHighIdx = json.indexOf("\"fiftyTwoWeekHigh\"")
         (dayLowIdx < dayHighIdx) shouldBe true
         (dayHighIdx < fiftyTwoWeekHighIdx) shouldBe true
+    }
+
+    test("snapshotToJson_companyNameWithControlCharacters_producesValidParseableJson") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val messyName = "Acme\n\tInc \"Quoted\" \\Slash"
+        val snapshot = aaplSnapshot.copy(companyName = messyName)
+
+        val json = service.snapshotToJson(snapshot)
+
+        // Jackson parses the output without throwing and the field round-trips exactly,
+        // proving control characters were escaped into valid JSON.
+        val parsed = jsonMapper.readTree(json)
+        parsed.get("companyName").asText() shouldBe messyName
+        parsed.get("ticker").asText() shouldBe "AAPL"
+    }
+
+    test("sendTick_companyNameWithControlCharacters_sendsValidJsonEnvelope") {
+        whenever(supportedTickerConfig.getAll()).thenReturn(mapOf("AAPL" to "Apple Inc."))
+        whenever(syntheticPriceFeedAdapter.generateTick()).thenReturn(listOf(aaplSnapshot))
+        whenever(repository.findAll()).thenReturn(emptyList())
+
+        val service = buildService()
+        val session = mockSession(userId)
+        val messyName = "Line1\nLine2\tTabbed \"quoted\" \\slash"
+        val snapshot = aaplSnapshot.copy(companyName = messyName)
+
+        service.sendTick(session, snapshot)
+
+        val captor = argumentCaptor<TextMessage>()
+        verify(session).sendMessage(captor.capture())
+
+        val parsed = jsonMapper.readTree(captor.firstValue.payload)
+        parsed.get("type").asText() shouldBe "TICK"
+        parsed.get("data").get("companyName").asText() shouldBe messyName
     }
 
     // ── handleMarketDataTick feed-type routing ───────────────────────────────
